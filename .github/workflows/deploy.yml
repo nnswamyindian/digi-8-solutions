@@ -1,0 +1,37 @@
+name: Deploy to Ubuntu VPS
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            # Navigate to project directory (update this path to match your VPS setup)
+            cd /var/www/digi8
+            
+            # Pull latest changes
+            git pull origin main
+            
+            # 1. Update Backend
+            cd server
+            npm install
+            npm run build
+            # Restart backend using PM2 (assuming pm2 is running the app as 'digi8-backend')
+            pm2 restart digi8-backend || pm2 start dist/index.js --name digi8-backend
+            
+            # 2. Update Frontend
+            cd ..
+            npm install
+            npm run build
+            
+            # Restart Nginx if necessary, though usually not needed for static file updates
+            # sudo systemctl reload nginx
