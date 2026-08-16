@@ -1,0 +1,55 @@
+{
+    "short_name": "Digi8 App",
+    "name": "Digi-8 Solutions Platform",
+    "description": "Enterprise Digital Transformation, App Development & Technology Services Platform",
+    "icons": [
+        {
+            "src": "/favicon.svg",
+            "type": "image/svg+xml",
+            "sizes": "192x192 512x512"
+        },
+        {
+            "src": "/logo.png",
+            "type": "image/png",
+            "sizes": "192x192 512x512",
+            "purpose": "any maskable"
+        }
+    ],
+    "start_url": "/",
+    "background_color": "#030712",
+    "theme_color": "#00e5ff",
+    "display": "standalone",
+    "orientation": "portrait",
+    "scope": "/",
+    "categories": [
+        "business",
+        "productivity",
+        "utilities"
+    ],
+    "shortcuts": [
+        {
+            "name": "Admin Portal",
+            "short_name": "Admin",
+            "description": "Open Digi8 Admin Management Portal",
+            "url": "/admin",
+            "icons": [
+                {
+                    "src": "/favicon.svg",
+                    "sizes": "192x192"
+                }
+            ]
+        },
+        {
+            "name": "Request Quote",
+            "short_name": "Quote",
+            "description": "Calculate project estimate",
+            "url": "/quote-calculator",
+            "icons": [
+                {
+                    "src": "/favicon.svg",
+                    "sizes": "192x192"
+                }
+            ]
+        }
+    ]
+}

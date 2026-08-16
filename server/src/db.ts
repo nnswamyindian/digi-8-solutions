@@ -101,14 +101,17 @@ export const initDb = async () => {
       );
     `);
 
-      const [adminRows]: any = await connection.query('SELECT * FROM admin_users WHERE email = ?', ['admin@digi8solutions.com']);
+      const adminEmail = process.env.ADMIN_EMAIL || 'admin@digi8solutions.com';
+      const adminPassword = process.env.ADMIN_PASSWORD || 'AdminDigi8Password2026!';
+
+      const [adminRows]: any = await connection.query('SELECT * FROM admin_users WHERE email = ?', [adminEmail]);
       if (adminRows.length === 0) {
-        const defaultHash = await bcrypt.hash('AdminDigi8Password2026!', 10);
+        const defaultHash = await bcrypt.hash(adminPassword, 10);
         await connection.query(
           'INSERT INTO admin_users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
-          ['Digi-8 Super Admin', 'admin@digi8solutions.com', defaultHash, 'Super Admin']
+          ['Digi-8 Super Admin', adminEmail, defaultHash, 'Super Admin']
         );
-        console.log('[DB INFO] Default Super Admin user created: admin@digi8solutions.com');
+        console.log(`[DB INFO] Default Super Admin user created: ${adminEmail}`);
       }
 
       await connection.query(`
@@ -162,6 +165,24 @@ export const initDb = async () => {
         name VARCHAR(255),
         price VARCHAR(100),
         features JSON
+      )
+    `);
+
+      await connection.query(`
+      CREATE TABLE IF NOT EXISTS support_tickets (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        ticket_number VARCHAR(100) UNIQUE NOT NULL,
+        user_name VARCHAR(255),
+        user_email VARCHAR(255),
+        user_phone VARCHAR(50),
+        service_category VARCHAR(100),
+        subject VARCHAR(255),
+        description TEXT,
+        priority VARCHAR(50) DEFAULT 'medium',
+        status VARCHAR(50) DEFAULT 'open',
+        assigned_to VARCHAR(255) DEFAULT 'Support Desk',
+        resolution_notes TEXT
       )
     `);
 

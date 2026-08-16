@@ -35,6 +35,46 @@ const mockLeads: any[] = [];
 const mockContacts: any[] = [];
 const mockQuotes: any[] = [];
 const mockSubscribers: any[] = [];
+const mockTickets: any[] = [];
+
+// --- REALTIME ADMIN SSE NOTIFICATION ENGINE ---
+const adminSseClients = new Set<express.Response>();
+
+export const broadcastAdminNotification = (type: string, title: string, message: string, payload: any = {}) => {
+  const eventPayload = JSON.stringify({
+    type,
+    title,
+    message,
+    payload,
+    timestamp: new Date().toISOString()
+  });
+
+  adminSseClients.forEach((client) => {
+    try {
+      client.write(`data: ${eventPayload}\n\n`);
+    } catch (e) {
+      adminSseClients.delete(client);
+    }
+  });
+};
+
+// SSE Stream Endpoint for Admin Apps & PWA
+app.get('/api/admin/events', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.flushHeaders();
+
+  // Send initial connection packet
+  res.write(`data: ${JSON.stringify({ type: 'CONNECTED', message: 'Admin SSE Stream Connected' })}\n\n`);
+
+  adminSseClients.add(res);
+
+  req.on('close', () => {
+    adminSseClients.delete(res);
+  });
+});
 
 // 1. Leads API
 app.post('/api/leads', async (req, res) => {
@@ -66,6 +106,14 @@ app.post('/api/leads', async (req, res) => {
     // Send Notification Email to Admin (digi8solutions@gmail.com)
     await sendAdminNotification('lead', data);
 
+    // Realtime Broadcast to Connected Admin PWA / Web Apps
+    broadcastAdminNotification(
+      'NEW_LEAD',
+      '🚨 New Lead Captured!',
+      `New lead from ${data.first_name || ''} ${data.last_name || ''} (${data.company || 'Direct Client'})`,
+      { id: insertId, ...data }
+    );
+
     sendSuccess(res, { id: insertId }, 'Lead saved successfully. Please check your email to verify.');
   } catch (err) {
     sendError(res, err);
@@ -95,6 +143,14 @@ app.post('/api/contacts', async (req, res) => {
 
     // Send Notification Email to Admin (digi8solutions@gmail.com)
     await sendAdminNotification('contact', data);
+
+    // Realtime Broadcast to Connected Admin PWA / Web Apps
+    broadcastAdminNotification(
+      'NEW_CONTACT',
+      '📩 New Contact Inquiry!',
+      `Message from ${data.name} — ${data.subject || 'General Inquiry'}`,
+      { id: insertId, ...data }
+    );
 
     sendSuccess(res, { id: insertId }, 'Contact saved successfully. Please check your email to verify.');
   } catch (err) {
@@ -132,6 +188,14 @@ app.post('/api/quotes', async (req, res) => {
     // Send Notification Email to Admin (digi8solutions@gmail.com)
     await sendAdminNotification('quote', { ...data, quote_number: quoteNum });
 
+    // Realtime Broadcast to Connected Admin PWA / Web Apps
+    broadcastAdminNotification(
+      'NEW_QUOTE',
+      '💰 New Project Quote Request!',
+      `Quote #${quoteNum} from ${data.first_name || ''} ${data.last_name || ''} — Estimate: ₹${data.total_estimate || 0}`,
+      { id: insertId, quote_number: quoteNum, ...data }
+    );
+
     sendSuccess(res, { id: insertId, quote_number: quoteNum }, 'Quote saved successfully. Please check your email to verify.');
   } catch (err) {
     sendError(res, err);
@@ -155,6 +219,14 @@ app.post('/api/newsletter', async (req, res) => {
     }
 
     await sendVerificationEmail(email, token, 'newsletter');
+
+    // Realtime Broadcast to Connected Admin PWA / Web Apps
+    broadcastAdminNotification(
+      'NEW_SUBSCRIBER',
+      '📧 New Newsletter Subscriber!',
+      `Subscriber email: ${email}`,
+      { email }
+    );
 
     sendSuccess(res, null, 'Subscribed successfully. Please check your email to verify.');
   } catch (err) {
@@ -340,6 +412,118 @@ const createCrudRoutes = (tableName: string) => {
     }
   });
 };
+
+// --- SUPPORT TICKET SYSTEM API ---
+
+// 1. Create Support Ticket (From Chatbot or Support Desk)
+app.post('/api/tickets', async (req, res) => {
+  try {
+    const data = req.body;
+    const ticketNum = data.ticket_number || `TICK-${Math.floor(100000 + Math.random() * 900000)}`;
+    let insertId = Date.now();
+
+    const ticketObj = {
+      id: insertId,
+      ticket_number: ticketNum,
+      user_name: data.user_name || 'Guest Visitor',
+      user_email: data.user_email || 'visitor@digi8solutions.com',
+      user_phone: data.user_phone || '',
+      service_category: data.service_category || 'General Support',
+      subject: data.subject || 'Support Ticket',
+      description: data.description || '',
+      priority: data.priority || 'medium',
+      status: 'open',
+      assigned_to: 'Support Desk',
+      created_at: new Date()
+    };
+
+    try {
+      const [result] = await pool.query(
+        `INSERT INTO support_tickets 
+         (ticket_number, user_name, user_email, user_phone, service_category, subject, description, priority, status, assigned_to) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          ticketObj.ticket_number, ticketObj.user_name, ticketObj.user_email, ticketObj.user_phone,
+          ticketObj.service_category, ticketObj.subject, ticketObj.description, ticketObj.priority,
+          ticketObj.status, ticketObj.assigned_to
+        ]
+      );
+      insertId = (result as any).insertId;
+      ticketObj.id = insertId;
+    } catch (dbErr) {
+      console.warn('[DB WARNING] Saving support ticket in fallback memory mode:', (dbErr as any).message);
+      mockTickets.push(ticketObj);
+    }
+
+    // Realtime Broadcast to Connected Admin & Support Desk
+    broadcastAdminNotification(
+      'NEW_TICKET',
+      `🎫 New Support Ticket #${ticketNum}`,
+      `Subject: ${ticketObj.subject} (${ticketObj.user_name})`,
+      ticketObj
+    );
+
+    sendSuccess(res, ticketObj, `Support ticket #${ticketNum} raised successfully.`);
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+// 2. Get All Support Tickets
+app.get('/api/tickets', async (req, res) => {
+  try {
+    const [rows] = await pool.query(`SELECT * FROM support_tickets ORDER BY created_at DESC`);
+    sendSuccess(res, rows);
+  } catch (dbErr) {
+    sendSuccess(res, mockTickets.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+  }
+});
+
+// 3. Update Support Ticket Status & Resolution
+app.put('/api/tickets/:id', async (req, res) => {
+  try {
+    const { status, priority, resolution_notes, assigned_to } = req.body;
+    const ticketId = req.params.id;
+
+    try {
+      await pool.query(
+        `UPDATE support_tickets SET status = COALESCE(?, status), priority = COALESCE(?, priority), resolution_notes = COALESCE(?, resolution_notes), assigned_to = COALESCE(?, assigned_to) WHERE id = ?`,
+        [status, priority, resolution_notes, assigned_to, ticketId]
+      );
+    } catch (dbErr) {
+      const idx = mockTickets.findIndex(t => String(t.id) === String(ticketId));
+      if (idx !== -1) {
+        if (status) mockTickets[idx].status = status;
+        if (priority) mockTickets[idx].priority = priority;
+        if (resolution_notes) mockTickets[idx].resolution_notes = resolution_notes;
+        if (assigned_to) mockTickets[idx].assigned_to = assigned_to;
+      }
+    }
+
+    broadcastAdminNotification(
+      'TICKET_UPDATED',
+      `🔄 Ticket #${ticketId} Updated`,
+      `Status changed to ${status || 'updated'}`,
+      { id: ticketId, status, priority }
+    );
+
+    sendSuccess(res, null, 'Ticket updated successfully.');
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+// 4. Delete Support Ticket
+app.delete('/api/tickets/:id', async (req, res) => {
+  try {
+    await pool.query(`DELETE FROM support_tickets WHERE id = ?`, [req.params.id]);
+    sendSuccess(res, null, 'Ticket deleted successfully');
+  } catch (dbErr) {
+    const idx = mockTickets.findIndex(t => String(t.id) === String(req.params.id));
+    if (idx !== -1) mockTickets.splice(idx, 1);
+    sendSuccess(res, null, 'Ticket deleted');
+  }
+});
 
 createCrudRoutes('projects');
 createCrudRoutes('testimonials');

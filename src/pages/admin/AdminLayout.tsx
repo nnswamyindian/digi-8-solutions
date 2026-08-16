@@ -2,12 +2,13 @@ import { useState, useEffect, ReactNode } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, Briefcase, MessageSquare, Settings,
-  LogOut, Menu, X, Zap, BarChart2, Tag, BookOpen, Bell, DollarSign, Shield
+  LogOut, Menu, X, Zap, BarChart2, Tag, BookOpen, Bell, DollarSign, Shield, Ticket
 } from 'lucide-react';
 import { supabase } from '../../lib/api';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/admin/dashboard' },
+  { icon: Ticket, label: 'Support Tickets', href: '/admin/tickets' },
   { icon: Users, label: 'Leads', href: '/admin/leads' },
   { icon: FileText, label: 'Quotes', href: '/admin/quotes' },
   { icon: Briefcase, label: 'Projects', href: '/admin/projects' },
@@ -23,13 +24,59 @@ const navItems = [
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string>('');
+  const [liveAlert, setLiveAlert] = useState<{ title: string; message: string; timestamp: string } | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user?.email) setUserEmail(session.user.email);
-    });
+    try {
+      const stored = localStorage.getItem('admin_user');
+      if (stored) {
+        const userObj = JSON.parse(stored);
+        if (userObj?.email) setUserEmail(userObj.email);
+      } else {
+        setUserEmail('admin@digi8solutions.com');
+      }
+    } catch (e) {
+      setUserEmail('admin@digi8solutions.com');
+    }
+
+    // Request browser Notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    // Subscribe to Realtime SSE Notifications from Backend
+    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    const sseUrl = `${API_BASE.replace('/api', '')}/api/admin/events`;
+    const eventSource = new EventSource(sseUrl);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type && data.type !== 'CONNECTED') {
+          setLiveAlert({
+            title: data.title || 'System Notification',
+            message: data.message || 'New update received',
+            timestamp: new Date().toLocaleTimeString()
+          });
+
+          // Trigger Native Browser / PWA Push Notification
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification(data.title || 'Digi8 Admin Alert', {
+              body: data.message,
+              icon: '/favicon.svg'
+            });
+          }
+        }
+      } catch (e) {
+        console.error('[SSE] Event parse error:', e);
+      }
+    };
+
+    return () => {
+      eventSource.close();
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -40,9 +87,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen flex bg-[#050505] text-white">
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 w-64 glass-strong border-r border-white/10 z-50 transition-transform duration-300 ${
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-      }`}>
+      <aside className={`fixed inset-y-0 left-0 w-64 glass-strong border-r border-white/10 z-50 transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}>
         <div className="flex flex-col h-full p-4">
           {/* Logo */}
           <div className="flex items-center justify-between mb-8 px-2 pt-2">
@@ -67,11 +113,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 key={item.href}
                 to={item.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-inter transition-all ${
-                  location.pathname === item.href
-                    ? 'bg-accent/15 text-accent border border-accent/20'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5'
-                }`}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-inter transition-all ${location.pathname === item.href
+                  ? 'bg-accent/15 text-accent border border-accent/20'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  }`}
               >
                 <item.icon size={16} />
                 {item.label}
@@ -129,7 +174,29 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-6 relative">
+          {liveAlert && (
+            <div className="mb-6 p-4 bg-gradient-to-r from-brand-cyan/20 to-blue-600/20 border border-brand-cyan/50 rounded-2xl flex items-center justify-between shadow-xl shadow-cyan-500/10 animate-pulse">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-brand-cyan/20 border border-brand-cyan/50 flex items-center justify-center shrink-0">
+                  <Bell className="w-5 h-5 text-brand-cyan" />
+                </div>
+                <div>
+                  <h4 className="font-outfit font-bold text-white text-sm">{liveAlert.title}</h4>
+                  <p className="text-xs text-slate-300 mt-0.5">{liveAlert.message}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] text-slate-400 font-mono">{liveAlert.timestamp}</span>
+                <button
+                  onClick={() => setLiveAlert(null)}
+                  className="p-1 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+          )}
           {children}
         </main>
       </div>

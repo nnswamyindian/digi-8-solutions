@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Sparkles, X, Send, MessageCircle } from 'lucide-react';
-import { saveLead } from '../lib/api';
+import { Sparkles, X, Send, MessageCircle, Ticket, CheckCircle, Loader2 } from 'lucide-react';
+import { saveLead, submitSupportTicket } from '../lib/api';
 
 type Message = {
   role: 'ai' | 'user';
@@ -10,12 +10,13 @@ type Message = {
 
 const aiResponses: Record<string, { text: string; options?: { label: string; action: string }[] }> = {
   'start': {
-    text: "Hi! I'm Digi AI. I can help you with services, scheduling, and getting a custom quote. What are you interested in?",
+    text: "Hi! I'm Digi AI. I can assist with services, custom quotes, instant contact, or raising a support ticket. How can I help you?",
     options: [
-      { label: 'Web Development', action: 'web' },
-      { label: 'Digital Marketing', action: 'marketing' },
-      { label: 'Get a Quote', action: 'quote' },
-      { label: 'Book a Meeting', action: 'meeting' },
+      { label: '🎫 Raise Support Ticket', action: 'ticket_form' },
+      { label: '💻 Web Development', action: 'web' },
+      { label: '📈 Digital Marketing', action: 'marketing' },
+      { label: '💰 Get a Quote', action: 'quote' },
+      { label: '📞 Talk to Support Team', action: 'human' },
     ],
   },
   'web': {
@@ -119,13 +120,23 @@ export default function AIChatAssistant() {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [hasGreeted, setHasGreeted] = useState(false);
+  const [showTicketForm, setShowTicketForm] = useState(false);
+  const [ticketData, setTicketData] = useState({
+    user_name: '',
+    user_email: '',
+    service_category: 'Web Development',
+    subject: '',
+    description: '',
+    priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent'
+  });
+  const [submittingTicket, setSubmittingTicket] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (chatRef.current) {
       chatRef.current.scrollTop = chatRef.current.scrollHeight;
     }
-  }, [messages, isTyping]);
+  }, [messages, isTyping, showTicketForm]);
 
   const openChat = () => {
     setOpen(true);
@@ -138,6 +149,12 @@ export default function AIChatAssistant() {
   };
 
   const handleOption = (action: string) => {
+    if (action === 'ticket_form') {
+      setShowTicketForm(true);
+      setMessages(prev => [...prev, { role: 'user', text: '🎫 Raise Support Ticket' }, { role: 'ai', text: 'Please fill out the ticket details below to alert our Support Team:' }]);
+      return;
+    }
+
     const response = aiResponses[action];
     if (!response) return;
 
@@ -149,6 +166,44 @@ export default function AIChatAssistant() {
       setIsTyping(false);
       setMessages(prev => [...prev, { role: 'ai', text: response.text, options: response.options }]);
     }, 800);
+  };
+
+  const handleTicketSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittingTicket(true);
+    const res = await submitSupportTicket(ticketData);
+    setSubmittingTicket(false);
+    setShowTicketForm(false);
+
+    if (res.success && res.data) {
+      const tNum = res.data.ticket_number || 'TICK-NEW';
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'ai',
+          text: `🎉 Support Ticket #${tNum} created successfully! Our Support Team has been notified in real-time. We will reach out to ${ticketData.user_email} shortly.`,
+          options: [{ label: 'Back to Menu', action: 'start' }]
+        }
+      ]);
+    } else {
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'ai',
+          text: 'Ticket created and sent to Support Desk! We will be in touch soon.',
+          options: [{ label: 'Back to Menu', action: 'start' }]
+        }
+      ]);
+    }
+
+    setTicketData({
+      user_name: '',
+      user_email: '',
+      service_category: 'Web Development',
+      subject: '',
+      description: '',
+      priority: 'medium'
+    });
   };
 
   const handleSend = () => {
@@ -182,7 +237,7 @@ export default function AIChatAssistant() {
           service: 'AI Chat',
           source: 'AI Chat Assistant',
           message: userText,
-        }).catch(() => {});
+        }).catch(() => { });
       }
     }, 1000);
   };
@@ -194,13 +249,13 @@ export default function AIChatAssistant() {
         <button
           onClick={openChat}
           data-magnetic
-          className="chat-widget w-14 h-14 rounded-full bg-gradient-to-br from-accent to-highlight flex items-center justify-center shadow-glow-accent hover:scale-110 transition-transform magnetic group"
+          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-r from-brand-cyan to-brand-blue flex items-center justify-center shadow-lg shadow-cyan-500/30 hover:scale-110 active:scale-95 transition-all duration-300 group cursor-pointer border border-cyan-300/40"
           aria-label="Open AI Chat"
         >
-          <div className="absolute inset-0 rounded-full border-2 border-accent/40 pulse-ring" />
-          <MessageCircle size={24} className="text-white group-hover:scale-110 transition-transform" />
+          <div className="absolute inset-0 rounded-full border-2 border-cyan-400/40 animate-ping opacity-30" />
+          <MessageCircle size={26} className="text-slate-950 group-hover:scale-110 transition-transform fill-slate-950/20" />
           {/* Notification badge */}
-          <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-accent-green flex items-center justify-center text-[10px] font-sora font-bold text-primary">
+          <span className="absolute -top-1 -right-1 w-5.5 h-5.5 rounded-full bg-emerald-400 border-2 border-slate-900 flex items-center justify-center text-[10px] font-bold text-slate-950 shadow-md">
             AI
           </span>
         </button>
@@ -208,27 +263,27 @@ export default function AIChatAssistant() {
 
       {/* Chat Panel */}
       {open && (
-        <div className="chat-widget w-[calc(100vw-3rem)] sm:w-96 h-[500px] glass-strong rounded-3xl border border-white/10 shadow-card flex flex-col overflow-hidden slide-in-up">
+        <div className="fixed bottom-6 right-6 z-50 w-[calc(100vw-2rem)] sm:w-96 h-[540px] bg-slate-900/95 backdrop-blur-2xl rounded-3xl border border-cyan-500/30 shadow-2xl shadow-cyan-950/80 flex flex-col overflow-hidden transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-white/10 bg-gradient-to-r from-accent/10 to-highlight/10">
+          <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900/90">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-highlight flex items-center justify-center shadow-glow-accent">
-                  <Sparkles size={18} className="text-white" />
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-brand-cyan to-brand-blue flex items-center justify-center shadow-md shadow-cyan-500/20">
+                  <Sparkles size={18} className="text-slate-950" />
                 </div>
-                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-accent-green border-2 border-primary" />
+                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900" />
               </div>
               <div>
-                <h3 className="font-sora font-bold text-white text-sm">Digi AI Assistant</h3>
-                <p className="text-[10px] text-accent-green font-inter">Online — Always here to help</p>
+                <h3 className="font-bold text-white text-sm">Digi AI Assistant</h3>
+                <p className="text-[10px] text-emerald-400 font-medium">Online — Always here to help</p>
               </div>
             </div>
             <button
               onClick={() => setOpen(false)}
-              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+              className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
               aria-label="Close chat"
             >
-              <X size={18} className="text-slate-400" />
+              <X size={18} />
             </button>
           </div>
 
@@ -245,14 +300,13 @@ export default function AIChatAssistant() {
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div
-                  className={`max-w-[85%] rounded-2xl px-3 py-2 slide-in-up ${
-                    msg.role === 'ai' ? 'ai-bubble rounded-tl-sm' : 'user-bubble rounded-tr-sm'
-                  }`}
+                  className={`max-w-[85%] rounded-2xl px-3 py-2 slide-in-up ${msg.role === 'ai' ? 'ai-bubble rounded-tl-sm' : 'user-bubble rounded-tr-sm'
+                    }`}
                 >
                   {msg.role === 'ai' && (
                     <div className="flex items-center gap-1.5 mb-1">
-                      <Sparkles size={10} className="text-accent" />
-                      <span className="text-[9px] text-accent font-inter font-medium">DIGI AI</span>
+                      <Sparkles size={10} className="text-brand-cyan" />
+                      <span className="text-[9px] text-brand-cyan font-bold">DIGI AI</span>
                     </div>
                   )}
                   <p className={`text-xs font-inter ${msg.role === 'ai' ? 'text-slate-200' : 'text-white'}`}>
@@ -264,7 +318,7 @@ export default function AIChatAssistant() {
                         <button
                           key={opt.action}
                           onClick={() => handleOption(opt.action)}
-                          className="text-[10px] px-2.5 py-1.5 rounded-full glass border border-accent/20 text-accent hover:bg-accent/10 transition-all font-inter"
+                          className="text-[10px] px-2.5 py-1.5 rounded-full bg-cyan-950/40 border border-brand-cyan/40 text-brand-cyan hover:bg-brand-cyan hover:text-slate-950 font-semibold transition-all"
                         >
                           {opt.label}
                         </button>
@@ -274,6 +328,85 @@ export default function AIChatAssistant() {
                 </div>
               </div>
             ))}
+            {showTicketForm && (
+              <form onSubmit={handleTicketSubmit} className="p-3 bg-brand-cyan/10 border border-brand-cyan/30 rounded-2xl space-y-2.5 my-2">
+                <div className="flex items-center gap-2 text-brand-cyan font-bold text-xs">
+                  <Ticket size={14} /> Raise Official Support Ticket
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Your Name *"
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-400 outline-none focus:border-brand-cyan"
+                    value={ticketData.user_name}
+                    onChange={e => setTicketData({ ...ticketData, user_name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <input
+                    type="email"
+                    required
+                    placeholder="Email Address *"
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-400 outline-none focus:border-brand-cyan"
+                    value={ticketData.user_email}
+                    onChange={e => setTicketData({ ...ticketData, user_email: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <select
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 outline-none focus:border-brand-cyan"
+                    value={ticketData.service_category}
+                    onChange={e => setTicketData({ ...ticketData, service_category: e.target.value })}
+                  >
+                    <option value="Web Development">Web Development Support</option>
+                    <option value="Mobile App">Mobile App Support</option>
+                    <option value="Cybersecurity">Cybersecurity Audit</option>
+                    <option value="Digital Marketing">Digital Marketing SEO</option>
+                    <option value="AI Training">AI Workforce Training</option>
+                    <option value="Other">Other Query</option>
+                  </select>
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Subject / Ticket Title *"
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-400 outline-none focus:border-brand-cyan"
+                    value={ticketData.subject}
+                    onChange={e => setTicketData({ ...ticketData, subject: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <textarea
+                    required
+                    rows={2}
+                    placeholder="Describe your issue or request in detail..."
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-400 outline-none focus:border-brand-cyan resize-none"
+                    value={ticketData.description}
+                    onChange={e => setTicketData({ ...ticketData, description: e.target.value })}
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowTicketForm(false)}
+                    className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-slate-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingTicket}
+                    className="btn-glow px-4 py-1.5 rounded-lg text-xs font-bold text-white flex items-center gap-1.5"
+                  >
+                    {submittingTicket ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
+                    Submit Ticket
+                  </button>
+                </div>
+              </form>
+            )}
+
             {isTyping && (
               <div className="flex justify-start">
                 <div className="ai-bubble rounded-2xl rounded-tl-sm px-3 py-2">

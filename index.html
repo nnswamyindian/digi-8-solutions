@@ -1,39 +1,54 @@
 <!doctype html>
 <html lang="en" class="scroll-smooth">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#030712" />
-    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
-    <link rel="canonical" href="https://digi8solutions.com" />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <meta name="theme-color" content="#030712" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Digi8 Solutions" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+  <link rel="canonical" href="https://digi8solutions.com" />
 
-    <meta name="description" content="DIGI8 SOLUTIONS INDIA PRIVATE LIMITED — One Partner. Eight Digital Solutions. Enterprise Digital Transformation, Web & App Development, Digital Marketing, Cyber Security & Startup Acceleration." />
-    <meta name="keywords" content="digital transformation, corporate technology, enterprise web development, mobile app development, digital marketing agency, cyber security audit, startup mentorship, corporate gifting, digital printing, Digi8 Solutions" />
-    <meta name="author" content="DIGI8 SOLUTIONS INDIA PRIVATE LIMITED" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&family=Sora:wght@400;600;700;800&display=swap"
+    rel="stylesheet">
 
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://digi8solutions.com" />
-    <meta property="og:title" content="Digi-8 Solutions — One Partner. Eight Digital Solutions." />
-    <meta property="og:description" content="Premium corporate digital transformation platform providing end-to-end technology, branding, marketing, security, startup, printing, and corporate solutions." />
-    <meta property="og:image" content="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80" />
+  <meta name="description"
+    content="DIGI8 SOLUTIONS INDIA PRIVATE LIMITED — One Partner. Eight Digital Solutions. Enterprise Digital Transformation, Web & App Development, Digital Marketing, Cyber Security & Startup Acceleration." />
+  <meta name="keywords"
+    content="digital transformation, corporate technology, enterprise web development, mobile app development, digital marketing agency, cyber security audit, startup mentorship, corporate gifting, digital printing, Digi8 Solutions" />
+  <meta name="author" content="DIGI8 SOLUTIONS INDIA PRIVATE LIMITED" />
 
-    <!-- Twitter -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:url" content="https://digi8solutions.com" />
-    <meta name="twitter:title" content="Digi-8 Solutions — Enterprise Digital Transformation" />
-    <meta name="twitter:description" content="One Partner. Eight Digital Solutions." />
-    <meta name="twitter:image" content="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80" />
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://digi8solutions.com" />
+  <meta property="og:title" content="Digi-8 Solutions — One Partner. Eight Digital Solutions." />
+  <meta property="og:description"
+    content="Premium corporate digital transformation platform providing end-to-end technology, branding, marketing, security, startup, printing, and corporate solutions." />
+  <meta property="og:image"
+    content="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80" />
 
-    <title>Digi-8 Solutions — Corporate Digital Transformation Platform</title>
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:url" content="https://digi8solutions.com" />
+  <meta name="twitter:title" content="Digi-8 Solutions — Enterprise Digital Transformation" />
+  <meta name="twitter:description" content="One Partner. Eight Digital Solutions." />
+  <meta name="twitter:image"
+    content="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80" />
 
-    <!-- Structured Data (JSON-LD) -->
-    <script type="application/ld+json">
+  <title>Digi-8 Solutions — Corporate Digital Transformation Platform</title>
+
+  <!-- Structured Data (JSON-LD) -->
+  <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "Organization",
@@ -55,10 +70,20 @@
       ]
     }
     </script>
-  </head>
-  <body class="bg-brand-dark text-white font-inter antialiased selection:bg-brand-cyan selection:text-black">
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+</head>
 
+<body class="bg-brand-dark text-white font-inter antialiased selection:bg-brand-cyan selection:text-black">
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('[PWA] Service Worker registered:', reg.scope))
+          .catch(err => console.error('[PWA] Service Worker registration failed:', err));
+      });
+    }
+  </script>
+</body>
+
+</html>

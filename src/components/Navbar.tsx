@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, ChevronDown, ArrowRight, Phone, Mail, Building2, Code, Smartphone, Palette, TrendingUp, Lock, Rocket, Gift, Printer, Cpu } from 'lucide-react';
+import { Menu, X, ChevronDown, ArrowRight, Phone, Mail, Building2, Search, Cpu } from 'lucide-react';
 import { BRAND } from '../lib/config';
 import { checkAuth } from '../lib/api';
+import GlobalSearchModal from './GlobalSearchModal';
 
 import { divisions } from '../data/servicesData';
 
@@ -26,6 +27,7 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const location = useLocation();
 
@@ -165,24 +167,52 @@ export default function Navbar() {
 
           {/* Desktop CTAs */}
           <div className="hidden lg:flex items-center gap-3">
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white text-xs transition-colors"
+              title="Search Services, Tech & Pages (Ctrl+K)"
+            >
+              <Search size={14} className="text-brand-cyan" />
+              <span className="font-inter">Search</span>
+              <kbd className="bg-white/10 text-[10px] px-1.5 py-0.5 rounded font-mono text-slate-400">Ctrl+K</kbd>
+            </button>
+
             <Link to="/quote-calculator" className="btn-glow text-xs py-2.5 px-5">
               Request Proposal
             </Link>
           </div>
 
           {/* Mobile Toggle */}
-          <button
-            onClick={() => setMobileOpen(!mobileOpen)}
-            className="lg:hidden p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
-          >
-            {mobileOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
+          <div className="flex items-center gap-2 lg:hidden">
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="p-2 text-brand-cyan hover:bg-white/10 rounded-lg transition-colors"
+              aria-label="Search"
+            >
+              <Search size={20} />
+            </button>
+            <button
+              onClick={() => setMobileOpen(!mobileOpen)}
+              className="p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
+            >
+              {mobileOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Menu */}
         {mobileOpen && (
           <div className="lg:hidden bg-[#050505] rounded-2xl shadow-2xl m-4 mt-2 p-4 space-y-4 max-h-[80vh] overflow-y-auto border border-brand-cyan/20 isolate">
             <div className="space-y-1">
+              <button
+                onClick={() => {
+                  setMobileOpen(false);
+                  setSearchOpen(true);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-bold text-brand-cyan bg-white/5 rounded-lg border border-brand-cyan/20"
+              >
+                <Search size={16} /> Search Services & Pages
+              </button>
               {navLinks.map(link => (
                 <Link key={link.path} to={link.path} className="block px-3 py-2 text-sm font-bold text-white hover:bg-white/10 rounded-lg">{link.name}</Link>
               ))}
@@ -208,6 +238,9 @@ export default function Navbar() {
           </div>
         )}
       </nav>
+
+      {/* Global Search Modal */}
+      <GlobalSearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
     </header>
   );
 }

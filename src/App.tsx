@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-route
 import { useEffect, useState } from 'react';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import AIChatAssistant from './components/AIChatAssistant';
+import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import './components/home/HomeStyles.css';
 
 // Pages
@@ -37,6 +39,7 @@ import CustomizedGifting from './pages/services/CustomizedGifting';
 // Admin pages
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminTickets from './pages/admin/AdminTickets';
 import AdminLeads from './pages/admin/AdminLeads';
 import AdminTestimonials from './pages/admin/AdminTestimonials';
 import AdminQuotes from './pages/admin/AdminQuotes';
@@ -88,6 +91,7 @@ function AppShell() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/admin/dashboard" element={<RequireAuth><AdminDashboard /></RequireAuth>} />
+        <Route path="/admin/tickets" element={<RequireAuth><AdminTickets /></RequireAuth>} />
         <Route path="/admin/leads" element={<RequireAuth><AdminLeads /></RequireAuth>} />
         <Route path="/admin/quotes" element={<RequireAuth><AdminQuotes /></RequireAuth>} />
         <Route path="/admin/projects" element={<RequireAuth><AdminProjects /></RequireAuth>} />
@@ -147,6 +151,8 @@ export default function App() {
     <BrowserRouter>
       <ScrollToTop />
       <AppShell />
+      <AIChatAssistant />
+      <PWAInstallPrompt />
     </BrowserRouter>
   );
 }

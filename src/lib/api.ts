@@ -163,6 +163,67 @@ export interface Testimonial {
   rating: number;
 }
 
+export interface SupportTicket {
+  id: number | string;
+  ticket_number: string;
+  user_name: string;
+  user_email: string;
+  user_phone?: string;
+  service_category: string;
+  subject: string;
+  description: string;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  assigned_to?: string;
+  resolution_notes?: string;
+  created_at: string;
+}
+
+export async function submitSupportTicket(ticketData: Partial<SupportTicket>) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/tickets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ticketData),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function fetchTickets(): Promise<SupportTicket[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/tickets`);
+    const data = await res.json();
+    return data.data || [];
+  } catch (err) {
+    return [];
+  }
+}
+
+export async function updateTicketStatus(id: number | string, updates: Partial<SupportTicket>) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/tickets/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function deleteTicket(id: number | string) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/tickets/${id}`, { method: 'DELETE' });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
 export async function getProjects(): Promise<Project[]> {
   try {
     const res = await fetch(`${API_BASE_URL}/projects`);
@@ -259,10 +320,10 @@ export const supabase = {
       return { select: () => ({ maybeSingle: fetcher }), then: async (cb: any) => cb(await fetcher()) }
     },
     update: (payload: any) => ({
-      eq: async (col: string, val: string) => { const res = await fetch(`${API_BASE_URL}/${table}/${val}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const data = await res.json(); return { data: data.data, error: data.success ? null : new Error(data.error) }; }
+      eq: async (_col: string, val: string) => { const res = await fetch(`${API_BASE_URL}/${table}/${val}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const data = await res.json(); return { data: data.data, error: data.success ? null : new Error(data.error) }; }
     }),
     delete: () => ({
-      eq: async (col: string, val: string) => { const res = await fetch(`${API_BASE_URL}/${table}/${val}`, { method: 'DELETE' }); const data = await res.json(); return { data: data.data, error: data.success ? null : new Error(data.error) }; }
+      eq: async (_col: string, val: string) => { const res = await fetch(`${API_BASE_URL}/${table}/${val}`, { method: 'DELETE' }); const data = await res.json(); return { data: data.data, error: data.success ? null : new Error(data.error) }; }
     })
   })
 };
