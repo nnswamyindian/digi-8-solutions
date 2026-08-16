@@ -1,16 +1,16 @@
 import { useState } from 'react';
-import { Check, X } from 'lucide-react';
+import { Check, X, Globe, Palette, TrendingUp, Lock, Rocket, Smartphone, Printer, Gift } from 'lucide-react';
 import LeadGenForm from './LeadGenForm';
 
 const services = [
-  { id: 'web', name: 'Web Development', icon: '🌐' },
-  { id: 'branding', name: 'Logo & Branding', icon: '🎨' },
-  { id: 'marketing', name: 'Digital Marketing', icon: '📈' },
-  { id: 'security', name: 'Cyber Security', icon: '🔒' },
-  { id: 'startup', name: 'Startup Guidance', icon: '🚀' },
-  { id: 'mobile', name: 'Mobile App', icon: '📱' },
-  { id: 'printing', name: 'Digital Printing', icon: '🖨️' },
-  { id: 'gifting', name: 'Corporate Gifting', icon: '🎁' },
+  { id: 'web', name: 'Web Development', icon: Globe, color: '#3B82F6' },
+  { id: 'branding', name: 'Logo & Branding', icon: Palette, color: '#EC4899' },
+  { id: 'marketing', name: 'Digital Marketing', icon: TrendingUp, color: '#10B981' },
+  { id: 'security', name: 'Cyber Security', icon: Lock, color: '#F43F5E' },
+  { id: 'startup', name: 'Startup Guidance', icon: Rocket, color: '#8B5CF6' },
+  { id: 'mobile', name: 'Mobile App', icon: Smartphone, color: '#06B6D4' },
+  { id: 'printing', name: 'Digital Printing', icon: Printer, color: '#F59E0B' },
+  { id: 'gifting', name: 'Corporate Gifting', icon: Gift, color: '#6366F1' },
 ];
 
 const timelines = [
@@ -30,7 +30,7 @@ export default function PackageBuilder() {
   const selectedNames = selected.map(id => services.find(s => s.id === id)?.name).filter(Boolean);
 
   return (
-    <section id="package-builder" className="relative z-10 py-24 px-4 sm:px-6 overflow-hidden">
+    <section id="package-builder" className="relative z-10 py-12 md:py-24 px-4 sm:px-6 overflow-hidden">
       <div className="absolute inset-0 bg-secondary/20" />
       <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-accent/5 blur-3xl" />
       <div className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full bg-highlight/5 blur-3xl" />
@@ -53,15 +53,17 @@ export default function PackageBuilder() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {services.map(s => {
                 const isSelected = selected.includes(s.id);
+                const IconComp = s.icon;
                 return (
                   <button
                     key={s.id}
                     onClick={() => toggle(s.id)}
-                    className={`p-4 rounded-xl border text-center transition-all ${
-                      isSelected ? 'bg-accent/15 border-accent shadow-glow-accent' : 'glass border-white/5 hover:border-accent/30'
-                    }`}
+                    className={`p-4 rounded-xl border text-center transition-all ${isSelected ? 'bg-accent/15 border-accent shadow-glow-accent' : 'glass border-white/5 hover:border-accent/30'
+                      }`}
                   >
-                    <div className="text-2xl mb-2">{s.icon}</div>
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center mx-auto mb-2 bg-white/5">
+                      <IconComp size={18} style={{ color: s.color }} />
+                    </div>
                     <div className="text-xs font-inter text-white">{s.name}</div>
                     {isSelected && <Check size={14} className="text-accent mx-auto mt-1" />}
                   </button>

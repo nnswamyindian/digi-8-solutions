@@ -103,10 +103,13 @@ export default function Navbar() {
 
             {/* Services Dropdown */}
             <div className="relative" onMouseEnter={() => setServicesOpen(true)} onMouseLeave={() => setServicesOpen(false)}>
-              <button className={`flex items-center gap-1.5 px-4 py-2 text-sm font-semibold transition-all rounded-full ${location.pathname.startsWith('/services') ? 'bg-white/10 text-white' : 'text-brand-gray hover:text-white hover:bg-white/5'}`}>
+              <Link
+                to="/services"
+                className={`flex items-center gap-1.5 px-4 py-2 text-sm font-semibold transition-all rounded-full ${location.pathname.startsWith('/services') ? 'bg-white/10 text-white' : 'text-brand-gray hover:text-white hover:bg-white/5'}`}
+              >
                 Services
                 <ChevronDown size={14} className={`transition-transform duration-200 ${servicesOpen ? 'rotate-180 text-brand-cyan' : 'text-brand-gray'}`} />
-              </button>
+              </Link>
 
               {servicesOpen && (
                 <div className="absolute top-[calc(100%+0.5rem)] left-1/2 -translate-x-1/2 w-[720px] animate-fade-in z-50">
@@ -118,7 +121,7 @@ export default function Navbar() {
                         </h4>
                         <p className="text-xs text-brand-gray mt-1">End-to-end digital transformation capabilities</p>
                       </div>
-                      <Link to="/services" className="text-xs font-bold text-brand-cyan hover:text-white transition-colors flex items-center gap-1">
+                      <Link to="/services" onClick={() => setServicesOpen(false)} className="text-xs font-bold text-brand-cyan hover:text-white transition-colors flex items-center gap-1">
                         View Divisions Hub <ArrowRight size={12} />
                       </Link>
                     </div>
@@ -129,6 +132,7 @@ export default function Navbar() {
                         <Link
                           key={div.slug}
                           to={div.slug}
+                          onClick={() => setServicesOpen(false)}
                           className="flex items-start gap-3.5 p-3 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 transition-all group"
                         >
                           <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-white/5 border border-white/10 text-brand-gray group-hover:text-brand-cyan group-hover:border-brand-cyan/30 group-hover:bg-brand-cyan/10 transition-colors shadow-glass">
@@ -147,7 +151,7 @@ export default function Navbar() {
                 </div>
               )}
             </div>
-            
+
             {navLinks.slice(2).map((item) => (
               <Link
                 key={item.name}
@@ -178,13 +182,16 @@ export default function Navbar() {
         {/* Mobile Menu */}
         {mobileOpen && (
           <div className="lg:hidden bg-[#050505] rounded-2xl shadow-2xl m-4 mt-2 p-4 space-y-4 max-h-[80vh] overflow-y-auto border border-brand-cyan/20 isolate">
-             <div className="space-y-1">
+            <div className="space-y-1">
               {navLinks.map(link => (
                 <Link key={link.path} to={link.path} className="block px-3 py-2 text-sm font-bold text-white hover:bg-white/10 rounded-lg">{link.name}</Link>
               ))}
               <div className="pt-4 pb-2 border-t border-white/10 mt-2">
-                <span className="px-3 text-xs font-bold text-brand-gray uppercase tracking-wider">Divisions</span>
-                <div className="mt-2 space-y-1">
+                <div className="flex justify-between items-center px-3 mb-2">
+                  <span className="text-xs font-bold text-brand-gray uppercase tracking-wider">Services & Divisions</span>
+                  <Link to="/services" className="text-xs font-bold text-brand-cyan hover:underline">View Hub</Link>
+                </div>
+                <div className="space-y-1">
                   {divisionLinks.map(div => (
                     <Link key={div.slug} to={div.slug} className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-brand-gray hover:text-white hover:bg-white/10 rounded-lg">
                       {div.name}

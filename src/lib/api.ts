@@ -3,30 +3,43 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 export interface Lead {
-  first_name: string;
-  last_name: string;
+  first_name?: string;
+  last_name?: string;
+  name?: string;
   email: string;
-  phone: string;
-  company: string;
-  industry: string;
-  budget: string;
-  timeline: string;
-  services: string[];
-  message: string;
+  phone?: string;
+  company?: string;
+  industry?: string;
+  budget?: string;
+  timeline?: string;
+  services?: string[];
+  service?: string;
+  source?: string;
+  message?: string;
+  form_data?: Record<string, unknown>;
+  [key: string]: any;
 }
 
 export interface Quote {
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string;
-  company: string;
-  website: string;
-  project_type: string;
-  project_details: string;
-  total_estimate: number;
-  selected_features: any[];
+  first_name?: string;
+  last_name?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  company?: string;
+  website?: string;
+  project_type?: string;
+  service?: string;
+  project_details?: string;
+  total_estimate?: number;
+  selected_features?: any[];
+  features?: string[];
+  timeline?: string;
+  delivery_days?: number;
+  status?: string;
   quote_number?: string;
+  lead_id?: string;
+  [key: string]: any;
 }
 
 export interface Contact {
@@ -192,11 +205,11 @@ export async function getTestimonials(): Promise<Testimonial[]> {
 }
 
 
-export async function checkAuth() { 
-  return !!localStorage.getItem('admin_token'); 
+export async function checkAuth() {
+  return !!localStorage.getItem('admin_token');
 }
 
-export async function loginAdmin(email: any, password: any) { 
+export async function loginAdmin(email: any, password: any) {
   try {
     const res = await api.post('/api/auth/login', { email, password });
     if (res.success) {
@@ -218,15 +231,15 @@ export async function logoutAdmin() {
 
 export const api = {
   get: async (path: string) => fetch(API_BASE_URL.replace('/api', '') + path).then(r => r.json()),
-  post: async (path: string, body: any) => fetch(API_BASE_URL.replace('/api', '') + path, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) }).then(r => r.json()),
-  put: async (path: string, body: any) => fetch(API_BASE_URL.replace('/api', '') + path, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) }).then(r => r.json()),
+  post: async (path: string, body: any) => fetch(API_BASE_URL.replace('/api', '') + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
+  put: async (path: string, body: any) => fetch(API_BASE_URL.replace('/api', '') + path, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
   delete: async (path: string) => fetch(API_BASE_URL.replace('/api', '') + path, { method: 'DELETE' }).then(r => r.json()),
 };
 
 export const supabase = {
   auth: {
     getSession: async () => ({ data: { session: null } }),
-    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
     signOut: async () => ({ error: null }),
     signInWithPassword: async () => ({ error: null })
   },
@@ -242,24 +255,24 @@ export const supabase = {
       }
     },
     insert: (payload: any) => {
-      const fetcher = async () => { const res = await fetch(`${API_BASE_URL}/${table}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }); const data = await res.json(); return { data: data.data, error: data.success ? null : new Error(data.error) }; };
+      const fetcher = async () => { const res = await fetch(`${API_BASE_URL}/${table}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const data = await res.json(); return { data: data.data, error: data.success ? null : new Error(data.error) }; };
       return { select: () => ({ maybeSingle: fetcher }), then: async (cb: any) => cb(await fetcher()) }
     },
-    update: (payload: any) => ({ 
-      eq: async (col: string, val: string) => { const res = await fetch(`${API_BASE_URL}/${table}/${val}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }); const data = await res.json(); return { data: data.data, error: data.success ? null : new Error(data.error) }; } 
+    update: (payload: any) => ({
+      eq: async (col: string, val: string) => { const res = await fetch(`${API_BASE_URL}/${table}/${val}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const data = await res.json(); return { data: data.data, error: data.success ? null : new Error(data.error) }; }
     }),
-    delete: () => ({ 
-      eq: async (col: string, val: string) => { const res = await fetch(`${API_BASE_URL}/${table}/${val}`, { method: 'DELETE' }); const data = await res.json(); return { data: data.data, error: data.success ? null : new Error(data.error) }; } 
+    delete: () => ({
+      eq: async (col: string, val: string) => { const res = await fetch(`${API_BASE_URL}/${table}/${val}`, { method: 'DELETE' }); const data = await res.json(); return { data: data.data, error: data.success ? null : new Error(data.error) }; }
     })
   })
 };
 
 
-export async function getAllServicePricing() { 
-  const res = await api.get('/api/service_pricing'); 
-  return res.data || []; 
+export async function getAllServicePricing() {
+  const res = await api.get('/api/service_pricing');
+  return res.data || [];
 }
-export async function upsertServicePricing(pricing: ServicePricing) { 
+export async function upsertServicePricing(pricing: ServicePricing) {
   if (pricing.id) {
     const res = await api.put(`/api/service_pricing/${pricing.id}`, pricing);
     return res;
@@ -268,7 +281,7 @@ export async function upsertServicePricing(pricing: ServicePricing) {
     return res;
   }
 }
-export async function deleteServicePricing(id: string) { 
+export async function deleteServicePricing(id: string) {
   const res = await api.delete(`/api/service_pricing/${id}`);
   return res;
 }

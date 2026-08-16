@@ -4,7 +4,9 @@ import {
   Code2, Palette, TrendingUp, Shield, Rocket, Smartphone,
   MessageCircle, Mail, Calendar, Download, TrendingUp as Growth,
   Zap, Target, RotateCcw, Link2, Search, AlertTriangle,
-  Lightbulb, TrendingDown, ExternalLink, Activity, Eye
+  Lightbulb, TrendingDown, ExternalLink, Activity, Eye,
+  Utensils, GraduationCap, School, HeartHandshake, Home, HardHat, Stethoscope, Scale, ShoppingCart,
+  BarChart3, Swords, CreditCard, RefreshCw, Layers
 } from 'lucide-react';
 import { saveLead, saveQuote, generateQuoteNumber, type Lead } from '../lib/api';
 import LeadGenForm from './LeadGenForm';
@@ -15,12 +17,12 @@ type Step = 'intro' | 'business' | 'need' | 'current' | 'website' | 'businessNam
 type Conversation = { role: 'ai' | 'user'; text: string };
 
 const businessTypes = [
-  { label: 'Restaurant', icon: '🍽️' }, { label: 'College', icon: '🎓' },
-  { label: 'Hospital', icon: '🏥' }, { label: 'Startup', icon: '🚀' },
-  { label: 'School', icon: '🏫' }, { label: 'NGO', icon: '🤝' },
-  { label: 'Real Estate', icon: '🏠' }, { label: 'Construction', icon: '🏗️' },
-  { label: 'Doctor', icon: '⚕️' }, { label: 'Lawyer', icon: '⚖️' },
-  { label: 'E-Commerce', icon: '🛒' }, { label: 'Others', icon: '✨' },
+  { label: 'Restaurant', icon: Utensils }, { label: 'College', icon: GraduationCap },
+  { label: 'Hospital', icon: Stethoscope }, { label: 'Startup', icon: Rocket },
+  { label: 'School', icon: School }, { label: 'NGO', icon: HeartHandshake },
+  { label: 'Real Estate', icon: Home }, { label: 'Construction', icon: HardHat },
+  { label: 'Doctor', icon: Activity }, { label: 'Lawyer', icon: Scale },
+  { label: 'E-Commerce', icon: ShoppingCart }, { label: 'Others', icon: Sparkles },
 ];
 
 const needs = [
@@ -33,25 +35,25 @@ const needs = [
 ];
 
 const currentSituations = [
-  { label: 'No online presence', desc: 'Starting from scratch', icon: '🆕' },
-  { label: 'Have a basic website', desc: 'Needs improvement', icon: '🌐' },
-  { label: 'Active but not growing', desc: 'Stagnant results', icon: '📊' },
-  { label: 'Doing well, want to scale', desc: 'Ready to expand', icon: '📈' },
-  { label: 'Rebranding', desc: 'Fresh start', icon: '🎨' },
+  { label: 'No online presence', desc: 'Starting from scratch', icon: Sparkles },
+  { label: 'Have a basic website', desc: 'Needs improvement', icon: Globe },
+  { label: 'Active but not growing', desc: 'Stagnant results', icon: BarChart3 },
+  { label: 'Doing well, want to scale', desc: 'Ready to expand', icon: TrendingUp },
+  { label: 'Rebranding', desc: 'Fresh start', icon: Palette },
 ];
 
 const audiences = ['Local Customers', 'National Market', 'International', 'B2B / Corporate', 'Students / Youth', 'Professionals', 'General Public', 'Niche / Premium'];
 const countries = ['India', 'USA', 'UK', 'UAE', 'Singapore', 'Australia', 'Canada', 'Others'];
 
 const challenges = [
-  { label: 'Not getting enough leads', icon: '📉' },
-  { label: 'Low website traffic', icon: '🌐' },
-  { label: 'Poor Google ranking', icon: '🔍' },
-  { label: 'High competition', icon: '⚔️' },
-  { label: 'Low brand awareness', icon: '👁️' },
-  { label: 'Outdated technology', icon: '⚙️' },
-  { label: 'No online sales', icon: '💸' },
-  { label: 'Customer retention', icon: '🔄' },
+  { label: 'Not getting enough leads', icon: TrendingDown },
+  { label: 'Low website traffic', icon: Globe },
+  { label: 'Poor Google ranking', icon: Search },
+  { label: 'High competition', icon: Swords },
+  { label: 'Low brand awareness', icon: Eye },
+  { label: 'Outdated technology', icon: Layers },
+  { label: 'No online sales', icon: CreditCard },
+  { label: 'Customer retention', icon: RefreshCw },
 ];
 
 const visitorRanges = [
@@ -420,7 +422,7 @@ export default function AIAssistant() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto mt-12 slide-in-up" style={{ animationDelay: '0.6s' }}>
             {[{ value: '500+', label: 'Happy Clients' }, { value: '1200+', label: 'Projects Completed' },
-              { value: '8+', label: 'Years Experience' }, { value: '25+', label: 'Countries Served' }].map(stat => (
+            { value: '8+', label: 'Years Experience' }, { value: '25+', label: 'Countries Served' }].map(stat => (
               <div key={stat.label} className="glass rounded-2xl p-4 border border-white/5 hover:border-accent/20 transition-all">
                 <div className="font-sora font-black text-2xl sm:text-3xl gradient-text-blue">{stat.value}</div>
                 <div className="text-xs text-slate-400 mt-1 font-inter">{stat.label}</div>
@@ -523,12 +525,17 @@ export default function AIAssistant() {
             <div>
               <p className="text-xs text-slate-400 font-inter mb-3">Select your business type:</p>
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                {businessTypes.map(biz => (
-                  <button key={biz.label} onClick={() => selectBusiness(biz.label)} className="option-card glass rounded-xl p-3 border border-white/5 text-center">
-                    <div className="text-2xl mb-1">{biz.icon}</div>
-                    <span className="text-xs font-inter text-white/80">{biz.label}</span>
-                  </button>
-                ))}
+                {businessTypes.map(biz => {
+                  const BizIcon = biz.icon;
+                  return (
+                    <button key={biz.label} onClick={() => selectBusiness(biz.label)} className="option-card glass rounded-xl p-3 border border-white/5 text-center flex flex-col items-center justify-center group">
+                      <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center mb-1.5 text-brand-cyan group-hover:scale-110 transition-transform">
+                        <BizIcon size={18} />
+                      </div>
+                      <span className="text-[11px] font-inter text-white/80">{biz.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -551,15 +558,20 @@ export default function AIAssistant() {
             <div>
               <p className="text-xs text-slate-400 font-inter mb-3">What's your current digital situation?</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {currentSituations.map(sit => (
-                  <button key={sit.label} onClick={() => selectCurrent(sit.label)} className="option-card glass rounded-xl p-3 border border-white/5 flex items-center gap-3">
-                    <span className="text-xl">{sit.icon}</span>
-                    <div>
-                      <div className="text-sm font-inter text-white/80">{sit.label}</div>
-                      <div className="text-[10px] text-slate-500">{sit.desc}</div>
-                    </div>
-                  </button>
-                ))}
+                {currentSituations.map(sit => {
+                  const SitIcon = sit.icon;
+                  return (
+                    <button key={sit.label} onClick={() => selectCurrent(sit.label)} className="option-card glass rounded-xl p-3 border border-white/5 flex items-center gap-3 text-left group">
+                      <div className="w-8 h-8 rounded-lg bg-brand-cyan/10 border border-brand-cyan/20 flex items-center justify-center text-brand-cyan flex-shrink-0 group-hover:scale-110 transition-transform">
+                        <SitIcon size={16} />
+                      </div>
+                      <div>
+                        <div className="text-xs font-inter text-white/90 font-semibold">{sit.label}</div>
+                        <div className="text-[10px] text-slate-400">{sit.desc}</div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -610,12 +622,17 @@ export default function AIAssistant() {
             <div>
               <p className="text-xs text-slate-400 font-inter mb-3">What's your biggest challenge?</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {challenges.map(ch => (
-                  <button key={ch.label} onClick={() => selectChallenge(ch.label)} className="option-card glass rounded-xl p-3 border border-white/5 text-center">
-                    <div className="text-xl mb-1">{ch.icon}</div>
-                    <span className="text-[10px] font-inter text-white/80">{ch.label}</span>
-                  </button>
-                ))}
+                {challenges.map(ch => {
+                  const ChIcon = ch.icon;
+                  return (
+                    <button key={ch.label} onClick={() => selectChallenge(ch.label)} className="option-card glass rounded-xl p-3 border border-white/5 text-center flex flex-col items-center justify-center group">
+                      <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center mb-1 text-brand-cyan group-hover:scale-110 transition-transform">
+                        <ChIcon size={16} />
+                      </div>
+                      <span className="text-[10px] font-inter text-white/80 leading-tight">{ch.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

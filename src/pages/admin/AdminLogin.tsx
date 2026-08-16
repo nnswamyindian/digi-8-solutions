@@ -40,6 +40,23 @@ export default function AdminLogin() {
         </div>
 
         <form onSubmit={handleLogin} className="glass-strong rounded-2xl p-8 border border-white/10 space-y-5">
+          <div className="bg-brand-cyan/10 border border-brand-cyan/20 p-3.5 rounded-xl text-xs font-inter text-slate-300 flex items-center justify-between">
+            <div>
+              <span className="font-bold text-brand-cyan block">Super Admin Access</span>
+              <span className="text-[11px] text-slate-400">admin@digi8solutions.com</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('admin@digi8solutions.com');
+                setPassword('AdminDigi8Password2026!');
+              }}
+              className="text-[11px] font-bold bg-brand-cyan/20 text-brand-cyan hover:bg-brand-cyan/30 px-2.5 py-1 rounded-lg transition-colors border border-brand-cyan/30"
+            >
+              Quick Fill
+            </button>
+          </div>
+
           <div>
             <label className="block text-xs text-slate-400 mb-1.5 font-inter">Email</label>
             <input

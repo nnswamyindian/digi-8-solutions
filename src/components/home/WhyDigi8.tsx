@@ -3,10 +3,10 @@ import { ArrowRight, XCircle, CheckCircle2 } from 'lucide-react';
 
 export default function WhyDigi8() {
   return (
-    <section className="py-24 bg-brand-dark relative border-y border-white/5 overflow-hidden">
+    <section className="py-10 md:py-20 bg-brand-dark relative border-y border-white/5 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
-        
-        <div className="text-center max-w-3xl mx-auto mb-16">
+
+        <div className="text-center max-w-3xl mx-auto mb-10 md:mb-16">
           <span className="tag bg-brand-cyan/10 text-brand-cyan border-brand-cyan/20 mb-4">
             The Digi8 Advantage
           </span>
@@ -19,9 +19,9 @@ export default function WhyDigi8() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-8 lg:gap-16 items-center">
-          
+
           {/* Old Way */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
@@ -30,7 +30,7 @@ export default function WhyDigi8() {
             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#F43F5E] text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
               The Old Way
             </div>
-            
+
             <h3 className="text-2xl font-bold font-outfit text-white mb-8 text-center flex items-center justify-center gap-2">
               <XCircle className="text-[#F43F5E]" /> Many Vendors
             </h3>
@@ -47,7 +47,7 @@ export default function WhyDigi8() {
           </motion.div>
 
           {/* New Way */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: 50 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
@@ -56,7 +56,7 @@ export default function WhyDigi8() {
             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-brand-cyan to-brand-blue text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-neon-blue">
               The Digi8 Way
             </div>
-            
+
             <h3 className="text-2xl font-bold font-outfit text-white mb-8 text-center flex items-center justify-center gap-2">
               <CheckCircle2 className="text-brand-cyan" /> Digi8Solutions
             </h3>

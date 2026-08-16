@@ -106,7 +106,7 @@ function AppShell() {
   return (
     <>
       <Navbar />
-      <main className="pt-24 min-h-screen bg-brand-dark text-white">
+      <main className="pt-16 md:pt-24 min-h-screen bg-brand-dark text-white">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />

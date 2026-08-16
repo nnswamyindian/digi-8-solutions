@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
+import SEOHead from '../components/SEOHead';
 import SolarSystemHero from '../components/home/SolarSystemHero';
 import BusinessProblems from '../components/home/BusinessProblems';
 import WhyDigi8 from '../components/home/WhyDigi8';
@@ -12,6 +13,11 @@ import '../components/home/HomeStyles.css';
 export default function Home() {
   return (
     <div className="bg-brand-dark text-white font-inter">
+      <SEOHead
+        title="Digi-8 Solutions — Corporate Digital Transformation Platform"
+        description="DIGI8 SOLUTIONS INDIA PRIVATE LIMITED is your all-in-one corporate partner offering Web Development, Mobile Apps, Branding, Digital Marketing, Cyber Security & Startup Solutions."
+        canonicalUrl="https://digi8solutions.com"
+      />
       {/* 1. Solar System Hero Section */}
       <SolarSystemHero />
 
@@ -34,23 +40,23 @@ export default function Home() {
       <TestimonialsSlider />
 
       {/* 8. Final CTA */}
-      <section className="py-32 relative overflow-hidden bg-brand-surface">
+      <section className="py-12 md:py-24 relative overflow-hidden bg-brand-surface">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[600px] bg-brand-blue/10 blur-[150px] pointer-events-none rounded-full" />
-        
+
         <div className="max-w-4xl mx-auto px-4 sm:px-6 relative z-10 text-center">
-          <h2 className="font-outfit font-black text-5xl md:text-7xl text-white leading-tight mb-6">
+          <h2 className="font-outfit font-black text-4xl sm:text-6xl md:text-7xl text-white leading-tight mb-6">
             Ready To Grow <span className="text-gradient">Faster?</span>
           </h2>
-          <p className="text-xl text-slate-300 font-inter mb-10">
+          <p className="text-lg md:text-xl text-slate-300 font-inter mb-8 md:mb-10">
             Let's Build Your Digital Future.
           </p>
-          
-          <div className="flex flex-col sm:flex-row gap-6 justify-center">
-            <Link to="/contact" className="btn-glow py-4 px-10 text-base font-bold shadow-neon-blue group">
+
+          <div className="flex flex-col sm:flex-row gap-4 md:gap-6 justify-center">
+            <Link to="/contact" className="btn-glow py-4 px-10 text-base font-bold shadow-neon-blue group justify-center">
               Book Consultation
               <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
             </Link>
-            <Link to="/quote-calculator" className="btn-outline-glass py-4 px-10 text-base font-bold group">
+            <Link to="/quote-calculator" className="btn-outline-glass py-4 px-10 text-base font-bold group justify-center">
               Get Free Proposal
             </Link>
           </div>

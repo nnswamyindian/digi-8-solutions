@@ -1,5 +1,6 @@
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
 
 dotenv.config();
 
@@ -97,8 +98,18 @@ export const initDb = async () => {
         status VARCHAR(50) DEFAULT 'active',
         reset_token VARCHAR(255),
         reset_token_expires TIMESTAMP NULL
-      )
+      );
     `);
+
+      const [adminRows]: any = await connection.query('SELECT * FROM admin_users WHERE email = ?', ['admin@digi8solutions.com']);
+      if (adminRows.length === 0) {
+        const defaultHash = await bcrypt.hash('AdminDigi8Password2026!', 10);
+        await connection.query(
+          'INSERT INTO admin_users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
+          ['Digi-8 Super Admin', 'admin@digi8solutions.com', defaultHash, 'Super Admin']
+        );
+        console.log('[DB INFO] Default Super Admin user created: admin@digi8solutions.com');
+      }
 
       await connection.query(`
       CREATE TABLE IF NOT EXISTS projects (
