@@ -16,7 +16,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             # Navigate to project directory (update this path to match your VPS setup)
-            cd /var/www/digi8
+            cd /var/www/digi8sloutions
             
             # Pull latest changes
             git pull origin main
