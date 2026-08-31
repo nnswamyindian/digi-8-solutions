@@ -28,7 +28,7 @@ export default function VerifyEmail() {
           setMessage(res.error || 'Failed to verify email. The link may have expired.');
         }
       })
-      .catch((err) => {
+      .catch((_err) => {
         setStatus('error');
         setMessage('An unexpected error occurred.');
       });

@@ -1,4 +1,4 @@
-import { Palette, Cpu, FileText, TrendingUp, BookOpen, ShieldCheck, Users, Gift, Settings, Building2, Code, Smartphone, Briefcase, Lock, Database, Search, Megaphone, MapPin, Printer, Shield, UserPlus, Server } from 'lucide-react';
+import { Palette, Cpu, FileText, TrendingUp, BookOpen, ShieldCheck, Users, Gift } from 'lucide-react';
 
 export const divisions = [
   {

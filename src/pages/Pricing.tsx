@@ -62,7 +62,7 @@ export default function Pricing() {
       {/* Plans */}
       <section className="py-24 px-4 sm:px-6 relative z-10 bg-brand-surface">
         <div className="max-w-7xl mx-auto grid lg:grid-cols-3 gap-8">
-          {plans.map((plan, i) => (
+          {plans.map((plan) => (
             <div key={plan.name} className={`glass-card-premium p-8 sm:p-10 flex flex-col relative overflow-hidden group transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl ${
               plan.popular ? 'border-brand-blue/40 shadow-[0_0_30px_rgba(59,130,246,0.15)] bg-white/[0.03]' : ''
             }`}>
@@ -120,7 +120,7 @@ export default function Pricing() {
           </div>
           
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {addons.map((addon, i) => (
+            {addons.map((addon) => (
               <div key={addon.name} className="glass-card-premium p-6 border-white/5 hover:border-brand-cyan/30 flex items-start gap-4 transition-colors group">
                 <div className="w-12 h-12 rounded-xl bg-brand-cyan/10 border border-brand-cyan/20 flex items-center justify-center flex-shrink-0 group-hover:bg-brand-cyan/20 transition-colors">
                   <Sparkles size={20} className="text-brand-cyan" />

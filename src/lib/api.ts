@@ -131,36 +131,78 @@ export async function verifyEmail(token: string, type: string) {
 
 // Mock Types for UI compilation until fully migrated
 export interface Project {
-  id: string;
+  id?: string | number;
   title: string;
-  client: string;
-  category: string;
-  image_url: string;
-  results: Record<string, string>;
-  tags: string[];
+  client?: string;
+  category?: string;
+  description?: string;
+  image_url?: string;
+  thumbnail_url?: string;
+  live_url?: string;
+  before_url?: string;
+  after_url?: string;
+  tech_stack?: string[];
+  results?: Record<string, string>;
+  tags?: string[];
+  featured?: boolean;
+  sort_order?: number;
+  created_at?: string;
 }
 
 export interface BlogPost {
-  id: string;
+  id?: string | number;
   title: string;
-  excerpt: string;
-  content: string;
-  image_url: string;
-  category: string;
-  read_time: string;
-  author: string;
-  created_at: string;
-  slug: string;
+  excerpt?: string;
+  content?: string;
+  image_url?: string;
+  cover_url?: string;
+  category?: string;
+  read_time?: string;
+  reading_time?: number | string;
+  author?: string;
+  seo_title?: string;
+  seo_description?: string;
+  tags?: string[];
+  published?: boolean;
+  published_at?: string;
+  created_at?: string;
+  slug?: string;
 }
 
 export interface Testimonial {
-  id: string;
-  name: string;
-  role: string;
-  company: string;
-  content: string;
-  image_url: string;
-  rating: number;
+  id?: string | number;
+  name?: string;
+  client_name?: string;
+  role?: string;
+  company?: string;
+  content?: string;
+  review?: string;
+  image_url?: string;
+  logo_url?: string;
+  avatar_url?: string;
+  video_url?: string;
+  rating?: number;
+  service?: string;
+  approved?: boolean;
+  is_featured?: boolean;
+  created_at?: string;
+}
+
+export interface ServicePricing {
+  id?: string | number;
+  service_slug?: string;
+  service_name?: string;
+  item_name?: string;
+  market_price?: string;
+  our_price?: string;
+  savings?: string;
+  sort_order?: number;
+  is_active?: boolean;
+  name?: string;
+  price?: string;
+  features?: string[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface SupportTicket {
@@ -197,7 +239,7 @@ export async function fetchTickets(): Promise<SupportTicket[]> {
     const res = await fetch(`${API_BASE_URL}/tickets`);
     const data = await res.json();
     return data.data || [];
-  } catch (err) {
+  } catch (_err) {
     return [];
   }
 }
@@ -224,22 +266,30 @@ export async function deleteTicket(id: number | string) {
   }
 }
 
-export async function getProjects(): Promise<Project[]> {
+export async function getProjects(category?: string): Promise<Project[]> {
   try {
     const res = await fetch(`${API_BASE_URL}/projects`);
     const data = await res.json();
-    return data.data || [];
-  } catch (error) {
+    const projects: Project[] = data.data || [];
+    if (category && category !== 'All') {
+      return projects.filter(p => p.category?.toLowerCase() === category.toLowerCase());
+    }
+    return projects;
+  } catch (_error) {
     return [];
   }
 }
 
-export async function getBlogPosts(): Promise<BlogPost[]> {
+export async function getBlogPosts(category?: string): Promise<BlogPost[]> {
   try {
     const res = await fetch(`${API_BASE_URL}/blogs`);
     const data = await res.json();
-    return data.data || [];
-  } catch (error) {
+    const posts: BlogPost[] = data.data || [];
+    if (category && category !== 'All') {
+      return posts.filter(p => p.category?.toLowerCase() === category.toLowerCase());
+    }
+    return posts;
+  } catch (_error) {
     return [];
   }
 }
@@ -250,7 +300,7 @@ export async function getBlogPost(slug: string): Promise<BlogPost | null> {
     const data = await res.json();
     const posts = data.data || [];
     return posts.find((p: any) => p.slug === slug) || null;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }
@@ -260,11 +310,10 @@ export async function getTestimonials(): Promise<Testimonial[]> {
     const res = await fetch(`${API_BASE_URL}/testimonials`);
     const data = await res.json();
     return data.data || [];
-  } catch (error) {
+  } catch (_error) {
     return [];
   }
 }
-
 
 export async function checkAuth() {
   return !!localStorage.getItem('admin_token');
@@ -304,35 +353,80 @@ export const supabase = {
     signOut: async () => ({ error: null }),
     signInWithPassword: async () => ({ error: null })
   },
-  from: (table: string) => ({
-    select: () => {
-      const fetcher = async () => { const res = await fetch(`${API_BASE_URL}/${table}`); const data = await res.json(); return { data: data.data || [], error: null }; };
-      return {
-        order: () => ({ order: () => ({ limit: fetcher, then: async (cb: any) => cb(await fetcher()) }), limit: fetcher, then: async (cb: any) => cb(await fetcher()) }),
-        then: async (cb: any) => cb(await fetcher()),
-        limit: fetcher,
-        single: async () => { const res = await fetcher(); return { data: res.data[0] || null, error: null }; },
-        maybeSingle: async () => { const res = await fetcher(); return { data: res.data[0] || null, error: null }; }
-      }
-    },
-    insert: (payload: any) => {
-      const fetcher = async () => { const res = await fetch(`${API_BASE_URL}/${table}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const data = await res.json(); return { data: data.data, error: data.success ? null : new Error(data.error) }; };
-      return { select: () => ({ maybeSingle: fetcher }), then: async (cb: any) => cb(await fetcher()) }
-    },
-    update: (payload: any) => ({
-      eq: async (_col: string, val: string) => { const res = await fetch(`${API_BASE_URL}/${table}/${val}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const data = await res.json(); return { data: data.data, error: data.success ? null : new Error(data.error) }; }
-    }),
-    delete: () => ({
-      eq: async (_col: string, val: string) => { const res = await fetch(`${API_BASE_URL}/${table}/${val}`, { method: 'DELETE' }); const data = await res.json(); return { data: data.data, error: data.success ? null : new Error(data.error) }; }
-    })
-  })
-};
+  from: (table: string) => {
+    const makeQueryBuilder = () => {
+      const fetcher = async () => {
+        try {
+          const res = await fetch(`${API_BASE_URL}/${table}`);
+          const data = await res.json();
+          return { data: data.data || [], error: null };
+        } catch (err: any) {
+          return { data: [], error: err };
+        }
+      };
 
+      const chain: any = {
+        order: (_column?: string, _options?: { ascending?: boolean }) => chain,
+        limit: (_count?: number) => chain,
+        eq: (_col: string, _val: any) => chain,
+        single: async () => {
+          const res = await fetcher();
+          return { data: res.data[0] || null, error: null };
+        },
+        maybeSingle: async () => {
+          const res = await fetcher();
+          return { data: res.data[0] || null, error: null };
+        },
+        then: (cb: any) => fetcher().then(cb)
+      };
+
+      return chain;
+    };
+
+    return {
+      select: (_columns?: string) => makeQueryBuilder(),
+      insert: (payload: any) => {
+        const fetcher = async () => {
+          const res = await fetch(`${API_BASE_URL}/${table}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          return { data: data.data, error: data.success ? null : new Error(data.error) };
+        };
+        return {
+          select: () => ({ maybeSingle: fetcher, then: (cb: any) => fetcher().then(cb) }),
+          then: (cb: any) => fetcher().then(cb)
+        };
+      },
+      update: (payload: any) => ({
+        eq: async (_col: string, val: string | number) => {
+          const res = await fetch(`${API_BASE_URL}/${table}/${val}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          return { data: data.data, error: data.success ? null : new Error(data.error) };
+        }
+      }),
+      delete: () => ({
+        eq: async (_col: string, val: string | number) => {
+          const res = await fetch(`${API_BASE_URL}/${table}/${val}`, { method: 'DELETE' });
+          const data = await res.json();
+          return { data: data.data, error: data.success ? null : new Error(data.error) };
+        }
+      })
+    };
+  }
+};
 
 export async function getAllServicePricing() {
   const res = await api.get('/api/service_pricing');
   return res.data || [];
 }
+
 export async function upsertServicePricing(pricing: ServicePricing) {
   if (pricing.id) {
     const res = await api.put(`/api/service_pricing/${pricing.id}`, pricing);
@@ -342,9 +436,8 @@ export async function upsertServicePricing(pricing: ServicePricing) {
     return res;
   }
 }
-export async function deleteServicePricing(id: string) {
+
+export async function deleteServicePricing(id: string | number) {
   const res = await api.delete(`/api/service_pricing/${id}`);
   return res;
 }
-
-export interface ServicePricing { id?: string; name: string; price: string; features: string[]; }

@@ -11,12 +11,12 @@ export default function AdminProjects() {
   const load = () => {
     setLoading(true);
     supabase.from('projects').select('*').order('sort_order').order('created_at', { ascending: false })
-      .then(({ data }) => { setProjects((data || []) as Project[]); setLoading(false); });
+      .then((res: any) => { setProjects((res?.data || []) as Project[]); setLoading(false); });
   };
 
   useEffect(load, []);
 
-  const toggleFeatured = async (id: string | undefined, featured: boolean | undefined) => {
+  const toggleFeatured = async (id: string | number | undefined, featured: boolean | undefined) => {
     if (!id) return;
     const nextState = !featured;
     await supabase.from('projects').update({ featured: nextState }).eq('id', id);

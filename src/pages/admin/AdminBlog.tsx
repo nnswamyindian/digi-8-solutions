@@ -14,12 +14,12 @@ export default function AdminBlog() {
       .from('blog_posts')
       .select('id, title, slug, category, author, reading_time, published, published_at, created_at')
       .order('created_at', { ascending: false })
-      .then(({ data }) => { setPosts((data || []) as BlogPost[]); setLoading(false); });
+      .then((res: any) => { setPosts((res?.data || []) as BlogPost[]); setLoading(false); });
   };
 
   useEffect(load, []);
 
-  const togglePublish = async (id: string | undefined, published: boolean | undefined) => {
+  const togglePublish = async (id: string | number | undefined, published: boolean | undefined) => {
     if (!id) return;
     const nextState = !published;
     await supabase

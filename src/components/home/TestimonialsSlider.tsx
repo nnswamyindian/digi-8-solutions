@@ -70,11 +70,11 @@ export default function TestimonialsSlider() {
                       <img src={current.avatar_url} alt={current.client_name} className="w-12 h-12 rounded-full object-cover border border-brand-cyan/30" />
                     ) : (
                       <div className="w-12 h-12 rounded-full bg-gradient-to-br from-brand-cyan to-brand-blue flex items-center justify-center font-bold text-white text-lg">
-                        {current.client_name.charAt(0)}
+                        {current.client_name?.charAt(0) || 'D'}
                       </div>
                     )}
                     <div>
-                      <h4 className="font-bold text-white">{current.client_name}</h4>
+                      <h4 className="font-bold text-white">{current.client_name || 'Client'}</h4>
                       <p className="text-xs text-slate-400">{current.role}, {current.company}</p>
                     </div>
                   </div>

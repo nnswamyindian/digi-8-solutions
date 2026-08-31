@@ -50,8 +50,8 @@ function FAQItem({ q, a, color }: FAQ & { color: string }) {
 export default function ServicePage({
   color, icon, title, tagline, description, heroImage, overview,
   problemsSolved = [], solutionsProvided = [], categories = [],
-  benefits = [], technologies = [], process = [], pricing = [],
-  faqs = [], quoteForm, relatedServices = [], externalLinkCTA
+  benefits = [], process = [], pricing = [],
+  faqs = [], externalLinkCTA
 }: Props) {
   return (
     <div className="bg-brand-dark text-white font-inter relative">

@@ -27,7 +27,7 @@ export default function AdminQuotes() {
   const load = () => {
     setLoading(true);
     supabase.from('quotes').select('*').order('created_at', { ascending: false })
-      .then(({ data }) => { setQuotes((data || []) as Quote[]); setLoading(false); });
+      .then((res: any) => { setQuotes((res?.data || []) as Quote[]); setLoading(false); });
   };
 
   useEffect(load, []);

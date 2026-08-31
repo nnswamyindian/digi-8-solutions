@@ -22,7 +22,7 @@ export default function AdminTestimonials() {
   const load = () => {
     setLoading(true);
     supabase.from('testimonials').select('*').order('created_at', { ascending: false })
-      .then(({ data }) => { setItems((data || []) as Testimonial[]); setLoading(false); });
+      .then((res: any) => { setItems((res?.data || []) as Testimonial[]); setLoading(false); });
   };
 
   useEffect(load, []);

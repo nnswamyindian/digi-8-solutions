@@ -51,7 +51,7 @@ export default function AdminPricing() {
 
   const saveEdit = async () => {
     if (!editing) return;
-    if (!editing.item_name.trim() || !editing.our_price.trim()) {
+    if (!editing.item_name?.trim() || !editing.our_price?.trim()) {
       setError('Item name and our price are required');
       return;
     }
@@ -66,7 +66,7 @@ export default function AdminPricing() {
       }
       setEditing(null);
     } catch {
-      setError('Failed to save. Check your permissions.');
+      setError('Failed to save pricing item');
     } finally {
       setSaving(false);
     }
@@ -83,8 +83,8 @@ export default function AdminPricing() {
     }
   };
 
-  const remove = async (id: string, name: string) => {
-    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+  const remove = async (id: string | number, name?: string) => {
+    if (!confirm(`Delete "${name || 'this item'}"? This cannot be undone.`)) return;
     try {
       await deleteServicePricing(id);
       setRows(prev => prev.filter(r => r.id !== id));

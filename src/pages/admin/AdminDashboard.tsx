@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Users, FileText, MessageSquare, TrendingUp, RefreshCw, Filter } from 'lucide-react';
 import AdminLayout from './AdminLayout';
-import { supabase } from '../../lib/api';
 
 type Stats = { leads: number; quotes: number; contacts: number; testimonials: number };
 
@@ -15,7 +14,7 @@ const dummyLeads = [
 ];
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<Stats>({ leads: 5, quotes: 12, contacts: 8, testimonials: 4 });
+  const [stats] = useState<Stats>({ leads: 5, quotes: 12, contacts: 8, testimonials: 4 });
   const [leads, setLeads] = useState<any[]>(dummyLeads);
   const [loading, setLoading] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>('All');
@@ -23,17 +22,11 @@ export default function AdminDashboard() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // In a real scenario, we'd fetch from our new API:
-      // const res = await fetch('/api/leads');
-      // const data = await res.json();
-      // setLeads(data.data);
-      
-      // For now we just reset dummy leads to show it's "refreshing"
       setTimeout(() => {
         setLeads([...dummyLeads]);
         setLoading(false);
       }, 500);
-    } catch (err) {
+    } catch (_err) {
       setLoading(false);
     }
   };

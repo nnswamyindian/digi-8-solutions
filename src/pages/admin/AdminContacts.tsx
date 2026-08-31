@@ -13,7 +13,7 @@ export default function AdminContacts() {
   const load = () => {
     setLoading(true);
     supabase.from('contacts').select('*').order('created_at', { ascending: false })
-      .then(({ data }) => { setItems((data || []) as Contact[]); setLoading(false); });
+      .then((res: any) => { setItems((res?.data || []) as Contact[]); setLoading(false); });
   };
 
   useEffect(load, []);

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Code2 } from 'lucide-react';
 import ServicePage, { useQuoteSubmit } from '../ServicePage';
-import { BRAND } from '../../lib/config';
 
 function WebDevForm() {
   const { status, submit } = useQuoteSubmit('Website Development');

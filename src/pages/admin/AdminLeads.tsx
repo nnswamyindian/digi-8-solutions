@@ -21,7 +21,7 @@ export default function AdminLeads() {
   const load = () => {
     setLoading(true);
     supabase.from('leads').select('*').order('created_at', { ascending: false })
-      .then(({ data }) => { setLeads(data || []); setLoading(false); });
+      .then((res: any) => { setLeads(res?.data || []); setLoading(false); });
   };
 
   useEffect(load, []);
