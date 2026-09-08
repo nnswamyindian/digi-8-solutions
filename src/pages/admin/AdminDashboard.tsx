@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Users, FileText, MessageSquare, TrendingUp, RefreshCw, Filter } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import {
+  Users, FileText, MessageSquare, TrendingUp, RefreshCw, Filter,
+  Briefcase, UserCheck, Calendar, Mail, BarChart2, Ticket, ArrowRight,
+  ExternalLink, Sparkles, ChevronRight, Plus
+} from 'lucide-react';
 import AdminLayout from './AdminLayout';
+import { fetchCareersStats, type CareerStats } from '../../lib/api';
 
 type Stats = { leads: number; quotes: number; contacts: number; testimonials: number };
 
@@ -15,6 +21,13 @@ const dummyLeads = [
 
 export default function AdminDashboard() {
   const [stats] = useState<Stats>({ leads: 5, quotes: 12, contacts: 8, testimonials: 4 });
+  const [careerStats, setCareerStats] = useState<CareerStats>({
+    activeJobs: 0,
+    draftJobs: 0,
+    closedJobs: 0,
+    totalApplications: 0,
+    newApplications: 0
+  });
   const [leads, setLeads] = useState<any[]>(dummyLeads);
   const [loading, setLoading] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>('All');
@@ -22,11 +35,12 @@ export default function AdminDashboard() {
   const loadData = async () => {
     setLoading(true);
     try {
-      setTimeout(() => {
-        setLeads([...dummyLeads]);
-        setLoading(false);
-      }, 500);
+      const cStats = await fetchCareersStats();
+      setCareerStats(cStats);
+      setLeads([...dummyLeads]);
     } catch (_err) {
+      // Fallback
+    } finally {
       setLoading(false);
     }
   };
@@ -35,9 +49,9 @@ export default function AdminDashboard() {
 
   const statCards = [
     { icon: Users, label: 'Total Leads', value: stats.leads, color: '#06B6D4' },
-    { icon: FileText, label: 'Quotes Generated', value: stats.quotes, color: '#3B82F6' },
-    { icon: MessageSquare, label: 'Messages', value: stats.contacts, color: '#A855F7' },
-    { icon: TrendingUp, label: 'Testimonials', value: stats.testimonials, color: '#EC4899' },
+    { icon: Briefcase, label: 'Active Jobs', value: careerStats.activeJobs, color: '#3B82F6' },
+    { icon: UserCheck, label: 'Candidates Applied', value: careerStats.totalApplications, color: '#A855F7' },
+    { icon: Ticket, label: 'Support Desk', value: stats.quotes, color: '#EC4899' },
   ];
 
   const filteredLeads = filterCategory === 'All' 
@@ -48,20 +62,29 @@ export default function AdminDashboard() {
 
   return (
     <AdminLayout>
-      <div className="max-w-6xl w-full mx-auto">
+      <div className="max-w-6xl w-full mx-auto space-y-8 pb-20">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/10">
           <div>
-            <h1 className="font-outfit font-black text-white text-3xl mb-1">Dashboard</h1>
-            <p className="text-slate-400 text-sm font-inter">Welcome back! Here's what's happening today.</p>
+            <h1 className="font-outfit font-black text-white text-3xl mb-1 tracking-tight">Dashboard Overview</h1>
+            <p className="text-slate-400 text-sm font-inter">Real-time control center for Digi 8 business leads, ATS recruitment, and customer operations.</p>
           </div>
-          <button onClick={loadData} className="btn-outline-glass px-4 py-2 rounded-xl text-sm font-inter flex items-center gap-2">
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh Data
-          </button>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <Link
+              to="/admin/careers/jobs/new"
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-xs font-bold text-white flex items-center gap-1.5 shadow-lg shadow-cyan-500/20 transition-all"
+            >
+              <Plus size={14} />
+              <span>Post Job</span>
+            </Link>
+            <button onClick={loadData} className="btn-outline-glass px-4 py-2 rounded-xl text-sm font-inter flex items-center gap-2">
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
+            </button>
+          </div>
         </div>
 
         {/* Stat cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
           {statCards.map(card => (
             <div key={card.label} className="glass-panel p-6 border border-white/10 hover:border-white/20 transition-all relative overflow-hidden group">
               <div 
@@ -79,6 +102,103 @@ export default function AdminDashboard() {
               <div className="text-sm text-slate-400 font-inter relative z-10">{card.label}</div>
             </div>
           ))}
+        </div>
+
+        {/* ATS & Careers Command Center */}
+        <div className="bg-slate-950/70 border border-cyan-500/20 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                <Sparkles size={20} />
+              </div>
+              <div>
+                <h2 className="font-outfit font-bold text-xl text-white">Recruitment & ATS Hub</h2>
+                <p className="text-xs text-slate-400">Direct shortcuts to interactive ATS pipelines, candidates, interviews, and automations</p>
+              </div>
+            </div>
+            <Link
+              to="/admin/careers"
+              className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors self-start sm:self-auto"
+            >
+              <span>View All Careers</span>
+              <ArrowRight size={13} />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            {[
+              {
+                title: 'Pipeline Kanban',
+                desc: 'Stage-by-stage candidate progression & drag-and-drop',
+                href: '/admin/careers/pipeline',
+                icon: Users,
+                color: 'text-cyan-400',
+                border: 'hover:border-cyan-500/40'
+              },
+              {
+                title: 'Candidate CRM',
+                desc: 'Unified profiles, multi-application history & tags',
+                href: '/admin/careers/candidates',
+                icon: UserCheck,
+                color: 'text-purple-400',
+                border: 'hover:border-purple-500/40'
+              },
+              {
+                title: 'Interviews & Scorecards',
+                desc: 'Rounds scheduling, meeting links & evaluation criteria',
+                href: '/admin/careers/interviews',
+                icon: Calendar,
+                color: 'text-blue-400',
+                border: 'hover:border-blue-500/40'
+              },
+              {
+                title: 'Email Automations',
+                desc: 'Workflow event triggers, email templates & delivery logs',
+                href: '/admin/careers/automations',
+                icon: Mail,
+                color: 'text-emerald-400',
+                border: 'hover:border-emerald-500/40'
+              },
+              {
+                title: 'Funnel Telemetry',
+                desc: 'Drop-off analytics, conversion rates & velocity metrics',
+                href: '/admin/careers/analytics',
+                icon: BarChart2,
+                color: 'text-amber-400',
+                border: 'hover:border-amber-500/40'
+              },
+              {
+                title: 'Support Tickets Desk',
+                desc: 'Inquiries, customer support tickets & chatbot triage',
+                href: '/admin/tickets',
+                icon: Ticket,
+                color: 'text-rose-400',
+                border: 'hover:border-rose-500/40'
+              }
+            ].map(item => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className={`p-4 rounded-xl bg-slate-900/80 border border-slate-800 ${item.border} hover:bg-slate-800/80 transition-all flex items-start justify-between group shadow-sm`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2.5 rounded-lg bg-slate-950 border border-slate-800 ${item.color} shrink-0`}>
+                      <Icon size={18} />
+                    </div>
+                    <div>
+                      <h3 className="font-outfit font-bold text-sm text-white group-hover:text-cyan-300 transition-colors">
+                        {item.title}
+                      </h3>
+                      <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-2">{item.desc}</p>
+                    </div>
+                  </div>
+                  <ChevronRight size={15} className="text-slate-600 group-hover:text-white transition-colors shrink-0 mt-1" />
+                </Link>
+              );
+            })}
+          </div>
         </div>
 
         {/* Leads Table with Filter */}

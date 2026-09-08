@@ -441,3 +441,906 @@ export async function deleteServicePricing(id: string | number) {
   const res = await api.delete(`/api/service_pricing/${id}`);
   return res;
 }
+
+// --- CAREERS PLATFORM TYPES & APIS (PHASE 1) ---
+
+export interface ApplicationQuestion {
+  id: string;
+  question: string;
+  type: 'short text' | 'long text' | 'number' | 'dropdown' | 'radio' | 'checkbox' | 'url' | 'file';
+  required: boolean;
+  options?: string[];
+}
+
+export interface JobPosting {
+  id?: number | string;
+  job_id: string;
+  title: string;
+  slug: string;
+  category: string;
+  job_type: string;
+  work_mode: 'Remote' | 'Hybrid' | 'On-site' | string;
+  location: string;
+  experience: string;
+  openings?: number;
+  compensation?: string;
+  short_description?: string;
+  description: string;
+  responsibilities?: string[];
+  requirements?: string[];
+  skills?: string[];
+  documents_required?: string[];
+  custom_questions?: ApplicationQuestion[];
+  application_deadline?: string;
+  status: 'draft' | 'published' | 'closed' | 'archived';
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+  published_at?: string;
+  applications_count?: number;
+}
+
+export interface JobApplication {
+  id?: number | string;
+  application_id: string;
+  job_id: string;
+  candidate_name: string;
+  email: string;
+  phone: string;
+  location?: string;
+  current_role?: string;
+  experience?: string;
+  skills?: string[];
+  linkedin?: string;
+  portfolio?: string;
+  github?: string;
+  availability?: string;
+  expected_compensation?: string;
+  cover_message?: string;
+  resume_file?: string;
+  resume_original_name?: string;
+  custom_answers?: { question_id: string; question: string; answer: any }[];
+  documents?: { type: string; name: string; file: string }[];
+  status: 'new' | 'reviewed' | 'shortlisted' | 'rejected' | 'applied' | 'screening' | 'interview' | 'assessment' | 'selected' | 'hired';
+  stage_slug?: string;
+  recruiter_id?: string;
+  recruiter_name?: string;
+  priority?: 'low' | 'normal' | 'high' | 'urgent';
+  source?: string;
+  created_at?: string;
+  updated_at?: string;
+  job_title?: string;
+  job_category?: string;
+  job_custom_questions?: ApplicationQuestion[];
+}
+
+export interface CareerStats {
+  activeJobs: number;
+  draftJobs: number;
+  closedJobs: number;
+  totalApplications: number;
+  newApplications: number;
+}
+
+// --- PHASE 2: ATS, PIPELINE, CRM & AUTOMATION TYPES ---
+
+export interface RecruitmentStage {
+  id: number;
+  name: string;
+  slug: string;
+  stage_order: number;
+  color_code: string;
+  is_system: number | boolean;
+  candidate_visible: number | boolean;
+  candidate_label: string;
+}
+
+export interface StageHistory {
+  id: number;
+  application_id: string;
+  from_stage?: string;
+  to_stage: string;
+  changed_by: string;
+  reason?: string;
+  duration_seconds?: number;
+  created_at: string;
+}
+
+export interface CandidateNote {
+  id: number;
+  application_id?: string;
+  candidate_email?: string;
+  author_name: string;
+  author_role: string;
+  note_text: string;
+  is_private: number | boolean;
+  created_at: string;
+}
+
+export interface CandidateTag {
+  id: number;
+  application_id?: string;
+  candidate_email?: string;
+  tag_name: string;
+  color_code: string;
+}
+
+export interface RecruiterTask {
+  id: number;
+  application_id?: string;
+  title: string;
+  description?: string;
+  due_date?: string;
+  assigned_to: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  created_at?: string;
+}
+
+export interface InterviewItem {
+  id: number;
+  application_id: string;
+  candidate_name: string;
+  candidate_email: string;
+  interview_type: string;
+  scheduled_at: string;
+  duration_minutes: number;
+  interviewer_name: string;
+  interviewer_email?: string;
+  meeting_link?: string;
+  status: 'scheduled' | 'completed' | 'cancelled' | 'rescheduled';
+  notes?: string;
+  feedback_count?: number;
+  created_at?: string;
+}
+
+export interface InterviewFeedback {
+  id: number;
+  interview_id: number;
+  application_id?: string;
+  interviewer_name: string;
+  technical_rating: number;
+  communication_rating: number;
+  problem_solving_rating: number;
+  culture_fit_rating: number;
+  recommendation: 'strong_hire' | 'hire' | 'neutral' | 'no_hire';
+  feedback_notes: string;
+  submitted_at: string;
+}
+
+export interface EmailTemplate {
+  id: number;
+  name: string;
+  subject: string;
+  body: string;
+  category: 'acknowledgement' | 'shortlist' | 'interview' | 'offer' | 'rejection' | 'general';
+  variables: string[] | string;
+  is_default: number | boolean;
+}
+
+export interface EmailLog {
+  id: number;
+  application_id?: string;
+  candidate_email: string;
+  template_id?: number;
+  template_name?: string;
+  subject: string;
+  body: string;
+  status: 'sent' | 'delivered' | 'failed';
+  sent_by: string;
+  sent_at: string;
+}
+
+export interface AutomationRule {
+  id: number;
+  name: string;
+  event_trigger: 'stage_change' | 'interview_scheduled';
+  trigger_stage?: string;
+  action_type: 'send_email';
+  email_template_id: number;
+  is_active: number | boolean;
+  template_name?: string;
+  template_subject?: string;
+}
+
+export interface CandidateCrmSummary {
+  email: string;
+  candidate_name: string;
+  phone: string;
+  location?: string;
+  current_role?: string;
+  experience?: string;
+  recruiter_name?: string;
+  total_applications: number;
+  latest_application_date: string;
+  latest_application_id: string;
+  latest_stage: string;
+  latest_job_title: string;
+  tags?: CandidateTag[];
+}
+
+export interface CandidateFullProfile {
+  profile: {
+    candidate_name: string;
+    email: string;
+    phone: string;
+    location?: string;
+    current_role?: string;
+    experience?: string;
+    linkedin?: string;
+    portfolio?: string;
+    github?: string;
+    skills?: string[];
+    created_at: string;
+  };
+  applications: JobApplication[];
+  notes: CandidateNote[];
+  tags: CandidateTag[];
+  interviews: InterviewItem[];
+  emailLogs: EmailLog[];
+}
+
+export interface PublicApplicationStatus {
+  application_id: string;
+  candidate_name: string;
+  job_title: string;
+  job_location: string;
+  job_type: string;
+  work_mode: string;
+  applied_date: string;
+  current_stage_slug: string;
+  current_stage_label: string;
+  is_concluded: boolean;
+  roadmap: {
+    slug: string;
+    label: string;
+    order: number;
+    status: 'completed' | 'current' | 'upcoming';
+  }[];
+}
+
+export async function fetchCareersStats(): Promise<CareerStats> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/stats`);
+    const data = await res.json();
+    return data.data || { activeJobs: 0, draftJobs: 0, closedJobs: 0, totalApplications: 0, newApplications: 0 };
+  } catch (_err) {
+    return { activeJobs: 0, draftJobs: 0, closedJobs: 0, totalApplications: 0, newApplications: 0 };
+  }
+}
+
+export async function fetchCareersJobs(params?: {
+  all?: boolean;
+  category?: string;
+  job_type?: string;
+  work_mode?: string;
+  search?: string;
+  status?: string;
+}): Promise<JobPosting[]> {
+  try {
+    const query = new URLSearchParams();
+    if (params?.all) query.append('all', 'true');
+    if (params?.category) query.append('category', params.category);
+    if (params?.job_type) query.append('job_type', params.job_type);
+    if (params?.work_mode) query.append('work_mode', params.work_mode);
+    if (params?.search) query.append('search', params.search);
+    if (params?.status) query.append('status', params.status);
+
+    const res = await fetch(`${API_BASE_URL}/careers/jobs?${query.toString()}`);
+    const data = await res.json();
+    return data.data || [];
+  } catch (_err) {
+    return [];
+  }
+}
+
+export async function fetchJobBySlugOrId(idOrSlug: string): Promise<JobPosting | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/jobs/${idOrSlug}`);
+    const data = await res.json();
+    if (data.success && data.data) return data.data;
+    return null;
+  } catch (_err) {
+    return null;
+  }
+}
+
+export async function createCareerJob(jobData: Partial<JobPosting>) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/jobs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(jobData)
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function updateCareerJob(id: string | number, jobData: Partial<JobPosting>) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/jobs/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(jobData)
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function deleteCareerJob(id: string | number) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/jobs/${id}`, { method: 'DELETE' });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function submitCareerApplication(formData: FormData) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/apply`, {
+      method: 'POST',
+      body: formData // multipart/form-data
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Submission failed' };
+  }
+}
+
+export async function fetchCareerApplications(params?: {
+  job_id?: string;
+  status?: string;
+  experience?: string;
+  search?: string;
+}): Promise<JobApplication[]> {
+  try {
+    const query = new URLSearchParams();
+    if (params?.job_id) query.append('job_id', params.job_id);
+    if (params?.status) query.append('status', params.status);
+    if (params?.experience) query.append('experience', params.experience);
+    if (params?.search) query.append('search', params.search);
+
+    const res = await fetch(`${API_BASE_URL}/careers/applications?${query.toString()}`);
+    const data = await res.json();
+    return data.data || [];
+  } catch (_err) {
+    return [];
+  }
+}
+
+export async function fetchCareerApplicationById(id: string | number): Promise<JobApplication | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/applications/${id}`);
+    const data = await res.json();
+    return data.data || null;
+  } catch (_err) {
+    return null;
+  }
+}
+
+export async function updateCareerApplication(id: string | number, updates: Partial<JobApplication>) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/applications/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function deleteCareerApplication(id: string | number) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/applications/${id}`, { method: 'DELETE' });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export function getResumeDocumentUrl(filename?: string, download = false): string {
+  if (!filename) return '#';
+  return `${API_BASE_URL}/careers/documents/${filename}${download ? '?download=true' : ''}`;
+}
+
+// --- PHASE 2 API CLIENT FUNCTIONS ---
+
+export async function fetchRecruitmentStages(): Promise<RecruitmentStage[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/stages`);
+    const data = await res.json();
+    return data.data || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function createRecruitmentStage(stageData: Partial<RecruitmentStage>) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/stages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(stageData)
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function updateRecruitmentStage(id: number | string, stageData: Partial<RecruitmentStage>) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/stages/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(stageData)
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function reorderRecruitmentStages(stages: { id: number; stage_order: number }[]) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/stages/reorder`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stages })
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function deleteRecruitmentStage(id: number | string) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/stages/${id}`, { method: 'DELETE' });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function updateApplicationStage(
+  id: string | number,
+  payload: {
+    stage_slug: string;
+    reason?: string;
+    changed_by?: string;
+    recruiter_id?: string;
+    recruiter_name?: string;
+    priority?: string;
+  }
+) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/applications/${id}/stage`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function fetchApplicationTimeline(id: string | number) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/applications/${id}/timeline`);
+    const data = await res.json();
+    return data.data || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchCandidatesCrm(): Promise<CandidateCrmSummary[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/candidates`);
+    const data = await res.json();
+    return data.data || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchCandidateProfile(email: string): Promise<CandidateFullProfile | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/candidates/${encodeURIComponent(email)}`);
+    const data = await res.json();
+    return data.data || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchCandidateNotes(params: { application_id?: string; candidate_email?: string }): Promise<CandidateNote[]> {
+  try {
+    const query = new URLSearchParams();
+    if (params.application_id) query.append('application_id', params.application_id);
+    if (params.candidate_email) query.append('candidate_email', params.candidate_email);
+    const res = await fetch(`${API_BASE_URL}/careers/notes?${query.toString()}`);
+    const data = await res.json();
+    return data.data || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function createCandidateNote(payload: Partial<CandidateNote>) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function deleteCandidateNote(id: number | string) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/notes/${id}`, { method: 'DELETE' });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function fetchCandidateTags(params: { application_id?: string; candidate_email?: string }): Promise<CandidateTag[]> {
+  try {
+    const query = new URLSearchParams();
+    if (params.application_id) query.append('application_id', params.application_id);
+    if (params.candidate_email) query.append('candidate_email', params.candidate_email);
+    const res = await fetch(`${API_BASE_URL}/careers/tags?${query.toString()}`);
+    const data = await res.json();
+    return data.data || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function createCandidateTag(payload: { application_id?: string; candidate_email?: string; tag_name: string; color_code?: string }) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/tags`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function deleteCandidateTag(id: number | string) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/tags/${id}`, { method: 'DELETE' });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function fetchRecruiterTasks(params?: { application_id?: string; status?: string; assigned_to?: string }): Promise<RecruiterTask[]> {
+  try {
+    const query = new URLSearchParams();
+    if (params?.application_id) query.append('application_id', params.application_id);
+    if (params?.status) query.append('status', params.status);
+    if (params?.assigned_to) query.append('assigned_to', params.assigned_to);
+    const res = await fetch(`${API_BASE_URL}/careers/tasks?${query.toString()}`);
+    const data = await res.json();
+    return data.data || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function createRecruiterTask(payload: Partial<RecruiterTask>) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function updateRecruiterTask(id: number | string, payload: Partial<RecruiterTask>) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/tasks/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function deleteRecruiterTask(id: number | string) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/tasks/${id}`, { method: 'DELETE' });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function fetchInterviews(params?: { application_id?: string; status?: string }): Promise<InterviewItem[]> {
+  try {
+    const query = new URLSearchParams();
+    if (params?.application_id) query.append('application_id', params.application_id);
+    if (params?.status) query.append('status', params.status);
+    const res = await fetch(`${API_BASE_URL}/careers/interviews?${query.toString()}`);
+    const data = await res.json();
+    return data.data || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function scheduleInterview(payload: Partial<InterviewItem>) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/interviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function updateInterview(id: number | string, payload: Partial<InterviewItem>) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/interviews/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function deleteInterview(id: number | string) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/interviews/${id}`, { method: 'DELETE' });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function fetchInterviewFeedback(interviewIdOrAppId: number | string): Promise<InterviewFeedback[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/interviews/${interviewIdOrAppId}/feedback`);
+    const data = await res.json();
+    return data.data || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function submitInterviewFeedback(interviewId: number | string, payload: Partial<InterviewFeedback>) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/interviews/${interviewId}/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function fetchEmailTemplates(): Promise<EmailTemplate[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/email-templates`);
+    const data = await res.json();
+    return data.data || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function createEmailTemplate(payload: Partial<EmailTemplate>) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/email-templates`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function updateEmailTemplate(id: number | string, payload: Partial<EmailTemplate>) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/email-templates/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function deleteEmailTemplate(id: number | string) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/email-templates/${id}`, { method: 'DELETE' });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function sendRecruiterEmailApi(payload: {
+  application_id?: string;
+  to: string;
+  subject: string;
+  body: string;
+  template_id?: number;
+  sent_by?: string;
+}) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/emails/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function fetchEmailLogs(params?: { application_id?: string; candidate_email?: string }): Promise<EmailLog[]> {
+  try {
+    const query = new URLSearchParams();
+    if (params?.application_id) query.append('application_id', params.application_id);
+    if (params?.candidate_email) query.append('candidate_email', params.candidate_email);
+    const res = await fetch(`${API_BASE_URL}/careers/emails/logs?${query.toString()}`);
+    const data = await res.json();
+    return data.data || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchAutomationRules(): Promise<AutomationRule[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/automation-rules`);
+    const data = await res.json();
+    return data.data || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function createAutomationRule(payload: Partial<AutomationRule>) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/automation-rules`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function updateAutomationRule(id: number | string, payload: Partial<AutomationRule>) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/automation-rules/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function deleteAutomationRule(id: number | string) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/automation-rules/${id}`, { method: 'DELETE' });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function fetchFunnelAnalytics() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/analytics/funnel`);
+    const data = await res.json();
+    return data.data || { totalApplications: 0, funnel: [] };
+  } catch {
+    return { totalApplications: 0, funnel: [] };
+  }
+}
+
+export async function fetchTimeToHireAnalytics() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/analytics/time-to-hire`);
+    const data = await res.json();
+    return data.data || { averageTimeToHireDays: 0, averageDaysPerStage: [] };
+  } catch {
+    return { averageTimeToHireDays: 0, averageDaysPerStage: [] };
+  }
+}
+
+export async function fetchAuditLogs(limit = 50) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/audit-logs?limit=${limit}`);
+    const data = await res.json();
+    return data.data || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchPublicApplicationStatus(applicationId: string, email: string): Promise<{ success: boolean; data?: PublicApplicationStatus; error?: string }> {
+  try {
+    const query = new URLSearchParams({
+      application_id: applicationId.trim(),
+      email: email.trim().toLowerCase()
+    });
+    const res = await fetch(`${API_BASE_URL}/careers/public/status?${query.toString()}`);
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to check status' };
+  }
+}
+
+export async function checkSmtpStatus(): Promise<{ success: boolean; message: string; user?: string }> {
+  try {
+    const res = await fetch(`${API_BASE_URL.replace('/api', '')}/api/system/smtp-status`);
+    const data = await res.json();
+    return data.data || { success: false, message: 'No response from server' };
+  } catch (err: any) {
+    return { success: false, message: err.message || 'Failed to connect to server' };
+  }
+}
+
+export async function testSmtpDispatch(targetEmail?: string): Promise<{ success: boolean; message: string; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/careers/emails/test-smtp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: targetEmail })
+    });
+    const data = await res.json();
+    if (data.success) {
+      return { success: true, message: data.message || 'Test email dispatched successfully' };
+    }
+    return { success: false, message: data.error || 'Failed to send test email', error: data.error };
+  } catch (err: any) {
+    return { success: false, message: err.message || 'Network error', error: err.message };
+  }
+}

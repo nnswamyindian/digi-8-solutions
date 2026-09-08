@@ -107,7 +107,7 @@ export default function Footer() {
               <li><Link to="/industries" className="hover:text-brand-cyan transition-colors">Industries Served</Link></li>
               <li><Link to="/portfolio" className="hover:text-brand-cyan transition-colors">Portfolio & Case Studies</Link></li>
               <li><Link to="/technologies" className="hover:text-brand-cyan transition-colors">Technology Stack</Link></li>
-              <li><Link to="/careers" className="hover:text-brand-cyan transition-colors">Careers & Culture</Link></li>
+              <li><Link to="/career" className="hover:text-brand-cyan transition-colors">Careers & Culture</Link></li>
               <li><Link to="/blog" className="hover:text-brand-cyan transition-colors">Tech Insights & Blog</Link></li>
               <li><Link to="/contact" className="hover:text-brand-cyan transition-colors">Contact Corporate Office</Link></li>
             </ul>

@@ -1,13 +1,21 @@
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, ReactNode, useMemo } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, Briefcase, MessageSquare, Settings,
-  LogOut, Menu, X, Zap, BarChart2, Tag, BookOpen, Bell, DollarSign, Shield, Ticket
+  LogOut, Menu, X, Zap, BarChart2, Tag, BookOpen, Bell, DollarSign, Shield, Ticket,
+  UserCheck, Calendar, Mail, Search, Sparkles, ArrowLeft, ChevronRight
 } from 'lucide-react';
 import { supabase } from '../../lib/api';
+import CommandPalette from '../../components/admin/ats/CommandPalette';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/admin/dashboard' },
+  { icon: UserCheck, label: 'Careers Overview', href: '/admin/careers' },
+  { icon: Users, label: 'ATS Pipeline', href: '/admin/careers/pipeline' },
+  { icon: Briefcase, label: 'Candidate CRM', href: '/admin/careers/candidates' },
+  { icon: Calendar, label: 'Interviews & Scorecards', href: '/admin/careers/interviews' },
+  { icon: Mail, label: 'Email Automation', href: '/admin/careers/automations' },
+  { icon: BarChart2, label: 'Recruitment Funnel', href: '/admin/careers/analytics' },
   { icon: Ticket, label: 'Support Tickets', href: '/admin/tickets' },
   { icon: Users, label: 'Leads', href: '/admin/leads' },
   { icon: FileText, label: 'Quotes', href: '/admin/quotes' },
@@ -17,7 +25,6 @@ const navItems = [
   { icon: BookOpen, label: 'Blog', href: '/admin/blog' },
   { icon: DollarSign, label: 'Pricing', href: '/admin/pricing' },
   { icon: Shield, label: 'User Management', href: '/admin/users' },
-  { icon: BarChart2, label: 'Analytics', href: '/admin/analytics' },
   { icon: Settings, label: 'Settings', href: '/admin/settings' },
 ];
 
@@ -25,6 +32,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string>('');
   const [liveAlert, setLiveAlert] = useState<{ title: string; message: string; timestamp: string } | null>(null);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -84,6 +92,58 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     navigate('/admin');
   };
 
+  const breadcrumbs = useMemo(() => {
+    const crumbs: { label: string; href: string }[] = [
+      { label: 'Dashboard', href: '/admin/dashboard' }
+    ];
+
+    if (location.pathname === '/admin/dashboard') {
+      return crumbs;
+    }
+
+    if (location.pathname.startsWith('/admin/careers')) {
+      crumbs.push({ label: 'Careers', href: '/admin/careers' });
+      if (location.pathname === '/admin/careers/pipeline') {
+        crumbs.push({ label: 'ATS Pipeline', href: '/admin/careers/pipeline' });
+      } else if (location.pathname === '/admin/careers/candidates') {
+        crumbs.push({ label: 'Candidate CRM', href: '/admin/careers/candidates' });
+      } else if (location.pathname === '/admin/careers/interviews') {
+        crumbs.push({ label: 'Interviews & Scorecards', href: '/admin/careers/interviews' });
+      } else if (location.pathname === '/admin/careers/automations') {
+        crumbs.push({ label: 'Email Automation', href: '/admin/careers/automations' });
+      } else if (location.pathname === '/admin/careers/analytics') {
+        crumbs.push({ label: 'Funnel Telemetry', href: '/admin/careers/analytics' });
+      } else if (location.pathname === '/admin/careers/jobs/new') {
+        crumbs.push({ label: 'Create Job', href: '/admin/careers/jobs/new' });
+      } else if (location.pathname.includes('/jobs/') && location.pathname.endsWith('/edit')) {
+        crumbs.push({ label: 'Edit Job', href: location.pathname });
+      }
+      return crumbs;
+    }
+
+    const matchedNav = navItems.find(n => n.href === location.pathname);
+    if (matchedNav) {
+      crumbs.push({ label: matchedNav.label, href: matchedNav.href });
+    } else {
+      const prefixNav = navItems.find(n => location.pathname.startsWith(n.href) && n.href !== '/admin/dashboard');
+      if (prefixNav) {
+        crumbs.push({ label: prefixNav.label, href: prefixNav.href });
+      }
+    }
+
+    return crumbs;
+  }, [location.pathname]);
+
+  const handleBack = () => {
+    if (location.pathname.startsWith('/admin/careers/') && location.pathname !== '/admin/careers') {
+      navigate('/admin/careers');
+    } else if (location.pathname !== '/admin/dashboard') {
+      navigate('/admin/dashboard');
+    } else {
+      navigate(-1);
+    }
+  };
+
   return (
     <div className="min-h-screen flex bg-[#050505] text-white">
       {/* Sidebar */}
@@ -107,21 +167,25 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           </div>
 
           {/* Nav */}
-          <nav className="flex-1 space-y-1">
-            {navItems.map(item => (
-              <Link
-                key={item.href}
-                to={item.href}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-inter transition-all ${location.pathname === item.href
-                  ? 'bg-accent/15 text-accent border border-accent/20'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
-                  }`}
-              >
-                <item.icon size={16} />
-                {item.label}
-              </Link>
-            ))}
+          <nav className="flex-1 space-y-1 overflow-y-auto custom-scrollbar pr-1">
+            {navItems.map(item => {
+              const isSelected = location.pathname === item.href ||
+                (item.href === '/admin/careers' && location.pathname.startsWith('/admin/careers/jobs'));
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-inter transition-all ${isSelected
+                    ? 'bg-accent/15 text-accent border border-accent/20 font-semibold'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    }`}
+                >
+                  <item.icon size={16} />
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
 
           {/* User */}
@@ -155,24 +219,74 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       {/* Main content */}
       <div className="flex-1 lg:ml-64 flex flex-col min-h-screen">
         {/* Top bar */}
-        <header className="glass border-b border-white/10 px-6 py-4 flex items-center justify-between sticky top-0 z-30">
-          <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-slate-400 hover:text-white">
-            <Menu size={20} />
-          </button>
-          <div className="hidden lg:block">
-            <div className="text-white font-sora font-semibold text-sm">
-              {navItems.find(n => location.pathname.startsWith(n.href))?.label || 'Admin'}
-            </div>
+        <header className="glass border-b border-white/10 px-4 sm:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden p-2 rounded-xl bg-white/5 text-slate-400 hover:text-white shrink-0"
+              aria-label="Toggle navigation menu"
+            >
+              <Menu size={18} />
+            </button>
+
+            {location.pathname !== '/admin/dashboard' && (
+              <button
+                onClick={handleBack}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 text-xs font-inter transition-all shrink-0 active:scale-95"
+                title="Go Back"
+              >
+                <ArrowLeft size={14} className="text-cyan-400" />
+                <span className="hidden sm:inline font-medium">Back</span>
+              </button>
+            )}
+
+            {/* Breadcrumb Trail */}
+            <nav className="flex items-center gap-1.5 text-xs font-inter min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+              {breadcrumbs.map((crumb, idx) => {
+                const isLast = idx === breadcrumbs.length - 1;
+                return (
+                  <div key={crumb.href + idx} className="flex items-center gap-1.5 min-w-0">
+                    {idx > 0 && <ChevronRight size={12} className="text-slate-600 shrink-0" />}
+                    {isLast ? (
+                      <span className="text-white font-sora font-semibold truncate text-xs sm:text-sm">
+                        {crumb.label}
+                      </span>
+                    ) : (
+                      <Link
+                        to={crumb.href}
+                        className="text-slate-400 hover:text-cyan-400 transition-colors hidden sm:inline truncate"
+                      >
+                        {crumb.label}
+                      </Link>
+                    )}
+                  </div>
+                );
+              })}
+            </nav>
           </div>
-          <div className="flex items-center gap-3">
+
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <button
+              onClick={() => setShowCommandPalette(true)}
+              className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white text-xs font-inter flex items-center gap-2 transition-colors"
+              title="Global Quick Search (Ctrl + K)"
+            >
+              <Search size={14} className="text-cyan-400" />
+              <span className="hidden md:inline">Search ATS...</span>
+              <kbd className="hidden md:inline px-1.5 py-0.5 rounded bg-black/40 text-[10px] text-slate-400 font-mono">
+                Ctrl K
+              </kbd>
+            </button>
             <button className="relative p-2 text-slate-400 hover:text-white transition-colors" aria-label="Notifications">
               <Bell size={18} />
             </button>
-            <Link to="/" className="text-xs text-accent hover:text-white transition-colors font-inter" target="_blank" rel="noopener noreferrer">
+            <Link to="/" className="text-xs text-accent hover:text-white transition-colors font-inter hidden sm:inline" target="_blank" rel="noopener noreferrer">
               View Site →
             </Link>
           </div>
         </header>
+
+        <CommandPalette isOpen={showCommandPalette} onClose={() => setShowCommandPalette(false)} />
 
         <main className="flex-1 p-6 relative">
           {liveAlert && (

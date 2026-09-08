@@ -19,7 +19,8 @@ import BlogPost from './pages/BlogPost';
 import Contact from './pages/Contact';
 import FAQ from './pages/FAQ';
 import Testimonials from './pages/Testimonials';
-import Careers from './pages/Careers';
+import CareerLanding from './pages/CareerLanding';
+import JobDetails from './pages/JobDetails';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import NotFound from './pages/NotFound';
@@ -39,6 +40,14 @@ import CustomizedGifting from './pages/services/CustomizedGifting';
 // Admin pages
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminCareers from './pages/admin/AdminCareers';
+import AdminAtsPipeline from './pages/admin/AdminAtsPipeline';
+import AdminCandidateCrm from './pages/admin/AdminCandidateCrm';
+import AdminInterviews from './pages/admin/AdminInterviews';
+import AdminEmailAutomation from './pages/admin/AdminEmailAutomation';
+import AdminAtsAnalytics from './pages/admin/AdminAtsAnalytics';
+import AdminJobEditor from './pages/admin/AdminJobEditor';
+import CandidateStatusTracker from './pages/CandidateStatusTracker';
 import AdminTickets from './pages/admin/AdminTickets';
 import AdminLeads from './pages/admin/AdminLeads';
 import AdminTestimonials from './pages/admin/AdminTestimonials';
@@ -91,6 +100,14 @@ function AppShell() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/admin/dashboard" element={<RequireAuth><AdminDashboard /></RequireAuth>} />
+        <Route path="/admin/careers" element={<RequireAuth><AdminCareers /></RequireAuth>} />
+        <Route path="/admin/careers/pipeline" element={<RequireAuth><AdminAtsPipeline /></RequireAuth>} />
+        <Route path="/admin/careers/candidates" element={<RequireAuth><AdminCandidateCrm /></RequireAuth>} />
+        <Route path="/admin/careers/interviews" element={<RequireAuth><AdminInterviews /></RequireAuth>} />
+        <Route path="/admin/careers/automations" element={<RequireAuth><AdminEmailAutomation /></RequireAuth>} />
+        <Route path="/admin/careers/analytics" element={<RequireAuth><AdminAtsAnalytics /></RequireAuth>} />
+        <Route path="/admin/careers/jobs/new" element={<RequireAuth><AdminJobEditor /></RequireAuth>} />
+        <Route path="/admin/careers/jobs/:id/edit" element={<RequireAuth><AdminJobEditor /></RequireAuth>} />
         <Route path="/admin/tickets" element={<RequireAuth><AdminTickets /></RequireAuth>} />
         <Route path="/admin/leads" element={<RequireAuth><AdminLeads /></RequireAuth>} />
         <Route path="/admin/quotes" element={<RequireAuth><AdminQuotes /></RequireAuth>} />
@@ -132,7 +149,10 @@ function AppShell() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="/testimonials" element={<Testimonials />} />
-          <Route path="/careers" element={<Careers />} />
+          <Route path="/career" element={<CareerLanding />} />
+          <Route path="/career/status" element={<CandidateStatusTracker />} />
+          <Route path="/career/:slug" element={<JobDetails />} />
+          <Route path="/careers" element={<Navigate to="/career" replace />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/quote-calculator" element={<QuoteCalculator />} />
