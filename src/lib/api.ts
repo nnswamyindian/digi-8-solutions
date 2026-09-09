@@ -1,4 +1,5 @@
 // API Client to replace Supabase
+import { portfolioProjects } from '../data/portfolioData';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -146,6 +147,7 @@ export interface Project {
   tags?: string[];
   featured?: boolean;
   sort_order?: number;
+  year?: string;
   created_at?: string;
 }
 
@@ -270,13 +272,17 @@ export async function getProjects(category?: string): Promise<Project[]> {
   try {
     const res = await fetch(`${API_BASE_URL}/projects`);
     const data = await res.json();
-    const projects: Project[] = data.data || [];
+    let projects: Project[] = (data.data && data.data.length > 0) ? data.data : (portfolioProjects as Project[]);
     if (category && category !== 'All') {
       return projects.filter(p => p.category?.toLowerCase() === category.toLowerCase());
     }
     return projects;
   } catch (_error) {
-    return [];
+    let projects = portfolioProjects as Project[];
+    if (category && category !== 'All') {
+      return projects.filter(p => p.category?.toLowerCase() === category.toLowerCase());
+    }
+    return projects;
   }
 }
 

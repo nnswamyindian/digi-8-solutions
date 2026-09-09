@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Phone, Mail, MapPin, ArrowRight, Building2, Linkedin, Twitter, Instagram, Youtube, Github, Cpu } from 'lucide-react';
+import { Phone, Mail, MapPin, ArrowRight, Building2, Linkedin, Twitter, Instagram, Facebook, Youtube, Github, Cpu } from 'lucide-react';
 import { BRAND } from '../lib/config';
 import { divisions } from '../data/servicesData';
 
@@ -69,11 +69,12 @@ export default function Footer() {
             </div>
 
             {/* Social Media Links */}
-            <div className="flex items-center gap-3 pt-4">
+            <div className="flex items-center gap-3 pt-4 flex-wrap">
               {[
                 { icon: Linkedin, url: BRAND.social.linkedin, label: 'LinkedIn' },
-                { icon: Twitter, url: BRAND.social.twitter, label: 'Twitter' },
+                { icon: Twitter, url: BRAND.social.twitter, label: 'Twitter / X' },
                 { icon: Instagram, url: BRAND.social.instagram, label: 'Instagram' },
+                { icon: Facebook, url: BRAND.social.facebook, label: 'Facebook' },
                 { icon: Youtube, url: BRAND.social.youtube, label: 'YouTube' },
                 { icon: Github, url: BRAND.social.github, label: 'GitHub' }
               ].map((social, idx) => (
@@ -108,7 +109,6 @@ export default function Footer() {
               <li><Link to="/portfolio" className="hover:text-brand-cyan transition-colors">Portfolio & Case Studies</Link></li>
               <li><Link to="/technologies" className="hover:text-brand-cyan transition-colors">Technology Stack</Link></li>
               <li><Link to="/career" className="hover:text-brand-cyan transition-colors">Careers & Culture</Link></li>
-              <li><Link to="/blog" className="hover:text-brand-cyan transition-colors">Tech Insights & Blog</Link></li>
               <li><Link to="/contact" className="hover:text-brand-cyan transition-colors">Contact Corporate Office</Link></li>
             </ul>
           </div>

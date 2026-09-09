@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, X, Smartphone, Sparkles } from 'lucide-react';
+import { Download, X, Sparkles } from 'lucide-react';
 
 export const PWAInstallPrompt: React.FC = () => {
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -60,8 +60,8 @@ export const PWAInstallPrompt: React.FC = () => {
         <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:w-96 bg-slate-950/95 backdrop-blur-xl border border-brand-cyan/40 rounded-2xl p-4 shadow-2xl shadow-cyan-500/20 z-[9999] animate-bounce-short">
             <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-brand-cyan to-blue-600 p-0.5 shadow-lg shadow-cyan-500/30 flex items-center justify-center shrink-0">
-                        <Smartphone className="w-6 h-6 text-slate-950" />
+                    <div className="w-11 h-11 rounded-xl bg-slate-900 border border-brand-cyan/40 p-1.5 shadow-lg shadow-cyan-500/30 flex items-center justify-center shrink-0">
+                        <img src="/favicon.svg" alt="Digi8 Mobile App Logo" className="w-8 h-8 object-contain drop-shadow-[0_0_8px_rgba(0,229,255,0.6)]" />
                     </div>
                     <div>
                         <div className="flex items-center gap-1.5">

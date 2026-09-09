@@ -6,13 +6,14 @@
         {
             "src": "/favicon.svg",
             "type": "image/svg+xml",
-            "sizes": "192x192 512x512"
+            "sizes": "192x192 512x512",
+            "purpose": "any"
         },
         {
-            "src": "/logo.png",
-            "type": "image/png",
+            "src": "/favicon.svg",
+            "type": "image/svg+xml",
             "sizes": "192x192 512x512",
-            "purpose": "any maskable"
+            "purpose": "maskable"
         }
     ],
     "start_url": "/",

@@ -23,8 +23,10 @@ export const BRAND = {
   },
   social: {
     twitter: 'https://twitter.com/digi8solutions',
+    x: 'https://x.com/digi8solutions',
     linkedin: 'https://linkedin.com/company/digi8solutions',
     instagram: 'https://instagram.com/digi8solutions',
+    facebook: 'https://facebook.com/digi8solutions',
     github: 'https://github.com/digi8solutions',
     youtube: 'https://youtube.com/@digi8solutions',
   },

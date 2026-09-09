@@ -101,17 +101,30 @@ export const initDb = async () => {
       );
     `);
 
-      const adminEmail = process.env.ADMIN_EMAIL || 'admin@digi8solutions.com';
-      const adminPassword = process.env.ADMIN_PASSWORD || 'AdminDigi8Password2026!';
+      const superAdminEmail = 'admin@digi8solutions.com';
+      const superAdminPassword = process.env.ADMIN_PASSWORD || 'AdminDigi8Password2026!';
 
-      const [adminRows]: any = await connection.query('SELECT * FROM admin_users WHERE email = ?', [adminEmail]);
+      const [adminRows]: any = await connection.query('SELECT * FROM admin_users WHERE email = ?', [superAdminEmail]);
       if (adminRows.length === 0) {
-        const defaultHash = await bcrypt.hash(adminPassword, 10);
+        const defaultHash = await bcrypt.hash(superAdminPassword, 10);
         await connection.query(
           'INSERT INTO admin_users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
-          ['Digi-8 Super Admin', adminEmail, defaultHash, 'Super Admin']
+          ['Digi-8 Super Admin', superAdminEmail, defaultHash, 'Super Admin']
         );
-        console.log(`[DB INFO] Default Super Admin user created: ${adminEmail}`);
+        console.log(`[DB INFO] Default Super Admin user created: ${superAdminEmail}`);
+      }
+
+      const hrAdminEmail = 'hr@digi8solutions.com';
+      const hrAdminPassword = process.env.HR_ADMIN_PASSWORD || 'HrAdminDigi8Password2026!';
+
+      const [hrRows]: any = await connection.query('SELECT * FROM admin_users WHERE email = ?', [hrAdminEmail]);
+      if (hrRows.length === 0) {
+        const hrHash = await bcrypt.hash(hrAdminPassword, 10);
+        await connection.query(
+          'INSERT INTO admin_users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
+          ['Digi-8 HR Admin', hrAdminEmail, hrHash, 'HR Admin']
+        );
+        console.log(`[DB INFO] Default HR Admin user created: ${hrAdminEmail}`);
       }
 
       await connection.query(`

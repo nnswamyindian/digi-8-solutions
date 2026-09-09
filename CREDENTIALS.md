@@ -1,6 +1,8 @@
 # DIGI8 SOLUTIONS — LIVE ACCESS & CREDENTIALS GUIDE
 
-## 1. Quick Super Admin Credentials
+## 1. Quick Authentication Credentials
+
+### A. Super Admin Access (Full System Authority)
 
 | Parameter | Value |
 | :--- | :--- |
@@ -9,7 +11,19 @@
 | **Admin Password** | `AdminDigi8Password2026!` |
 | **Role** | Super Administrator (Full Access) |
 
-> **Tip**: On the `/admin` login page, you can also click the **"Quick Fill"** button in the Super Admin Access card to instantly auto-fill these credentials.
+> **Tip**: On the `/admin` login page, click the **"Quick Fill"** button in the **Super Admin Access** card to instantly auto-fill these credentials.
+
+### B. HR Admin Access (People Ops & Talent Acquisition)
+
+| Parameter | Value |
+| :--- | :--- |
+| **Login Portal** | [http://localhost:5173/admin](http://localhost:5173/admin) |
+| **Admin Email** | `hr@digi8solutions.com` |
+| **Admin Password** | `HrAdminDigi8Password2026!` |
+| **Role** | HR Admin (Recruitment, Talent Pipeline & People Operations) |
+| **Access Scope** | ATS Kanban Pipeline, Candidate CRM, Interviews & Scorecards, Email Automations, Recruitment Telemetry, Job Editor |
+
+> **Tip**: On the `/admin` login page, click the **"Quick Fill"** button in the **HR Admin Access** card to instantly auto-fill these credentials.
 
 ---
 

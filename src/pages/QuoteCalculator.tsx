@@ -143,11 +143,11 @@ export default function QuoteCalculator() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 relative z-10">
 
         {/* STEP PROGRESS BAR */}
-        <div className="glass-card-premium p-6 mb-10 overflow-hidden relative">
+        <div className="glass-card-premium p-3 sm:p-6 mb-8 sm:mb-10 overflow-hidden relative">
           <div className="absolute top-0 left-0 right-0 h-1 bg-white/5">
             <div className="h-full transition-all duration-500 ease-out" style={{ width: `${(step / 4) * 100}%`, backgroundColor: activeServiceColor }} />
           </div>
-          <div className="grid grid-cols-4 gap-4 mt-2">
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-4 mt-2">
             {[
               { num: 1, label: 'Division' },
               { num: 2, label: 'Features' },
@@ -156,7 +156,7 @@ export default function QuoteCalculator() {
             ].map(s => (
               <div
                 key={s.num}
-                className={`flex flex-col sm:flex-row items-center gap-3 p-3 sm:p-4 rounded-xl transition-all ${step === s.num
+                className={`flex flex-col sm:flex-row items-center gap-1.5 sm:gap-3 p-2 sm:p-4 rounded-xl transition-all ${step === s.num
                   ? 'bg-white/10 text-white shadow-glass'
                   : step > s.num
                     ? 'bg-white/5 text-slate-300'
@@ -164,7 +164,7 @@ export default function QuoteCalculator() {
                   }`}
                 style={step === s.num ? { border: `1px solid ${activeServiceColor}40` } : {}}
               >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 transition-colors ${step === s.num
+                <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm flex-shrink-0 transition-colors ${step === s.num
                   ? 'text-white'
                   : step > s.num
                     ? 'text-white bg-white/10'
@@ -172,9 +172,9 @@ export default function QuoteCalculator() {
                   }`}
                   style={step === s.num ? { backgroundColor: activeServiceColor } : {}}
                 >
-                  {step > s.num ? <CheckCircle size={16} /> : s.num}
+                  {step > s.num ? <CheckCircle size={14} className="sm:w-4 sm:h-4" /> : s.num}
                 </div>
-                <span className="font-bold text-xs sm:text-sm text-center sm:text-left">{s.label}</span>
+                <span className="font-bold text-[10px] sm:text-sm text-center sm:text-left leading-tight">{s.label}</span>
               </div>
             ))}
           </div>

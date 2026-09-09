@@ -19,7 +19,7 @@ const navLinks = [
   { name: 'About', path: '/about' },
   { name: 'Industries', path: '/industries' },
   { name: 'Portfolio', path: '/portfolio' },
-  { name: 'Insights', path: '/blog' },
+  { name: 'Careers', path: '/career' },
   { name: 'Contact', path: '/contact' },
 ];
 
@@ -35,6 +35,17 @@ export default function Navbar() {
     const onScroll = () => setScrolled(window.scrollY > 30);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   useEffect(() => {
@@ -203,6 +214,13 @@ export default function Navbar() {
         {/* Mobile Menu */}
         {mobileOpen && (
           <div className="lg:hidden bg-[#050505] rounded-2xl shadow-2xl m-4 mt-2 p-4 space-y-4 max-h-[80vh] overflow-y-auto border border-brand-cyan/20 isolate">
+            <div className="flex items-center gap-3 px-3 py-2 pb-3 border-b border-white/10">
+              <img src="/favicon.svg" alt="Digi8 Solutions" className="w-8 h-8 object-contain" />
+              <div>
+                <span className="font-outfit font-black text-white text-base block leading-tight">Digi8 Solutions</span>
+                <span className="text-[10px] text-brand-cyan font-mono font-medium">Enterprise Platform</span>
+              </div>
+            </div>
             <div className="space-y-1">
               <button
                 onClick={() => {

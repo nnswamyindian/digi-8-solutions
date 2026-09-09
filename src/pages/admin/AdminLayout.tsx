@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, Briefcase, MessageSquare, Settings,
   LogOut, Menu, X, Zap, BarChart2, Tag, BookOpen, Bell, DollarSign, Shield, Ticket,
-  UserCheck, Calendar, Mail, Search, Sparkles, ArrowLeft, ChevronRight
+  UserCheck, Calendar, Mail, Search, ArrowLeft, ChevronRight
 } from 'lucide-react';
 import { supabase } from '../../lib/api';
 import CommandPalette from '../../components/admin/ats/CommandPalette';
@@ -31,6 +31,8 @@ const navItems = [
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string>('');
+  const [userName, setUserName] = useState<string>('');
+  const [userRole, setUserRole] = useState<string>('Super Admin');
   const [liveAlert, setLiveAlert] = useState<{ title: string; message: string; timestamp: string } | null>(null);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const navigate = useNavigate();
@@ -42,11 +44,27 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       if (stored) {
         const userObj = JSON.parse(stored);
         if (userObj?.email) setUserEmail(userObj.email);
+        if (userObj?.name) setUserName(userObj.name);
+        if (userObj?.role) setUserRole(userObj.role);
       } else {
         setUserEmail('admin@digi8solutions.com');
+        setUserName('Digi-8 Super Admin');
+        setUserRole('Super Admin');
       }
     } catch (e) {
       setUserEmail('admin@digi8solutions.com');
+      setUserRole('Super Admin');
+    }
+
+    // Restrict HR Admin to HR routes only
+    const storedUser = localStorage.getItem('admin_user');
+    const role = storedUser ? JSON.parse(storedUser)?.role : '';
+    if (role === 'HR Admin') {
+      const allowedPaths = ['/admin/dashboard', '/admin/careers'];
+      const isAllowed = allowedPaths.some(p => location.pathname === p || location.pathname.startsWith('/admin/careers'));
+      if (!isAllowed && location.pathname.startsWith('/admin')) {
+        navigate('/admin/dashboard', { replace: true });
+      }
     }
 
     // Request browser Notification permission
@@ -82,8 +100,17 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       }
     };
 
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setShowCommandPalette(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
     return () => {
       eventSource.close();
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
 
@@ -144,6 +171,26 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     }
   };
 
+  const isHR = userRole === 'HR Admin';
+
+  const visibleNavItems = useMemo(() => {
+    if (isHR) {
+      const hrAllowedHrefs = new Set([
+        '/admin/dashboard',
+        '/admin/careers',
+        '/admin/careers/pipeline',
+        '/admin/careers/candidates',
+        '/admin/careers/interviews',
+        '/admin/careers/automations',
+        '/admin/careers/analytics'
+      ]);
+      return navItems
+        .filter(item => hrAllowedHrefs.has(item.href))
+        .map(item => item.href === '/admin/dashboard' ? { ...item, label: 'HR Dashboard' } : item);
+    }
+    return navItems;
+  }, [isHR]);
+
   return (
     <div className="min-h-screen flex bg-[#050505] text-white">
       {/* Sidebar */}
@@ -153,12 +200,16 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           {/* Logo */}
           <div className="flex items-center justify-between mb-8 px-2 pt-2">
             <Link to="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-highlight flex items-center justify-center">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                isHR ? 'bg-gradient-to-br from-emerald-500 to-teal-700' : 'bg-gradient-to-br from-accent to-highlight'
+              }`}>
                 <Zap size={16} className="text-white" />
               </div>
               <div>
                 <div className="font-sora font-bold text-sm text-white">Digi 8</div>
-                <div className="text-[9px] text-accent/70 uppercase tracking-widest">Admin</div>
+                <div className={`text-[9px] uppercase tracking-widest font-mono ${isHR ? 'text-emerald-400 font-bold' : 'text-accent/70'}`}>
+                  {isHR ? 'HR Portal' : 'Admin'}
+                </div>
               </div>
             </Link>
             <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-slate-400 hover:text-white">
@@ -168,7 +219,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
           {/* Nav */}
           <nav className="flex-1 space-y-1 overflow-y-auto custom-scrollbar pr-1">
-            {navItems.map(item => {
+            {visibleNavItems.map(item => {
               const isSelected = location.pathname === item.href ||
                 (item.href === '/admin/careers' && location.pathname.startsWith('/admin/careers/jobs'));
               return (
@@ -192,12 +243,21 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <div className="border-t border-white/10 pt-4">
             {userEmail && (
               <div className="flex items-center gap-3 px-3 py-2 mb-2">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent to-highlight flex items-center justify-center text-white font-sora text-sm font-bold flex-shrink-0">
-                  {userEmail[0]?.toUpperCase()}
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-sora text-xs font-bold flex-shrink-0 ${
+                  userRole === 'HR Admin'
+                    ? 'bg-gradient-to-br from-emerald-500 to-teal-700 shadow-sm shadow-emerald-500/20'
+                    : 'bg-gradient-to-br from-accent to-highlight'
+                }`}>
+                  {(userName || userEmail)[0]?.toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-inter text-white truncate">{userEmail}</div>
-                  <div className="text-[10px] text-slate-500">Administrator</div>
+                  <div className="text-xs font-inter text-white truncate font-medium">{userName || userEmail}</div>
+                  <div className="text-[10px] flex items-center gap-1 font-inter">
+                    <span className={`inline-block w-1.5 h-1.5 rounded-full ${userRole === 'HR Admin' ? 'bg-emerald-400' : 'bg-brand-cyan'}`} />
+                    <span className={userRole === 'HR Admin' ? 'text-emerald-400 font-semibold' : 'text-slate-400 font-medium'}>
+                      {userRole}
+                    </span>
+                  </div>
                 </div>
               </div>
             )}

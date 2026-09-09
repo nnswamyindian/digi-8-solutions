@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Users, UserPlus, Shield, Check, X, ShieldAlert, Mail } from 'lucide-react';
 import AdminLayout from './AdminLayout';
 
-type UserRole = 'Super Admin' | 'Sub Admin' | 'Database Admin';
+type UserRole = 'Super Admin' | 'HR Admin' | 'Sub Admin' | 'Database Admin';
 
 type AdminUser = {
   id: string;
@@ -15,6 +15,7 @@ type AdminUser = {
 
 const dummyUsers: AdminUser[] = [
   { id: '1', name: 'Master Admin', email: 'admin@digi8solutions.com', role: 'Super Admin', status: 'active', created_at: new Date().toISOString() },
+  { id: '2', name: 'HR Department Admin', email: 'hr@digi8solutions.com', role: 'HR Admin', status: 'active', created_at: new Date().toISOString() },
 ];
 
 export default function AdminUsers() {
@@ -57,8 +58,8 @@ export default function AdminUsers() {
   };
 
   const handleRemoveUser = (id: string) => {
-    // Prevent removing self (dummy logic)
-    if (id === '1') return alert("Cannot remove the master admin account.");
+    // Prevent removing default system accounts
+    if (id === '1' || id === '2') return alert("Cannot remove default system admin accounts.");
     if (confirm("Are you sure you want to remove this user?")) {
       setUsers(users.filter(u => u.id !== id));
     }
@@ -119,6 +120,7 @@ export default function AdminUsers() {
                   onChange={e => setNewRole(e.target.value as UserRole)}
                 >
                   <option value="Sub Admin">Sub Admin</option>
+                  <option value="HR Admin">HR Admin</option>
                   <option value="Super Admin">Super Admin</option>
                   <option value="Database Admin">Database Admin</option>
                 </select>
@@ -172,10 +174,12 @@ export default function AdminUsers() {
                     <td className="px-6 py-4">
                       <span className={`flex items-center gap-1.5 px-3 py-1 w-max rounded-full text-xs font-bold ${
                         user.role === 'Super Admin' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' :
+                        user.role === 'HR Admin' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
                         user.role === 'Database Admin' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
                         'bg-blue-500/10 text-blue-400 border border-blue-500/20'
                       }`}>
                         {user.role === 'Super Admin' && <ShieldAlert size={12} />}
+                        {user.role === 'HR Admin' && <Shield size={12} />}
                         {user.role}
                       </span>
                     </td>
@@ -190,7 +194,7 @@ export default function AdminUsers() {
                       {new Date(user.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      {user.id !== '1' && (
+                      {user.id !== '1' && user.id !== '2' && (
                         <button 
                           onClick={() => handleRemoveUser(user.id)}
                           className="text-slate-500 hover:text-red-400 transition-colors p-2"

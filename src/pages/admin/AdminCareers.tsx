@@ -241,7 +241,7 @@ export default function AdminCareers() {
         />
 
         {/* Tabs Navigation */}
-        <div className="flex items-center gap-2 border-b border-white/10 text-sm">
+        <div className="flex items-center gap-2 border-b border-white/10 text-sm overflow-x-auto whitespace-nowrap scrollbar-none pb-1">
           <button
             onClick={() => setActiveTab('overview')}
             className={`px-4 py-2.5 font-semibold transition-colors relative ${
