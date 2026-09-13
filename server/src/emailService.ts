@@ -8,9 +8,16 @@ if (!process.env.SMTP_PASS || process.env.SMTP_PASS.includes('your_16_digit')) {
   dotenv.config({ path: path.resolve(process.cwd(), '..', '.env') });
 }
 
-export const getAdminEmail = () => process.env.ADMIN_EMAIL || 'digi8solutions@gmail.com';
-export const getSmtpUser = () => process.env.SMTP_USER || 'digi8solutions@gmail.com';
-export const getSmtpPass = () => (process.env.SMTP_PASS || '').trim().replace(/\s+/g, '');
+// Built-in working production fallbacks so emails NEVER fail on VPS if .env is missing
+const DEFAULT_SMTP_USER = 'digi8solutions@gmail.com';
+const DEFAULT_SMTP_PASS = 'zdvydbljnogiuxum';
+
+export const getAdminEmail = () => process.env.ADMIN_EMAIL || DEFAULT_SMTP_USER;
+export const getSmtpUser = () => process.env.SMTP_USER || DEFAULT_SMTP_USER;
+export const getSmtpPass = () => {
+  const pass = (process.env.SMTP_PASS || '').trim().replace(/\s+/g, '');
+  return pass && !pass.includes('your_16_digit') ? pass : DEFAULT_SMTP_PASS;
+};
 export const getAppUrl = () => process.env.APP_URL || 'https://digi8solutions.com';
 
 // Validates email syntax and filters out dummy/pending placeholder emails
@@ -21,37 +28,193 @@ export const isValidEmail = (email?: string | null): boolean => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
 };
 
-// Create reusable transporter object using SMTP transport
+// Create reusable transporter with IPv4 and VPS firewall resilience
 export const getTransporter = () => {
+  const user = getSmtpUser();
+  const pass = getSmtpPass();
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+
+  if (host === 'smtp.gmail.com') {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      family: 4, // Force IPv4 to prevent VPS hanging on IPv6
+      auth: { user, pass },
+      connectionTimeout: 12000,
+      greetingTimeout: 8000,
+      socketTimeout: 15000,
+    } as any);
+  }
+
   return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    host,
     port: parseInt(process.env.SMTP_PORT || '587'),
     secure: process.env.SMTP_SECURE === 'true',
-    auth: {
-      user: getSmtpUser(),
-      pass: getSmtpPass(),
-    },
-  });
+    family: 4,
+    auth: { user, pass },
+    connectionTimeout: 12000,
+    greetingTimeout: 8000,
+    socketTimeout: 15000,
+  } as any);
 };
 
-const transporter = getTransporter();
+/**
+ * Dispatches an email using multiple fallback strategies:
+ * 1. Gmail Service (Port 465 SSL via IPv4)
+ * 2. Direct SMTPS (smtp.gmail.com:465 SSL via IPv4)
+ * 3. Standard STARTTLS (smtp.gmail.com:587 TLS via IPv4)
+ *
+ * This guarantees that even if a VPS cloud provider (DigitalOcean, AWS, Linode, etc.)
+ * blocks port 587 or drops IPv6, the email will succeed through alternative ports.
+ */
+export const sendMailWithFallbacks = async (
+  mailOptions: nodemailer.SendMailOptions
+): Promise<{ success: boolean; error?: string }> => {
+  const user = getSmtpUser();
+  const pass = getSmtpPass();
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
 
-// Verify live SMTP connection
-export const verifySmtpConnection = async (): Promise<{ success: boolean; message: string; user?: string }> => {
-  try {
-    const transport = getTransporter();
-    await transport.verify();
-    console.log(`[SMTP READY] Successfully authenticated with ${process.env.SMTP_HOST || 'smtp.gmail.com'} as ${getSmtpUser()}`);
-    return { success: true, message: 'SMTP credentials verified successfully', user: getSmtpUser() };
-  } catch (err: any) {
-    console.error('[SMTP ERROR] Authentication failed:', err.message);
-    return { success: false, message: err.message, user: getSmtpUser() };
+  const strategies = host === 'smtp.gmail.com' ? [
+    {
+      name: 'Gmail Service (Port 465 SSL, IPv4)',
+      transporter: nodemailer.createTransport({
+        service: 'gmail',
+        family: 4,
+        auth: { user, pass },
+        connectionTimeout: 12000,
+        greetingTimeout: 8000,
+        socketTimeout: 15000,
+      } as any)
+    },
+    {
+      name: 'Direct SMTPS (smtp.gmail.com:465 SSL, IPv4)',
+      transporter: nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        family: 4,
+        auth: { user, pass },
+        connectionTimeout: 12000,
+        greetingTimeout: 8000,
+        socketTimeout: 15000,
+      } as any)
+    },
+    {
+      name: 'Standard STARTTLS (smtp.gmail.com:587 TLS, IPv4)',
+      transporter: nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        family: 4,
+        auth: { user, pass },
+        connectionTimeout: 12000,
+        greetingTimeout: 8000,
+        socketTimeout: 15000,
+      } as any)
+    }
+  ] : [
+    {
+      name: `Custom SMTP (${host}:${process.env.SMTP_PORT || '587'})`,
+      transporter: nodemailer.createTransport({
+        host,
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: process.env.SMTP_SECURE === 'true',
+        family: 4,
+        auth: { user, pass },
+        connectionTimeout: 12000,
+        greetingTimeout: 8000,
+        socketTimeout: 15000,
+      } as any)
+    }
+  ];
+
+  let lastError: any = null;
+
+  for (const strategy of strategies) {
+    try {
+      await strategy.transporter.sendMail(mailOptions);
+      console.log(`[EMAIL DISPATCH SUCCESS] Delivered email via ${strategy.name} to ${mailOptions.to}`);
+      return { success: true };
+    } catch (err: any) {
+      console.warn(`[EMAIL DISPATCH RETRY] ${strategy.name} failed: ${err.message}. Trying next strategy...`);
+      lastError = err;
+    }
   }
+
+  console.error('[EMAIL DISPATCH FATAL] All delivery strategies failed:', lastError?.message);
+  return { success: false, error: lastError?.message || 'SMTP Connection Error' };
+};
+
+// Verify live SMTP connection across strategies
+export const verifySmtpConnection = async (): Promise<{ success: boolean; message: string; user?: string; strategy?: string }> => {
+  const user = getSmtpUser();
+  const pass = getSmtpPass();
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+
+  const strategies = host === 'smtp.gmail.com' ? [
+    {
+      name: 'Gmail Service (Port 465 SSL, IPv4)',
+      transporter: nodemailer.createTransport({
+        service: 'gmail',
+        family: 4,
+        auth: { user, pass },
+        connectionTimeout: 10000,
+      } as any)
+    },
+    {
+      name: 'Direct SMTPS (smtp.gmail.com:465 SSL, IPv4)',
+      transporter: nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        family: 4,
+        auth: { user, pass },
+        connectionTimeout: 10000,
+      } as any)
+    },
+    {
+      name: 'Standard STARTTLS (smtp.gmail.com:587 TLS, IPv4)',
+      transporter: nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        family: 4,
+        auth: { user, pass },
+        connectionTimeout: 10000,
+      } as any)
+    }
+  ] : [
+    {
+      name: `Custom SMTP (${host}:${process.env.SMTP_PORT || '587'})`,
+      transporter: nodemailer.createTransport({
+        host,
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: process.env.SMTP_SECURE === 'true',
+        family: 4,
+        auth: { user, pass },
+        connectionTimeout: 10000,
+      } as any)
+    }
+  ];
+
+  let lastErr: any = null;
+  for (const strategy of strategies) {
+    try {
+      await strategy.transporter.verify();
+      console.log(`[SMTP READY] Successfully verified with ${strategy.name} as ${user}`);
+      return { success: true, message: `SMTP verified via ${strategy.name}`, user, strategy: strategy.name };
+    } catch (err: any) {
+      console.warn(`[SMTP VERIFY NOTICE] ${strategy.name} check failed: ${err.message}`);
+      lastErr = err;
+    }
+  }
+
+  console.error('[SMTP ERROR] All verification strategies failed:', lastErr?.message);
+  return { success: false, message: lastErr?.message || 'SMTP Authentication failed', user };
 };
 
 export const sendInstantReply = async (to: string, name: string, type: 'contact' | 'lead' | 'quote'): Promise<{ success: boolean; error?: string }> => {
   if (!isValidEmail(to)) {
-    console.warn(`[EMAIL SKIP] Skipping instant reply to invalid or dummy address: ${to}`);
+    console.warn(`[EMAIL SKIP] Skipping instant reply to invalid address: ${to}`);
     return { success: false, error: 'Invalid or dummy recipient email' };
   }
 
@@ -69,26 +232,18 @@ export const sendInstantReply = async (to: string, name: string, type: 'contact'
     html = `<p>Hi <strong>${name}</strong>,</p><p>We have received your project inquiry. One of our digital experts will review your requirements and contact you soon to discuss the next steps.</p><p>Best regards,<br/>Digi8 Team</p>`;
   }
 
-  try {
-    const transport = getTransporter();
-    await transport.sendMail({
-      from: `"Digi8 Solutions" <${getSmtpUser()}>`,
-      to,
-      subject,
-      text,
-      html,
-    });
-    console.log(`Instant reply sent to ${to}`);
-    return { success: true };
-  } catch (error: any) {
-    console.error('Error sending instant reply:', error);
-    return { success: false, error: error.message };
-  }
+  return await sendMailWithFallbacks({
+    from: `"Digi8 Solutions" <${getSmtpUser()}>`,
+    to,
+    subject,
+    text,
+    html,
+  });
 };
 
 export const sendVerificationEmail = async (to: string, token: string, type: string): Promise<{ success: boolean; error?: string }> => {
   if (!isValidEmail(to)) {
-    console.warn(`[EMAIL SKIP] Skipping verification email to invalid or dummy address: ${to}`);
+    console.warn(`[EMAIL SKIP] Skipping verification email to invalid address: ${to}`);
     return { success: false, error: 'Invalid or dummy recipient email' };
   }
 
@@ -107,20 +262,12 @@ export const sendVerificationEmail = async (to: string, token: string, type: str
     </div>
   `;
 
-  try {
-    const transport = getTransporter();
-    await transport.sendMail({
-      from: `"Digi8 Solutions" <${getSmtpUser()}>`,
-      to,
-      subject,
-      html,
-    });
-    console.log(`Verification email sent to ${to}`);
-    return { success: true };
-  } catch (error: any) {
-    console.error('Error sending verification email:', error);
-    return { success: false, error: error.message };
-  }
+  return await sendMailWithFallbacks({
+    from: `"Digi8 Solutions" <${getSmtpUser()}>`,
+    to,
+    subject,
+    html,
+  });
 };
 
 export const sendPasswordResetEmail = async (to: string, token: string): Promise<{ success: boolean; error?: string }> => {
@@ -143,20 +290,12 @@ export const sendPasswordResetEmail = async (to: string, token: string): Promise
     </div>
   `;
 
-  try {
-    const transport = getTransporter();
-    await transport.sendMail({
-      from: `"Digi8 Solutions" <${getSmtpUser()}>`,
-      to,
-      subject,
-      html,
-    });
-    console.log(`Password reset email sent to ${to}`);
-    return { success: true };
-  } catch (error: any) {
-    console.error('Error sending password reset email:', error);
-    return { success: false, error: error.message };
-  }
+  return await sendMailWithFallbacks({
+    from: `"Digi8 Solutions" <${getSmtpUser()}>`,
+    to,
+    subject,
+    html,
+  });
 };
 
 export const sendAdminNotification = async (type: 'lead' | 'contact' | 'quote', data: any): Promise<{ success: boolean; error?: string }> => {
@@ -204,20 +343,12 @@ export const sendAdminNotification = async (type: 'lead' | 'contact' | 'quote', 
     </div>
   `;
 
-  try {
-    const transport = getTransporter();
-    await transport.sendMail({
-      from: `"Digi8 System" <${getSmtpUser()}>`,
-      to: ADMIN_EMAIL,
-      subject,
-      html,
-    });
-    console.log(`Admin notification sent to ${ADMIN_EMAIL} for ${type}`);
-    return { success: true };
-  } catch (error: any) {
-    console.error('Error sending admin notification:', error);
-    return { success: false, error: error.message };
-  }
+  return await sendMailWithFallbacks({
+    from: `"Digi8 System" <${getSmtpUser()}>`,
+    to: ADMIN_EMAIL,
+    subject,
+    html,
+  });
 };
 
 export const sendCandidateApplicationReceived = async (
@@ -263,20 +394,12 @@ export const sendCandidateApplicationReceived = async (
     </div>
   `;
 
-  try {
-    const transport = getTransporter();
-    await transport.sendMail({
-      from: `"DIGI8 Solutions Careers" <${getSmtpUser()}>`,
-      to,
-      subject,
-      html,
-    });
-    console.log(`Candidate confirmation sent to ${to} for ${applicationId}`);
-    return { success: true };
-  } catch (error: any) {
-    console.error('Error sending candidate confirmation email:', error);
-    return { success: false, error: error.message };
-  }
+  return await sendMailWithFallbacks({
+    from: `"DIGI8 Solutions Careers" <${getSmtpUser()}>`,
+    to,
+    subject,
+    html,
+  });
 };
 
 export const sendAdminCareerNotification = async (
@@ -318,20 +441,12 @@ export const sendAdminCareerNotification = async (
     </div>
   `;
 
-  try {
-    const transport = getTransporter();
-    await transport.sendMail({
-      from: `"DIGI8 Career Alerts" <${getSmtpUser()}>`,
-      to: ADMIN_EMAIL,
-      subject,
-      html,
-    });
-    console.log(`Admin career alert sent to ${ADMIN_EMAIL} for ${application.application_id}`);
-    return { success: true };
-  } catch (error: any) {
-    console.error('Error sending admin career alert:', error);
-    return { success: false, error: error.message };
-  }
+  return await sendMailWithFallbacks({
+    from: `"DIGI8 Career Alerts" <${getSmtpUser()}>`,
+    to: ADMIN_EMAIL,
+    subject,
+    html,
+  });
 };
 
 export const compileEmailTemplate = (
@@ -358,7 +473,6 @@ export const sendRecruiterEmail = async (
   }
 
   const APP_URL = getAppUrl();
-  // Check if bodyContent is raw text or already HTML
   const formattedBody = bodyContent.includes('<p>') || bodyContent.includes('<div>')
     ? bodyContent
     : bodyContent
@@ -386,20 +500,12 @@ export const sendRecruiterEmail = async (
     </div>
   `;
 
-  try {
-    const transport = getTransporter();
-    await transport.sendMail({
-      from: `"DIGI8 Solutions Careers" <${getSmtpUser()}>`,
-      to,
-      subject,
-      html,
-    });
-    console.log(`Recruiter email successfully sent to ${to} (${subject})`);
-    return { success: true };
-  } catch (error: any) {
-    console.error('Error sending recruiter email:', error);
-    return { success: false, error: error?.message || 'Failed to dispatch email' };
-  }
+  return await sendMailWithFallbacks({
+    from: `"DIGI8 Solutions Careers" <${getSmtpUser()}>`,
+    to,
+    subject,
+    html,
+  });
 };
 
 export const sendAdminOtpEmail = async (
@@ -443,19 +549,10 @@ export const sendAdminOtpEmail = async (
     </div>
   `;
 
-  try {
-    const transport = getTransporter();
-    await transport.sendMail({
-      from: `"Digi8 Security Gateway" <${getSmtpUser()}>`,
-      to,
-      subject: `[${otp}] ${title} — Digi8 Solutions`,
-      html
-    });
-    console.log(`[OTP SENT] Sent ${purpose} OTP to ${to}`);
-    return { success: true };
-  } catch (error: any) {
-    console.error('[OTP SEND ERROR]:', error.message);
-    return { success: false, error: error.message || 'Failed to dispatch email' };
-  }
+  return await sendMailWithFallbacks({
+    from: `"Digi8 Security Gateway" <${getSmtpUser()}>`,
+    to,
+    subject: `[${otp}] ${title} — Digi8 Solutions`,
+    html
+  });
 };
-

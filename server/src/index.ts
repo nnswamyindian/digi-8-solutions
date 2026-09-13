@@ -1353,14 +1353,22 @@ app.post('/api/auth/send-otp', async (req, res) => {
     }
     savePersistentStore(store);
 
-    // 3. Dispatch Email via Gmail SMTP
+    // 3. Dispatch Email via Gmail SMTP with automatic multi-strategy fallback
     const emailRes = await sendAdminOtpEmail(normalizedEmail, otp, purpose || 'login', name);
+
+    if (!emailRes.success) {
+      console.error(`[OTP DISPATCH FAILED] Email to ${normalizedEmail} could not be delivered:`, emailRes.error);
+      return res.status(500).json({
+        success: false,
+        error: `Could not deliver verification email to ${normalizedEmail}: ${emailRes.error || 'SMTP Connection Error'}. Please verify server network or SMTP credentials.`
+      });
+    }
 
     return sendSuccess(res, {
       email: normalizedEmail,
       purpose: purpose || 'login',
       expires_in: '10 minutes',
-      email_dispatched: emailRes.success
+      email_dispatched: true
     }, 'A 6-digit security OTP code has been sent to your email.');
   } catch (err) {
     sendError(res, err);
