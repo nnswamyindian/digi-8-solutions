@@ -5,7 +5,7 @@ import {
   LogOut, Menu, X, Zap, BarChart2, Tag, BookOpen, Bell, DollarSign, Shield, Ticket,
   UserCheck, Calendar, Mail, Search, ArrowLeft, ChevronRight
 } from 'lucide-react';
-import { supabase } from '../../lib/api';
+import { supabase, buildApiUrl, logoutAdmin } from '../../lib/api';
 import CommandPalette from '../../components/admin/ats/CommandPalette';
 
 const navItems = [
@@ -73,8 +73,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     }
 
     // Subscribe to Realtime SSE Notifications from Backend
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-    const sseUrl = `${API_BASE.replace('/api', '')}/api/admin/events`;
+    const sseUrl = buildApiUrl('/api/admin/events');
     const eventSource = new EventSource(sseUrl);
 
     eventSource.onmessage = (event) => {
@@ -115,8 +114,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/admin');
+    await logoutAdmin();
+    navigate('/admin', { replace: true });
   };
 
   const breadcrumbs = useMemo(() => {

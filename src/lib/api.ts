@@ -1,7 +1,28 @@
 // API Client to replace Supabase
 import { portfolioProjects } from '../data/portfolioData';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// Determine API base URL:
+// In production builds (or when VITE_API_URL is unset/localhost), use relative '/api'
+// so the client browser sends requests to the hosting VPS/Nginx reverse proxy,
+// preventing ERR_CONNECTION_REFUSED errors when users access the site from external devices.
+const resolveApiBase = (): string => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+    return envUrl.replace(/\/api\/?$/, '') ? envUrl.replace(/\/$/, '') : '/api';
+  }
+  if (import.meta.env.PROD) {
+    return '/api';
+  }
+  return envUrl || '/api';
+};
+
+export const API_BASE_URL = resolveApiBase();
+
+export const buildApiUrl = (path: string): string => {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const base = API_BASE_URL.replace(/\/api\/?$/, '').replace(/\/$/, '');
+  return `${base}${normalizedPath}`;
+};
 
 export interface Lead {
   first_name?: string;
@@ -321,17 +342,39 @@ export async function getTestimonials(): Promise<Testimonial[]> {
   }
 }
 
-export async function checkAuth() {
-  return !!localStorage.getItem('admin_token');
+export async function checkAuth(): Promise<boolean> {
+  const token = localStorage.getItem('admin_token');
+  if (!token) return false;
+
+  try {
+    const res = await fetch(buildApiUrl('/api/auth/verify'), {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (res.ok && data.success && data.data?.user) {
+      localStorage.setItem('admin_user', JSON.stringify(data.data.user));
+      return true;
+    } else {
+      // Invalid or expired token — clear immediately
+      await logoutAdmin();
+      return false;
+    }
+  } catch (e) {
+    console.warn('[AUTH] Verification server notice:', e);
+    return false;
+  }
 }
 
 export async function loginAdmin(email: any, password: any) {
   try {
     const res = await api.post('/api/auth/login', { email, password });
-    if (res.success) {
+    if (res.success && res.data?.token) {
       localStorage.setItem('admin_token', res.data.token);
       localStorage.setItem('admin_user', JSON.stringify(res.data.user));
-      return { error: null };
+      window.dispatchEvent(new Event('admin_auth_changed'));
+      return { error: null, user: res.data.user };
     } else {
       return { error: { message: res.error || 'Invalid credentials' } };
     }
@@ -340,23 +383,127 @@ export async function loginAdmin(email: any, password: any) {
   }
 }
 
+export async function loginWithGoogle(profile: {
+  email: string;
+  name?: string;
+  picture?: string;
+  google_id?: string;
+}) {
+  try {
+    const res = await api.post('/api/auth/google', profile);
+    if (res.success && res.data?.token) {
+      localStorage.setItem('admin_token', res.data.token);
+      localStorage.setItem('admin_user', JSON.stringify(res.data.user));
+      window.dispatchEvent(new Event('admin_auth_changed'));
+      return { error: null, user: res.data.user };
+    } else {
+      return { error: { message: res.error || 'Google authentication failed' } };
+    }
+  } catch (err: any) {
+    return { error: { message: err.message || 'Server error during Google login' } };
+  }
+}
+
+export async function sendAuthOtp(email: string, purpose: 'login' | 'signup', name?: string) {
+  try {
+    const res = await api.post('/api/auth/send-otp', { email, purpose, name });
+    if (res.success) {
+      return { success: true, data: res.data, error: null };
+    } else {
+      return { success: false, data: null, error: { message: res.error || 'Failed to send OTP' } };
+    }
+  } catch (err: any) {
+    return { success: false, data: null, error: { message: err.message || 'Server error sending OTP' } };
+  }
+}
+
+export async function verifyAuthOtp(payload: {
+  email: string;
+  otp: string;
+  purpose: 'login' | 'signup';
+  name?: string;
+  password?: string;
+  role?: string;
+}) {
+  try {
+    const res = await api.post('/api/auth/verify-otp', payload);
+    if (res.success && res.data?.token) {
+      localStorage.setItem('admin_token', res.data.token);
+      localStorage.setItem('admin_user', JSON.stringify(res.data.user));
+      window.dispatchEvent(new Event('admin_auth_changed'));
+      return { success: true, error: null, user: res.data.user };
+    } else {
+      return { success: false, error: { message: res.error || 'Invalid OTP code' } };
+    }
+  } catch (err: any) {
+    return { success: false, error: { message: err.message || 'Server error verifying OTP' } };
+  }
+}
+
+export async function registerAdmin(data: {
+  name: string;
+  email: string;
+  password: string;
+  role?: string;
+}) {
+  try {
+    const res = await api.post('/api/auth/register', data);
+    if (res.success && res.data?.token) {
+      localStorage.setItem('admin_token', res.data.token);
+      localStorage.setItem('admin_user', JSON.stringify(res.data.user));
+      window.dispatchEvent(new Event('admin_auth_changed'));
+      return { success: true, error: null, user: res.data.user };
+    } else {
+      return { success: false, error: { message: res.error || 'Registration failed' } };
+    }
+  } catch (err: any) {
+    return { success: false, error: { message: err.message || 'Server error during registration' } };
+  }
+}
+
 export async function logoutAdmin() {
   localStorage.removeItem('admin_token');
   localStorage.removeItem('admin_user');
+  window.dispatchEvent(new Event('admin_auth_changed'));
 }
 
+export async function fetchDatabaseStatus() {
+  try {
+    const res = await api.get('/api/admin/database-status');
+    return res.data;
+  } catch (err) {
+    return {
+      status: 'offline_fallback',
+      isLive: false,
+      error: 'Backend API unreachable'
+    };
+  }
+}
+
+const getAuthHeaders = (extraHeaders: Record<string, string> = {}) => {
+  const token = localStorage.getItem('admin_token');
+  const headers: Record<string, string> = { ...extraHeaders };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+};
+
 export const api = {
-  get: async (path: string) => fetch(API_BASE_URL.replace('/api', '') + path).then(r => r.json()),
-  post: async (path: string, body: any) => fetch(API_BASE_URL.replace('/api', '') + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
-  put: async (path: string, body: any) => fetch(API_BASE_URL.replace('/api', '') + path, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
-  delete: async (path: string) => fetch(API_BASE_URL.replace('/api', '') + path, { method: 'DELETE' }).then(r => r.json()),
+  get: async (path: string) => fetch(buildApiUrl(path), { headers: getAuthHeaders() }).then(r => r.json()),
+  post: async (path: string, body: any) => fetch(buildApiUrl(path), { method: 'POST', headers: getAuthHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify(body) }).then(r => r.json()),
+  put: async (path: string, body: any) => fetch(buildApiUrl(path), { method: 'PUT', headers: getAuthHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify(body) }).then(r => r.json()),
+  delete: async (path: string) => fetch(buildApiUrl(path), { method: 'DELETE', headers: getAuthHeaders() }).then(r => r.json()),
 };
 
 export const supabase = {
   auth: {
     getSession: async () => ({ data: { session: null } }),
     onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
-    signOut: async () => ({ error: null }),
+    signOut: async () => {
+      await logoutAdmin();
+      return { error: null };
+    },
     signInWithPassword: async () => ({ error: null })
   },
   from: (table: string) => {

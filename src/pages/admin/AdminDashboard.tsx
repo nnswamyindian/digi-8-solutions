@@ -2,12 +2,13 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Users, RefreshCw, Filter, Briefcase, UserCheck, Calendar,
-  Mail, BarChart2, Ticket, ArrowRight, Sparkles, ChevronRight, Plus, Eye
+  Mail, BarChart2, Ticket, ArrowRight, Sparkles, ChevronRight, Plus, Eye, Database, CheckCircle2, AlertTriangle
 } from 'lucide-react';
 import AdminLayout from './AdminLayout';
 import {
   fetchCareersStats,
   fetchCareerApplications,
+  fetchDatabaseStatus,
   type CareerStats,
   type JobApplication
 } from '../../lib/api';
@@ -39,6 +40,17 @@ export default function AdminDashboard() {
   const [filterCategory, setFilterCategory] = useState<string>('All');
   const [filterStage, setFilterStage] = useState<string>('All');
 
+  const [dbStatus, setDbStatus] = useState<{
+    status?: string;
+    isLive?: boolean;
+    host?: string;
+    database?: string;
+    latencyMs?: number | null;
+    tables?: any[];
+    error?: string;
+    tip?: string;
+  } | null>(null);
+
   useEffect(() => {
     try {
       const stored = localStorage.getItem('admin_user');
@@ -56,12 +68,14 @@ export default function AdminDashboard() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [cStats, apps] = await Promise.all([
+      const [cStats, apps, dbHealth] = await Promise.all([
         fetchCareersStats().catch(() => ({ activeJobs: 0, draftJobs: 0, closedJobs: 0, totalApplications: 0, newApplications: 0 })),
-        fetchCareerApplications().catch(() => [])
+        fetchCareerApplications().catch(() => []),
+        fetchDatabaseStatus().catch(() => null)
       ]);
       setCareerStats(cStats);
       setApplications(apps);
+      setDbStatus(dbHealth);
       setLeads([...dummyLeads]);
     } catch (_err) {
       // Fallback
@@ -223,6 +237,41 @@ export default function AdminDashboard() {
             </Link>
             <button onClick={loadData} className="btn-outline-glass px-4 py-2 rounded-xl text-sm font-inter flex items-center gap-2">
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
+            </button>
+          </div>
+        </div>
+
+        {/* Database Connectivity & Health Status Card */}
+        <div className={`p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs ${
+          dbStatus?.isLive 
+            ? 'bg-emerald-950/30 border-emerald-500/30 text-emerald-300' 
+            : 'bg-amber-950/30 border-amber-500/30 text-amber-300'
+        }`}>
+          <div className="flex items-start md:items-center gap-3">
+            <div className={`p-2.5 rounded-xl shrink-0 ${dbStatus?.isLive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+              <Database size={18} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 font-bold text-sm text-white">
+                <span className={`w-2 h-2 rounded-full ${dbStatus?.isLive ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                {dbStatus?.isLive ? 'MySQL Production Database Active' : 'Database: Offline / Mock Fallback Mode'}
+              </div>
+              <p className="text-xs text-slate-300 mt-0.5">
+                {dbStatus?.isLive 
+                  ? `Connected to MySQL [${dbStatus.database || 'digi8'}] on ${dbStatus.host || '127.0.0.1'} • Latency: ${dbStatus.latencyMs ?? '< 5'}ms • ${dbStatus.tables?.length || 0} Tables Synced`
+                  : (dbStatus?.error 
+                      ? `Local MySQL on port 3306 is not connected (${dbStatus.error}). Server is safely running in offline fallback mode with in-memory storage. To activate live database, start MySQL in XAMPP.`
+                      : `Server running in offline mode. Start Apache & MySQL in XAMPP Control Panel to connect MySQL.`)}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 self-end md:self-auto">
+            <button
+              onClick={loadData}
+              className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white font-medium text-xs flex items-center gap-1.5 transition-colors"
+            >
+              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+              Re-check DB
             </button>
           </div>
         </div>

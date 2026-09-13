@@ -1,27 +1,154 @@
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
 
 dotenv.config();
 
+const DATA_DIR = path.resolve(process.cwd(), 'data');
+const STORE_PATH = path.join(DATA_DIR, 'digi8_database.json');
+
+export interface PersistentDbStore {
+  admin_users: any[];
+  admin_otps: any[];
+  leads: any[];
+  contacts: any[];
+  quotes: any[];
+  career_jobs: any[];
+  career_applications: any[];
+  [key: string]: any[];
+}
+
+let memoryStore: PersistentDbStore | null = null;
+
+export const loadPersistentStore = (): PersistentDbStore => {
+  if (memoryStore) return memoryStore;
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    if (fs.existsSync(STORE_PATH)) {
+      const raw = fs.readFileSync(STORE_PATH, 'utf-8');
+      memoryStore = JSON.parse(raw);
+    }
+  } catch (err) {
+    console.warn('[DISK DB] Error reading persistent store:', err);
+  }
+
+  if (!memoryStore) {
+    memoryStore = {
+      admin_users: [],
+      admin_otps: [],
+      leads: [],
+      contacts: [],
+      quotes: [],
+      career_jobs: [],
+      career_applications: []
+    };
+  }
+
+  // Ensure default seed users exist in persistent store
+  const superAdminEmail = 'admin@digi8solutions.com';
+  if (!memoryStore.admin_users.some(u => u.email === superAdminEmail)) {
+    memoryStore.admin_users.push({
+      id: 1,
+      name: 'Digi-8 Super Admin',
+      email: superAdminEmail,
+      password_hash: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // bcrypt hash
+      role: 'Super Admin',
+      status: 'active',
+      auth_provider: 'local',
+      created_at: new Date().toISOString()
+    });
+  }
+
+  const officialGmail = (process.env.ADMIN_EMAIL || 'digi8solutions@gmail.com').toLowerCase().trim();
+  if (!memoryStore.admin_users.some(u => u.email.toLowerCase() === officialGmail)) {
+    memoryStore.admin_users.push({
+      id: 2,
+      name: 'Digi-8 Official Admin',
+      email: officialGmail,
+      password_hash: '',
+      role: 'Super Admin',
+      status: 'active',
+      auth_provider: 'google',
+      created_at: new Date().toISOString()
+    });
+  }
+
+  const hrEmail = 'hr@digi8solutions.com';
+  if (!memoryStore.admin_users.some(u => u.email === hrEmail)) {
+    memoryStore.admin_users.push({
+      id: 3,
+      name: 'Digi-8 HR Admin',
+      email: hrEmail,
+      password_hash: '',
+      role: 'HR Admin',
+      status: 'active',
+      auth_provider: 'local',
+      created_at: new Date().toISOString()
+    });
+  }
+
+  savePersistentStore(memoryStore);
+  return memoryStore;
+};
+
+export const savePersistentStore = (store: PersistentDbStore) => {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(STORE_PATH, JSON.stringify(store, null, 2), 'utf-8');
+    memoryStore = store;
+  } catch (err) {
+    console.warn('[DISK DB] Error saving persistent store:', err);
+  }
+};
+
+const dbHost = process.env.DB_HOST || '127.0.0.1';
+const dbUser = process.env.DB_USER || 'root';
+const dbPassword = process.env.DB_PASSWORD || '';
+const dbName = process.env.DB_NAME || 'digi8';
+const dbPort = parseInt(process.env.DB_PORT || '3306', 10);
+
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'digi8',
+  host: dbHost,
+  user: dbUser,
+  password: dbPassword,
+  database: dbName,
+  port: dbPort,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
 });
 
+// Guard pool against unhandled error crashes
+(pool as any).on?.('error', (err: any) => {
+  console.warn('[DB POOL EVENT] MySQL Pool Notice:', err?.message || err);
+});
+
 export const initDb = async () => {
   try {
+    // 1. Two-stage setup: connect without database to ensure database exists
+    try {
+      const bootstrapConn = await mysql.createConnection({
+        host: dbHost,
+        user: dbUser,
+        password: dbPassword,
+        port: dbPort,
+        connectTimeout: 3000
+      });
+      await bootstrapConn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
+      await bootstrapConn.end();
+    } catch (bootstrapErr: any) {
+      // If raw bootstrap fails (e.g. server offline), proceed to pool attempt which catches appropriately
+    }
+
     const connection = await pool.getConnection();
     try {
       // Basic tables matching schema
-      await connection.query(`
-        CREATE DATABASE IF NOT EXISTS digi8 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-      `);
       await connection.query(`
         CREATE TABLE IF NOT EXISTS leads (
           id INT AUTO_INCREMENT PRIMARY KEY,
@@ -96,10 +223,31 @@ export const initDb = async () => {
         password_hash VARCHAR(255),
         role VARCHAR(50) DEFAULT 'Normal User',
         status VARCHAR(50) DEFAULT 'active',
+        google_id VARCHAR(255) NULL,
+        avatar_url VARCHAR(255) NULL,
+        auth_provider VARCHAR(50) DEFAULT 'local',
         reset_token VARCHAR(255),
         reset_token_expires TIMESTAMP NULL
       );
     `);
+
+      // Safe migrations for social auth columns
+      try { await connection.query(`ALTER TABLE admin_users ADD COLUMN google_id VARCHAR(255) NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE admin_users ADD COLUMN avatar_url VARCHAR(255) NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE admin_users ADD COLUMN auth_provider VARCHAR(50) DEFAULT 'local'`); } catch {}
+
+      // Admin OTPs table for 2FA / Social / Signup verification
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS admin_otps (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          email VARCHAR(255) NOT NULL,
+          otp_code VARCHAR(10) NOT NULL,
+          purpose VARCHAR(50) DEFAULT 'login',
+          expires_at TIMESTAMP NOT NULL,
+          is_verified BOOLEAN DEFAULT FALSE
+        );
+      `);
 
       const superAdminEmail = 'admin@digi8solutions.com';
       const superAdminPassword = process.env.ADMIN_PASSWORD || 'AdminDigi8Password2026!';
@@ -108,10 +256,22 @@ export const initDb = async () => {
       if (adminRows.length === 0) {
         const defaultHash = await bcrypt.hash(superAdminPassword, 10);
         await connection.query(
-          'INSERT INTO admin_users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
-          ['Digi-8 Super Admin', superAdminEmail, defaultHash, 'Super Admin']
+          'INSERT INTO admin_users (name, email, password_hash, role, auth_provider) VALUES (?, ?, ?, ?, ?)',
+          ['Digi-8 Super Admin', superAdminEmail, defaultHash, 'Super Admin', 'local']
         );
         console.log(`[DB INFO] Default Super Admin user created: ${superAdminEmail}`);
+      }
+
+      // Seed official company Gmail as Super Admin for direct Google Login
+      const officialGmail = process.env.ADMIN_EMAIL || 'digi8solutions@gmail.com';
+      const [gmailRows]: any = await connection.query('SELECT * FROM admin_users WHERE email = ?', [officialGmail]);
+      if (gmailRows.length === 0) {
+        const gmailHash = await bcrypt.hash(superAdminPassword, 10);
+        await connection.query(
+          'INSERT INTO admin_users (name, email, password_hash, role, auth_provider) VALUES (?, ?, ?, ?, ?)',
+          ['Digi-8 Official Admin', officialGmail, gmailHash, 'Super Admin', 'google']
+        );
+        console.log(`[DB INFO] Default Gmail Super Admin user created: ${officialGmail}`);
       }
 
       const hrAdminEmail = 'hr@digi8solutions.com';
@@ -121,8 +281,8 @@ export const initDb = async () => {
       if (hrRows.length === 0) {
         const hrHash = await bcrypt.hash(hrAdminPassword, 10);
         await connection.query(
-          'INSERT INTO admin_users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
-          ['Digi-8 HR Admin', hrAdminEmail, hrHash, 'HR Admin']
+          'INSERT INTO admin_users (name, email, password_hash, role, auth_provider) VALUES (?, ?, ?, ?, ?)',
+          ['Digi-8 HR Admin', hrAdminEmail, hrHash, 'HR Admin', 'local']
         );
         console.log(`[DB INFO] Default HR Admin user created: ${hrAdminEmail}`);
       }
@@ -736,7 +896,51 @@ export const initDb = async () => {
       connection.release();
     }
   } catch (error) {
-    console.warn('[DB WARNING] Local MySQL connection failed. Server running in offline/mock mode:', (error as any).message);
+    console.warn('[DB WARNING] Local MySQL connection failed. Server running in offline persistent mode:', (error as any).message);
+    loadPersistentStore();
+  }
+};
+
+export const checkDatabaseHealth = async () => {
+  const startTime = Date.now();
+  try {
+    const connection = await pool.getConnection();
+    try {
+      await connection.query('SELECT 1');
+      const latency = Date.now() - startTime;
+
+      const [tableRows]: any = await connection.query(`
+        SELECT table_name AS tableName, table_rows AS rowCount 
+        FROM information_schema.tables 
+        WHERE table_schema = ?
+      `, [dbName]);
+
+      return {
+        status: 'connected',
+        isLive: true,
+        host: dbHost,
+        port: dbPort,
+        database: dbName,
+        latencyMs: latency,
+        tables: tableRows || [],
+        timestamp: new Date().toISOString()
+      };
+    } finally {
+      connection.release();
+    }
+  } catch (err: any) {
+    return {
+      status: 'offline_fallback',
+      isLive: false,
+      host: dbHost,
+      port: dbPort,
+      database: dbName,
+      latencyMs: null,
+      error: err.message,
+      tip: 'Start Apache & MySQL in XAMPP Control Panel (C:\\xampp\\xampp-control.exe) or verify MySQL service on port 3306.',
+      tables: [],
+      timestamp: new Date().toISOString()
+    };
   }
 };
 

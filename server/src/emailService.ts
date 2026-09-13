@@ -401,3 +401,61 @@ export const sendRecruiterEmail = async (
     return { success: false, error: error?.message || 'Failed to dispatch email' };
   }
 };
+
+export const sendAdminOtpEmail = async (
+  to: string,
+  otp: string,
+  purpose: 'login' | 'signup',
+  name?: string
+): Promise<{ success: boolean; error?: string }> => {
+  const APP_URL = getAppUrl();
+  const title = purpose === 'signup' ? 'Verify Your Admin Registration' : 'Admin Portal Security OTP';
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background-color: #0f172a; color: #f8fafc; border-radius: 12px; border: 1px solid #1e293b;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <h1 style="color: #06B6D4; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">DIGI8 SOLUTIONS</h1>
+        <p style="color: #94a3b8; margin: 4px 0 0 0; font-size: 13px;">Enterprise Security Verification Gateway</p>
+      </div>
+
+      <div style="background-color: #1e293b; padding: 24px; border-radius: 10px; border: 1px solid #334155; margin-bottom: 24px;">
+        <h2 style="color: #ffffff; margin-top: 0; font-size: 18px;">${title}</h2>
+        <p style="color: #cbd5e1; font-size: 14px; line-height: 1.5; margin-bottom: 20px;">
+          Hello ${name || 'Administrator'},<br/><br/>
+          You requested an authentication passcode to ${purpose === 'signup' ? 'register a new administrator account' : 'sign in to the Digi-8 Solutions Admin Gateway'}.
+        </p>
+
+        <div style="background-color: #090d16; border: 1px solid #06B6D4; border-radius: 8px; padding: 18px; text-align: center; margin: 20px 0;">
+          <span style="font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 8px;">Your 6-Digit Verification Code</span>
+          <span style="font-family: monospace, Courier; font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #06B6D4;">${otp}</span>
+          <span style="display: block; margin-top: 8px; font-size: 11px; color: #64748b;">Valid for 10 minutes. Do not share this code with anyone.</span>
+        </div>
+
+        <p style="color: #94a3b8; font-size: 12px; margin-top: 20px;">
+          If you did not initiate this request, please disregard this email or report immediately to security@digi8solutions.com.
+        </p>
+      </div>
+
+      <div style="text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid #1e293b; padding-top: 16px;">
+        &copy; ${new Date().getFullYear()} Digi8 Solutions Pvt Ltd. All rights reserved.<br/>
+        <a href="${APP_URL}" style="color: #06B6D4; text-decoration: none;">digi8solutions.com</a>
+      </div>
+    </div>
+  `;
+
+  try {
+    const transport = getTransporter();
+    await transport.sendMail({
+      from: `"Digi8 Security Gateway" <${getSmtpUser()}>`,
+      to,
+      subject: `[${otp}] ${title} — Digi8 Solutions`,
+      html
+    });
+    console.log(`[OTP SENT] Sent ${purpose} OTP to ${to}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error('[OTP SEND ERROR]:', error.message);
+    return { success: false, error: error.message || 'Failed to dispatch email' };
+  }
+};
+

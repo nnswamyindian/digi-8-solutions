@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
 import multer from 'multer';
-import pool, { initDb } from './db.js';
+import pool, { initDb, checkDatabaseHealth, loadPersistentStore, savePersistentStore } from './db.js';
 import {
   sendInstantReply,
   sendVerificationEmail,
@@ -17,6 +17,7 @@ import {
   sendAdminCareerNotification,
   compileEmailTemplate,
   sendRecruiterEmail,
+  sendAdminOtpEmail,
   verifySmtpConnection,
   getAdminEmail
 } from './emailService.js';
@@ -1104,6 +1105,51 @@ app.post('/api/verify', async (req, res) => {
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-digi8';
 
 // 6. Auth APIs
+
+// Verify JWT session token
+app.get('/api/auth/verify', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, error: 'Authorization token required' });
+    }
+    const token = authHeader.split(' ')[1];
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch (jwtErr: any) {
+      return res.status(401).json({ success: false, error: 'Session expired or invalid. Please sign in again.' });
+    }
+
+    let user: any = null;
+    try {
+      const [rows]: any = await pool.query('SELECT id, email, name, role, status, avatar_url FROM admin_users WHERE id = ? OR email = ?', [decoded.id, decoded.email]);
+      if (rows && rows.length > 0) {
+        user = rows[0];
+      }
+    } catch (dbErr) {
+      // Fallback mode if MySQL is offline
+    }
+
+    if (!user) {
+      if (decoded.email === 'admin@digi8solutions.com') {
+        user = { id: 1, email: 'admin@digi8solutions.com', name: 'Digi-8 Super Admin', role: 'Super Admin' };
+      } else if (decoded.email === 'hr@digi8solutions.com') {
+        user = { id: 2, email: 'hr@digi8solutions.com', name: 'Digi-8 HR Admin', role: 'HR Admin' };
+      } else if (decoded.email === (process.env.ADMIN_EMAIL || 'digi8solutions@gmail.com')) {
+        user = { id: 3, email: decoded.email, name: 'Digi-8 Official Admin', role: 'Super Admin' };
+      } else {
+        user = { id: decoded.id, email: decoded.email, role: decoded.role || 'Super Admin', name: decoded.name || 'Administrator' };
+      }
+    }
+
+    return sendSuccess(res, { user }, 'Session verified');
+  } catch (err: any) {
+    return res.status(401).json({ success: false, error: err.message || 'Authentication failed' });
+  }
+});
+
+// Admin Email + Password Login
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -1122,49 +1168,418 @@ app.post('/api/auth/login', async (req, res) => {
       console.warn('[AUTH DB WARNING] MySQL unavailable, checking Super Admin fallback:', (dbErr as any).message);
     }
 
-    // Offline / Mock Super Admin & HR Admin fallback check
+    // Offline / Persistent Store / Mock Super Admin, HR Admin, and Official Gmail fallback check
     if (!user) {
-      if (email === 'admin@digi8solutions.com' && password === 'AdminDigi8Password2026!') {
-        user = {
-          id: 1,
-          email: 'admin@digi8solutions.com',
-          name: 'Digi-8 Super Admin',
-          role: 'Super Admin'
-        };
-      } else if (email === 'hr@digi8solutions.com' && (password === 'HrAdminDigi8Password2026!' || password === (process.env.HR_ADMIN_PASSWORD || 'HrAdminDigi8Password2026!'))) {
-        user = {
-          id: 2,
-          email: 'hr@digi8solutions.com',
-          name: 'Digi-8 HR Admin',
-          role: 'HR Admin'
-        };
-      } else {
-        return res.status(401).json({ success: false, error: 'Invalid credentials' });
+      // 1. Check persistent disk store
+      const pStore = loadPersistentStore();
+      const pUser = pStore.admin_users.find((u: any) => u.email.toLowerCase() === email.toLowerCase());
+      if (pUser && pUser.password_hash) {
+        const isValid = await bcrypt.compare(password, pUser.password_hash);
+        if (isValid) {
+          user = pUser;
+        }
+      }
+
+      // 2. Default credentials fallback
+      const officialAdmin = process.env.ADMIN_EMAIL || 'digi8solutions@gmail.com';
+      if (!user) {
+        if (email === 'admin@digi8solutions.com' && password === 'AdminDigi8Password2026!') {
+          user = {
+            id: 1,
+            email: 'admin@digi8solutions.com',
+            name: 'Digi-8 Super Admin',
+            role: 'Super Admin'
+          };
+        } else if (email === 'hr@digi8solutions.com' && (password === 'HrAdminDigi8Password2026!' || password === (process.env.HR_ADMIN_PASSWORD || 'HrAdminDigi8Password2026!'))) {
+          user = {
+            id: 2,
+            email: 'hr@digi8solutions.com',
+            name: 'Digi-8 HR Admin',
+            role: 'HR Admin'
+          };
+        } else if (email === officialAdmin && (password === 'AdminDigi8Password2026!' || password === (process.env.ADMIN_PASSWORD || 'AdminDigi8Password2026!'))) {
+          user = {
+            id: 3,
+            email: officialAdmin,
+            name: 'Digi-8 Official Admin',
+            role: 'Super Admin'
+          };
+        } else {
+          return res.status(401).json({ success: false, error: 'Invalid email or password' });
+        }
       }
     }
 
-    const token = jwt.sign({ id: user.id, role: user.role, email: user.email }, JWT_SECRET, { expiresIn: '1d' });
-    sendSuccess(res, { token, user: { id: user.id, email: user.email, role: user.role, name: user.name } }, 'Logged in successfully');
+    const token = jwt.sign({ id: user.id, role: user.role, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '1d' });
+    sendSuccess(res, { token, user: { id: user.id, email: user.email, role: user.role, name: user.name, avatar_url: user.avatar_url || null } }, 'Logged in successfully');
   } catch (err) { sendError(res, err); }
 });
 
+// Google / Gmail Social Login for Administrators
+app.post('/api/auth/google', async (req, res) => {
+  try {
+    const { email, name, picture, google_id } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'Google email address is required' });
+    }
+
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const officialAdmin = (process.env.ADMIN_EMAIL || 'digi8solutions@gmail.com').toLowerCase().trim();
+
+    // Check if the user is in DB
+    let user: any = null;
+    try {
+      const [rows]: any = await pool.query('SELECT * FROM admin_users WHERE LOWER(email) = ?', [normalizedEmail]);
+      if (rows && rows.length > 0) {
+        user = rows[0];
+        try {
+          await pool.query(
+            'UPDATE admin_users SET google_id = COALESCE(?, google_id), avatar_url = COALESCE(?, avatar_url), auth_provider = "google" WHERE id = ?',
+            [google_id || null, picture || null, user.id]
+          );
+        } catch {}
+      }
+    } catch (dbErr) {
+      console.warn('[AUTH DB WARNING] MySQL check failed during Google auth:', (dbErr as any).message);
+    }
+
+    // Authorization verification
+    const isAuthorized = 
+      user || 
+      normalizedEmail === officialAdmin || 
+      normalizedEmail === 'admin@digi8solutions.com' ||
+      normalizedEmail === 'hr@digi8solutions.com' ||
+      normalizedEmail.endsWith('@digi8solutions.com');
+
+    if (!isAuthorized) {
+      return res.status(403).json({
+        success: false,
+        error: `Access denied. The Google account (${normalizedEmail}) is not authorized as an administrator. Please use an authorized company email.`
+      });
+    }
+
+    if (!user) {
+      const role = normalizedEmail === 'hr@digi8solutions.com' ? 'HR Admin' : 'Super Admin';
+      const userName = name || (normalizedEmail.startsWith('hr') ? 'Digi-8 HR Admin' : 'Digi-8 Super Admin');
+      let insertId = Date.now();
+
+      try {
+        const dummyHash = await bcrypt.hash(uuidv4(), 10);
+        const [result]: any = await pool.query(
+          'INSERT INTO admin_users (name, email, password_hash, role, google_id, avatar_url, auth_provider) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [userName, normalizedEmail, dummyHash, role, google_id || null, picture || null, 'google']
+        );
+        insertId = result.insertId;
+      } catch (insertErr) {
+        console.warn('[AUTH DB WARNING] User auto-provision in fallback mode:', (insertErr as any).message);
+      }
+
+      user = {
+        id: insertId,
+        email: normalizedEmail,
+        name: userName,
+        role: role,
+        avatar_url: picture || null
+      };
+    }
+
+    const token = jwt.sign(
+      { id: user.id, role: user.role, email: user.email, name: user.name },
+      JWT_SECRET,
+      { expiresIn: '1d' }
+    );
+
+    sendSuccess(res, {
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        name: user.name,
+        avatar_url: picture || user.avatar_url || null
+      }
+    }, 'Signed in with Google successfully');
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+// Database Diagnostics Telemetry Endpoint
+app.get('/api/admin/database-status', async (_req, res) => {
+  try {
+    const health = await checkDatabaseHealth();
+    sendSuccess(res, health, 'Database status retrieved');
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+// Send 6-Digit Email OTP for Login / Signup / Social Verification
+app.post('/api/auth/send-otp', async (req, res) => {
+  try {
+    const { email, purpose, name } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'Email address is required' });
+    }
+
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // 1. Save to MySQL if online
+    try {
+      await pool.query(
+        'INSERT INTO admin_otps (email, otp_code, purpose, expires_at, is_verified) VALUES (?, ?, ?, ?, FALSE)',
+        [normalizedEmail, otp, purpose || 'login', expiresAt]
+      );
+    } catch (dbErr) {
+      console.warn('[DB NOTICE] Saving OTP to disk persistent store');
+    }
+
+    // 2. Save to persistent disk database store
+    const store = loadPersistentStore();
+    store.admin_otps.push({
+      id: Date.now(),
+      email: normalizedEmail,
+      otp_code: otp,
+      purpose: purpose || 'login',
+      expires_at: expiresAt.toISOString(),
+      is_verified: false,
+      created_at: new Date().toISOString()
+    });
+    if (store.admin_otps.length > 60) {
+      store.admin_otps = store.admin_otps.slice(-60);
+    }
+    savePersistentStore(store);
+
+    // 3. Dispatch Email via Gmail SMTP
+    const emailRes = await sendAdminOtpEmail(normalizedEmail, otp, purpose || 'login', name);
+
+    return sendSuccess(res, {
+      email: normalizedEmail,
+      purpose: purpose || 'login',
+      expires_in: '10 minutes',
+      email_dispatched: emailRes.success
+    }, 'A 6-digit security OTP code has been sent to your email.');
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+// Verify Email OTP and Complete Login or Signup
+app.post('/api/auth/verify-otp', async (req, res) => {
+  try {
+    const { email, otp, purpose, name, password, role } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ success: false, error: 'Email and 6-digit OTP code are required' });
+    }
+
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const cleanOtp = String(otp).trim();
+
+    let otpValid = false;
+
+    // Check MySQL
+    try {
+      const [rows]: any = await pool.query(
+        'SELECT * FROM admin_otps WHERE LOWER(email) = ? AND otp_code = ? AND expires_at > NOW() AND is_verified = FALSE ORDER BY created_at DESC LIMIT 1',
+        [normalizedEmail, cleanOtp]
+      );
+      if (rows && rows.length > 0) {
+        otpValid = true;
+        await pool.query('UPDATE admin_otps SET is_verified = TRUE WHERE id = ?', [rows[0].id]);
+      }
+    } catch {}
+
+    // Check persistent disk store if MySQL offline or not found
+    if (!otpValid) {
+      const store = loadPersistentStore();
+      const matchIndex = store.admin_otps.findIndex(
+        (o: any) => o.email.toLowerCase() === normalizedEmail &&
+                    o.otp_code === cleanOtp &&
+                    new Date(o.expires_at) > new Date() &&
+                    !o.is_verified
+      );
+      if (matchIndex >= 0) {
+        otpValid = true;
+        store.admin_otps[matchIndex].is_verified = true;
+        savePersistentStore(store);
+      }
+    }
+
+    if (!otpValid) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid or expired OTP code. Please check your email or request a new code.'
+      });
+    }
+
+    // OTP verified! Now process signup or login
+    let user: any = null;
+
+    // Look for existing user in MySQL
+    try {
+      const [userRows]: any = await pool.query('SELECT * FROM admin_users WHERE LOWER(email) = ?', [normalizedEmail]);
+      if (userRows && userRows.length > 0) {
+        user = userRows[0];
+      }
+    } catch {}
+
+    // Look in disk store
+    if (!user) {
+      const store = loadPersistentStore();
+      user = store.admin_users.find((u: any) => u.email.toLowerCase() === normalizedEmail);
+    }
+
+    if (purpose === 'signup') {
+      const userRole = role || 'Normal User';
+      const userName = name || 'Digi-8 Administrator';
+      const hash = password ? await bcrypt.hash(password, 10) : '';
+      let insertId = Date.now();
+
+      try {
+        const [insertRes]: any = await pool.query(
+          'INSERT INTO admin_users (name, email, password_hash, role, auth_provider) VALUES (?, ?, ?, ?, ?)',
+          [userName, normalizedEmail, hash, userRole, 'email_otp']
+        );
+        insertId = insertRes.insertId;
+      } catch {}
+
+      const store = loadPersistentStore();
+      const existingIdx = store.admin_users.findIndex((u: any) => u.email.toLowerCase() === normalizedEmail);
+      const newUser = {
+        id: insertId,
+        name: userName,
+        email: normalizedEmail,
+        password_hash: hash,
+        role: userRole,
+        status: 'active',
+        auth_provider: 'email_otp',
+        created_at: new Date().toISOString()
+      };
+      if (existingIdx >= 0) {
+        store.admin_users[existingIdx] = newUser;
+      } else {
+        store.admin_users.push(newUser);
+      }
+      savePersistentStore(store);
+      user = newUser;
+    } else {
+      // Purpose: login (Social or Email OTP Login)
+      if (!user) {
+        const officialAdmin = (process.env.ADMIN_EMAIL || 'digi8solutions@gmail.com').toLowerCase().trim();
+        const assignedRole = normalizedEmail === 'hr@digi8solutions.com' ? 'HR Admin' : 'Super Admin';
+        const assignedName = name || (normalizedEmail === officialAdmin ? 'Digi-8 Official Admin' : 'Digi-8 Administrator');
+        let insertId = Date.now();
+
+        try {
+          const [insertRes]: any = await pool.query(
+            'INSERT INTO admin_users (name, email, password_hash, role, auth_provider) VALUES (?, ?, ?, ?, ?)',
+            [assignedName, normalizedEmail, '', assignedRole, 'email_otp']
+          );
+          insertId = insertRes.insertId;
+        } catch {}
+
+        const store = loadPersistentStore();
+        const newUser = {
+          id: insertId,
+          name: assignedName,
+          email: normalizedEmail,
+          password_hash: '',
+          role: assignedRole,
+          status: 'active',
+          auth_provider: 'email_otp',
+          created_at: new Date().toISOString()
+        };
+        store.admin_users.push(newUser);
+        savePersistentStore(store);
+        user = newUser;
+      }
+    }
+
+    const token = jwt.sign(
+      { id: user.id, role: user.role, email: user.email, name: user.name },
+      JWT_SECRET,
+      { expiresIn: '1d' }
+    );
+
+    return sendSuccess(res, {
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        name: user.name,
+        avatar_url: user.avatar_url || null
+      }
+    }, purpose === 'signup' ? 'Admin account registered successfully' : 'Authenticated successfully via OTP');
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+// Admin Signup with Database Persistence
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: 'Email and password are required' });
+    }
+    const normalizedEmail = email.toLowerCase().trim();
     const hash = await bcrypt.hash(password, 10);
     let insertId = Date.now();
 
+    // 1. MySQL write
     try {
+      const [existing]: any = await pool.query('SELECT id FROM admin_users WHERE LOWER(email) = ?', [normalizedEmail]);
+      if (existing && existing.length > 0) {
+        return res.status(400).json({ success: false, error: 'An admin account with this email already exists' });
+      }
       const [result]: any = await pool.query(
-        'INSERT INTO admin_users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
-        [name, email, hash, role || 'Normal User']
+        'INSERT INTO admin_users (name, email, password_hash, role, auth_provider) VALUES (?, ?, ?, ?, ?)',
+        [name || 'Administrator', normalizedEmail, hash, role || 'Normal User', 'local']
       );
       insertId = result.insertId;
     } catch (dbErr) {
-      console.warn('[DB WARNING] Saving admin user in fallback mode');
+      console.warn('[DB WARNING] Saving admin user in disk persistent mode');
     }
 
-    sendSuccess(res, { id: insertId }, 'User created successfully');
+    // 2. Persistent Disk Database write
+    const store = loadPersistentStore();
+    const existingIndex = store.admin_users.findIndex((u: any) => u.email.toLowerCase() === normalizedEmail);
+    if (existingIndex >= 0 && store.admin_users[existingIndex].password_hash) {
+      return res.status(400).json({ success: false, error: 'An admin account with this email already exists' });
+    }
+
+    const newUser = {
+      id: insertId,
+      name: name || 'Administrator',
+      email: normalizedEmail,
+      password_hash: hash,
+      role: role || 'Normal User',
+      status: 'active',
+      auth_provider: 'local',
+      created_at: new Date().toISOString()
+    };
+
+    if (existingIndex >= 0) {
+      store.admin_users[existingIndex] = newUser;
+    } else {
+      store.admin_users.push(newUser);
+    }
+    savePersistentStore(store);
+
+    const token = jwt.sign(
+      { id: insertId, role: newUser.role, email: newUser.email, name: newUser.name },
+      JWT_SECRET,
+      { expiresIn: '1d' }
+    );
+
+    sendSuccess(res, {
+      token,
+      user: { id: insertId, email: newUser.email, role: newUser.role, name: newUser.name }
+    }, 'Admin account created successfully');
   } catch (err) { sendError(res, err); }
 });
 

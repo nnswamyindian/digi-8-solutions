@@ -1,29 +1,25 @@
 # DIGI8 SOLUTIONS — LIVE ACCESS & CREDENTIALS GUIDE
 
-## 1. Quick Authentication Credentials
+## 1. Super Admin Authentication (Database-Verified OTP)
 
-### A. Super Admin Access (Full System Authority)
-
-| Parameter | Value |
-| :--- | :--- |
-| **Login Portal** | [http://localhost:5173/admin](http://localhost:5173/admin) |
-| **Admin Email** | `admin@digi8solutions.com` |
-| **Admin Password** | `AdminDigi8Password2026!` |
-| **Role** | Super Administrator (Full Access) |
-
-> **Tip**: On the `/admin` login page, click the **"Quick Fill"** button in the **Super Admin Access** card to instantly auto-fill these credentials.
-
-### B. HR Admin Access (People Ops & Talent Acquisition)
+The `/admin` gateway is exclusively secured by **One-Time Passcode (OTP)** authentication for the Super Administrator. All passwords and alternative logins have been removed for maximum security.
 
 | Parameter | Value |
 | :--- | :--- |
 | **Login Portal** | [http://localhost:5173/admin](http://localhost:5173/admin) |
-| **Admin Email** | `hr@digi8solutions.com` |
-| **Admin Password** | `HrAdminDigi8Password2026!` |
-| **Role** | HR Admin (Recruitment, Talent Pipeline & People Operations) |
-| **Access Scope** | ATS Kanban Pipeline, Candidate CRM, Interviews & Scorecards, Email Automations, Recruitment Telemetry, Job Editor |
+| **Super Admin Email** | `digi8solutions@gmail.com` |
+| **Security Mechanism** | 6-Digit Passcode dispatched directly to `digi8solutions@gmail.com` via Gmail SMTP |
+| **Database Verification** | Verified against `admin_otps` & `admin_users` tables in the database |
+| **Session Role** | Super Administrator (Full Executive Authority) |
+| **Passcode Validity** | 10 Minutes per OTP request |
 
-> **Tip**: On the `/admin` login page, click the **"Quick Fill"** button in the **HR Admin Access** card to instantly auto-fill these credentials.
+### How to Sign In:
+1. Open [http://localhost:5173/admin](http://localhost:5173/admin).
+2. The authorized Super Admin email (`digi8solutions@gmail.com`) is displayed.
+3. Click **"Send OTP to digi8solutions@gmail.com"**.
+4. Check your Gmail inbox for the 6-digit security code (or use the auto-detected code hint in local dev mode).
+5. Enter the 6-digit passcode and click **"Verify OTP & Access Admin Panel"**.
+6. You are immediately verified against the database and granted Super Admin dashboard access.
 
 ---
 

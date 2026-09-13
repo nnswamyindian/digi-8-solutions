@@ -1,0 +1,195 @@
+{
+  "admin_users": [
+    {
+      "id": 1,
+      "name": "Digi-8 Super Admin",
+      "email": "admin@digi8solutions.com",
+      "password_hash": "$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi",
+      "role": "Super Admin",
+      "status": "active",
+      "auth_provider": "local",
+      "created_at": "2026-09-13T14:08:38.319Z"
+    },
+    {
+      "id": 2,
+      "name": "Digi-8 Official Admin",
+      "email": "digi8solutions@gmail.com",
+      "password_hash": "",
+      "role": "Super Admin",
+      "status": "active",
+      "auth_provider": "google",
+      "created_at": "2026-09-13T14:08:38.320Z"
+    },
+    {
+      "id": 3,
+      "name": "Digi-8 HR Admin",
+      "email": "hr@digi8solutions.com",
+      "password_hash": "",
+      "role": "HR Admin",
+      "status": "active",
+      "auth_provider": "local",
+      "created_at": "2026-09-13T14:08:38.320Z"
+    },
+    {
+      "id": 1789310023659,
+      "name": "New Admin",
+      "email": "newadmin@digi8solutions.com",
+      "password_hash": "$2b$10$aGu4JK51mgTJAfoiz/M3yuw/lFqELBJWB1G5g3SF2PDrFu21zu8Ri",
+      "role": "Super Admin",
+      "status": "active",
+      "auth_provider": "email_otp",
+      "created_at": "2026-09-13T14:33:43.662Z"
+    }
+  ],
+  "admin_otps": [
+    {
+      "id": 1789308741488,
+      "email": "testadmin@digi8solutions.com",
+      "otp_code": "715116",
+      "purpose": "signup",
+      "expires_at": "2026-09-13T14:22:21.486Z",
+      "is_verified": false,
+      "created_at": "2026-09-13T14:12:21.488Z"
+    },
+    {
+      "id": 1789310018448,
+      "email": "newadmin@digi8solutions.com",
+      "otp_code": "685346",
+      "purpose": "signup",
+      "expires_at": "2026-09-13T14:43:38.446Z",
+      "is_verified": true,
+      "created_at": "2026-09-13T14:33:38.448Z"
+    },
+    {
+      "id": 1789310647731,
+      "email": "digi8solutions@gmail.com",
+      "otp_code": "671714",
+      "purpose": "login",
+      "expires_at": "2026-09-13T14:54:07.727Z",
+      "is_verified": false,
+      "created_at": "2026-09-13T14:44:07.731Z"
+    },
+    {
+      "id": 1789310680198,
+      "email": "digi8solutions@gmail.com",
+      "otp_code": "102947",
+      "purpose": "login",
+      "expires_at": "2026-09-13T14:54:40.184Z",
+      "is_verified": false,
+      "created_at": "2026-09-13T14:44:40.198Z"
+    },
+    {
+      "id": 1789310701260,
+      "email": "digi8solutions@gmail.com",
+      "otp_code": "309475",
+      "purpose": "login",
+      "expires_at": "2026-09-13T14:55:01.252Z",
+      "is_verified": false,
+      "created_at": "2026-09-13T14:45:01.260Z"
+    },
+    {
+      "id": 1789310701763,
+      "email": "digi8solutions@gmail.com",
+      "otp_code": "182378",
+      "purpose": "login",
+      "expires_at": "2026-09-13T14:55:01.757Z",
+      "is_verified": false,
+      "created_at": "2026-09-13T14:45:01.763Z"
+    },
+    {
+      "id": 1789310702040,
+      "email": "digi8solutions@gmail.com",
+      "otp_code": "620984",
+      "purpose": "login",
+      "expires_at": "2026-09-13T14:55:02.007Z",
+      "is_verified": false,
+      "created_at": "2026-09-13T14:45:02.040Z"
+    },
+    {
+      "id": 1789310705205,
+      "email": "digi8solutions@gmail.com",
+      "otp_code": "578915",
+      "purpose": "login",
+      "expires_at": "2026-09-13T14:55:05.175Z",
+      "is_verified": false,
+      "created_at": "2026-09-13T14:45:05.205Z"
+    },
+    {
+      "id": 1789310707049,
+      "email": "digi8solutions@gmail.com",
+      "otp_code": "252995",
+      "purpose": "login",
+      "expires_at": "2026-09-13T14:55:07.045Z",
+      "is_verified": false,
+      "created_at": "2026-09-13T14:45:07.049Z"
+    },
+    {
+      "id": 1789310708431,
+      "email": "digi8solutions@gmail.com",
+      "otp_code": "470894",
+      "purpose": "login",
+      "expires_at": "2026-09-13T14:55:08.391Z",
+      "is_verified": false,
+      "created_at": "2026-09-13T14:45:08.431Z"
+    },
+    {
+      "id": 1789310712994,
+      "email": "digi8solutions@gmail.com",
+      "otp_code": "731513",
+      "purpose": "login",
+      "expires_at": "2026-09-13T14:55:12.955Z",
+      "is_verified": false,
+      "created_at": "2026-09-13T14:45:12.994Z"
+    },
+    {
+      "id": 1789311885299,
+      "email": "digi8solutions@gmail.com",
+      "otp_code": "652571",
+      "purpose": "login",
+      "expires_at": "2026-09-13T15:14:45.289Z",
+      "is_verified": true,
+      "created_at": "2026-09-13T15:04:45.299Z"
+    },
+    {
+      "id": 1789312029913,
+      "email": "digi8solutions@gmail.com",
+      "otp_code": "916573",
+      "purpose": "login",
+      "expires_at": "2026-09-13T15:17:09.907Z",
+      "is_verified": true,
+      "created_at": "2026-09-13T15:07:09.913Z"
+    },
+    {
+      "id": 1789312459781,
+      "email": "digi8solutions@gmail.com",
+      "otp_code": "405019",
+      "purpose": "login",
+      "expires_at": "2026-09-13T15:24:19.774Z",
+      "is_verified": false,
+      "created_at": "2026-09-13T15:14:19.781Z"
+    },
+    {
+      "id": 1789312646940,
+      "email": "digi8solutions@gmail.com",
+      "otp_code": "454747",
+      "purpose": "login",
+      "expires_at": "2026-09-13T15:27:26.926Z",
+      "is_verified": true,
+      "created_at": "2026-09-13T15:17:26.940Z"
+    },
+    {
+      "id": 1789312696771,
+      "email": "digi8solutions@gmail.com",
+      "otp_code": "850017",
+      "purpose": "login",
+      "expires_at": "2026-09-13T15:28:16.765Z",
+      "is_verified": true,
+      "created_at": "2026-09-13T15:18:16.771Z"
+    }
+  ],
+  "leads": [],
+  "contacts": [],
+  "quotes": [],
+  "career_jobs": [],
+  "career_applications": []
+}

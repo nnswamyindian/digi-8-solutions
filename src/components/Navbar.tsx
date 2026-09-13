@@ -54,9 +54,18 @@ export default function Navbar() {
   }, [location]);
 
   useEffect(() => {
-    checkAuth().then((isAuthed) => {
-      setIsAdmin(isAuthed);
-    });
+    let isMounted = true;
+    const updateAuth = () => {
+      checkAuth().then((isAuthed) => {
+        if (isMounted) setIsAdmin(isAuthed);
+      });
+    };
+    updateAuth();
+    window.addEventListener('admin_auth_changed', updateAuth);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('admin_auth_changed', updateAuth);
+    };
   }, []);
 
   return (
@@ -84,11 +93,20 @@ export default function Navbar() {
             <span className="text-white/80 font-medium flex items-center gap-1.5">
               <Cpu size={12} className="text-brand-purple" /> One Partner. Eight Digital Solutions.
             </span>
-            {isAdmin && (
-              <Link to="/admin/dashboard" className="text-brand-cyan hover:text-brand-blue transition-colors font-bold">
-                Admin Panel
-              </Link>
-            )}
+            <span className="text-white/20">|</span>
+            <Link 
+              to={isAdmin ? "/admin/dashboard" : "/admin"} 
+              className="text-brand-cyan hover:text-brand-blue transition-colors font-bold flex items-center gap-1.5 hover:underline"
+            >
+              {isAdmin ? (
+                <>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Admin Dashboard
+                </>
+              ) : (
+                'Admin Panel'
+              )}
+            </Link>
           </div>
         </div>
       </div>

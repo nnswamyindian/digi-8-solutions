@@ -15,8 +15,17 @@ jobs:
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            # Navigate to project directory (update this path to match your VPS setup)
-            cd /var/www/digi8sloutions
+            # Navigate to project directory (robustly checking common path variants)
+            if [ -d "/var/www/digi8sloutions" ]; then
+              cd /var/www/digi8sloutions
+            elif [ -d "/var/www/digi8solutions" ]; then
+              cd /var/www/digi8solutions
+            elif [ -d "/var/www/digi8" ]; then
+              cd /var/www/digi8
+            else
+              echo "Error: Directory not found in /var/www"
+              exit 1
+            fi
             
             # Pull latest changes
             git pull origin main
@@ -25,13 +34,14 @@ jobs:
             cd server
             npm install
             npm run build
-            # Restart backend using PM2 (assuming pm2 is running the app as 'digi8-backend')
-            pm2 restart digi8-backend || pm2 start dist/index.js --name digi8-backend
+            # Restart backend using PM2 (supports both process names: digi8-backend or digi8-api)
+            pm2 restart digi8-backend || pm2 restart digi8-api || pm2 start dist/index.js --name digi8-backend
+            pm2 save
             
             # 2. Update Frontend
             cd ..
             npm install
             npm run build
             
-            # Restart Nginx if necessary, though usually not needed for static file updates
-            # sudo systemctl reload nginx
+            # 3. Reload Nginx to flush cache & serve fresh bundle
+            sudo systemctl reload nginx || true

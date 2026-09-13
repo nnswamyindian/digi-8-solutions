@@ -1,95 +1,232 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Zap, Eye, EyeOff } from 'lucide-react';
-import { loginAdmin } from '../../lib/api';
+import {
+  Zap, ShieldCheck, Mail, AlertCircle, ArrowRight,
+  CheckCircle2, KeyRound, RefreshCw, Send, Lock
+} from 'lucide-react';
+import { checkAuth, sendAuthOtp, verifyAuthOtp } from '../../lib/api';
+
+const SUPER_ADMIN_EMAIL = 'digi8solutions@gmail.com';
 
 export default function AdminLogin() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [step, setStep] = useState<'send' | 'verify'>('send');
+  const [otpCode, setOtpCode] = useState('');
+  const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
+
   const navigate = useNavigate();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setStatus('loading');
+  // Redirect if already authenticated
+  useEffect(() => {
+    checkAuth().then((isAuthed) => {
+      if (isAuthed) {
+        navigate('/admin/dashboard', { replace: true });
+      }
+    });
+  }, [navigate]);
+
+  // Resend cooldown timer
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown(prev => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
+  // Step 1: Send OTP to Super Admin Gmail
+  const handleSendOtp = async () => {
+    setLoading(true);
     setErrorMsg('');
-    const { error } = await loginAdmin(email, password);
-    if (error) {
-      setStatus('error');
-      setErrorMsg(error.message);
-    } else {
-      navigate('/admin/dashboard');
+    setSuccessMsg('');
+
+    const res = await sendAuthOtp(SUPER_ADMIN_EMAIL, 'login', 'Digi-8 Super Admin');
+    setLoading(false);
+
+    if (!res.success) {
+      setErrorMsg(res.error?.message || 'Failed to dispatch verification email');
+      return;
     }
+
+    setStep('verify');
+    setResendCooldown(45);
+    setSuccessMsg(`A 6-digit security OTP code was dispatched to ${SUPER_ADMIN_EMAIL}.`);
+  };
+
+  // Step 2: Verify OTP and Login
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otpCode || otpCode.length < 6) {
+      setErrorMsg('Please enter all 6 digits of the OTP passcode');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMsg('');
+
+    const res = await verifyAuthOtp({
+      email: SUPER_ADMIN_EMAIL,
+      otp: otpCode.trim(),
+      purpose: 'login'
+    });
+    setLoading(false);
+
+    if (!res.success) {
+      setErrorMsg(res.error?.message || 'Invalid or expired OTP code');
+      return;
+    }
+
+    // Success! Redirect to Super Admin Dashboard
+    navigate('/admin/dashboard', { replace: true });
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 relative z-10">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 relative z-10">
       <div className="absolute inset-0 bg-hero-gradient" />
       <div className="absolute inset-0 grid-bg opacity-10" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-accent/5 rounded-full blur-3xl" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-brand-cyan/10 rounded-full blur-3xl" />
 
       <div className="relative z-10 w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent to-highlight flex items-center justify-center mx-auto mb-4 shadow-glow-accent">
-            <Zap size={24} className="text-white" />
+        {/* Header Branding */}
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-cyan via-brand-blue to-brand-purple flex items-center justify-center mx-auto mb-3 shadow-glow-cyan">
+            <Zap size={30} className="text-white" />
           </div>
-          <h1 className="font-sora font-black text-white text-2xl">Admin Login</h1>
-          <p className="text-slate-400 font-inter text-sm mt-1">Digi 8 Solutions Dashboard</p>
+          <h1 className="font-sora font-black text-white text-2xl tracking-tight">Super Admin Gateway</h1>
+          <p className="text-slate-400 font-inter text-xs mt-1">Digi 8 Solutions Executive Control Portal</p>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono mt-3">
+            <ShieldCheck size={13} /> Database-Verified OTP Security
+          </div>
         </div>
 
-        <form onSubmit={handleLogin} className="glass-strong rounded-2xl p-8 border border-white/10 space-y-5">
+        {/* Main Card */}
+        <div className="glass-strong rounded-2xl p-7 border border-white/10 shadow-2xl backdrop-blur-xl">
 
-          <div>
-            <label className="block text-xs text-slate-400 mb-1.5 font-inter">Email</label>
-            <input
-              type="email"
-              className="form-input w-full px-4 py-3 rounded-xl text-sm font-inter"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="admin@digi8solutions.com"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400 mb-1.5 font-inter">Password</label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                className="form-input w-full px-4 py-3 rounded-xl text-sm font-inter pr-12"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
-              >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
+          {/* Super Admin Account Details Badge */}
+          <div className="mb-6 p-4 rounded-xl bg-black/40 border border-brand-cyan/30 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-brand-cyan/15 border border-brand-cyan/30 flex items-center justify-center text-brand-cyan">
+                <Mail size={18} />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-white flex items-center gap-2">
+                  {SUPER_ADMIN_EMAIL}
+                  <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-brand-cyan/20 text-brand-cyan font-semibold uppercase">
+                    Super Admin
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-400">Primary Company Administrative Email</div>
+              </div>
             </div>
-            <div className="text-right mt-1.5">
-              <Link to="/forgot-password" className="text-accent hover:text-white transition-colors text-xs font-inter">
-                Forgot password?
-              </Link>
-            </div>
+            <Lock size={15} className="text-slate-500" />
           </div>
 
-          {status === 'error' && (
-            <div className="text-red-400 text-xs font-inter text-center">{errorMsg}</div>
+          {/* Messages */}
+          {errorMsg && (
+            <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-start gap-2">
+              <AlertCircle size={15} className="shrink-0 mt-0.5 text-red-400" />
+              <span>{errorMsg}</span>
+            </div>
           )}
 
-          <button
-            type="submit"
-            disabled={status === 'loading'}
-            className="btn-glow w-full py-3 rounded-xl font-poppins font-semibold text-white"
-          >
-            {status === 'loading' ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
+          {successMsg && (
+            <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-start gap-2">
+              <CheckCircle2 size={15} className="shrink-0 mt-0.5 text-emerald-400" />
+              <span>{successMsg}</span>
+            </div>
+          )}
+
+
+          {/* STEP 1: SEND OTP BUTTON */}
+          {step === 'send' ? (
+            <div className="space-y-4">
+              <p className="text-xs text-slate-300 font-inter leading-relaxed">
+                To access the Executive Admin Dashboard, a 6-digit verification passcode will be sent to the official Super Admin inbox ({SUPER_ADMIN_EMAIL}).
+              </p>
+
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleSendOtp}
+                className="btn-glow w-full py-3.5 rounded-xl font-poppins font-semibold text-white text-sm flex items-center justify-center gap-2 shadow-glow-cyan transition-all"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                    Dispatching Security Passcode...
+                  </>
+                ) : (
+                  <>
+                    <Send size={15} /> Send OTP to {SUPER_ADMIN_EMAIL}
+                  </>
+                )}
+              </button>
+            </div>
+          ) : (
+            /* STEP 2: VERIFY OTP FORM */
+            <form onSubmit={handleVerifyOtp} className="space-y-4">
+              <div>
+                <label className="block text-xs font-mono text-slate-300 mb-2 text-center uppercase tracking-wider flex items-center justify-center gap-1.5">
+                  <KeyRound size={13} className="text-brand-cyan" />
+                  Enter 6-Digit Verification Code
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  autoFocus
+                  className="form-input w-full px-4 py-3.5 rounded-xl text-center text-3xl font-mono tracking-[0.45em] font-black bg-black/60 border border-brand-cyan/50 text-brand-cyan focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan"
+                  placeholder="••••••"
+                  value={otpCode}
+                  onChange={e => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                  required
+                />
+                <span className="block text-center mt-1.5 text-[11px] text-slate-400">
+                  Passcode expires in 10 minutes. Verified directly in database.
+                </span>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || otpCode.length < 6}
+                className="btn-glow w-full py-3.5 rounded-xl font-poppins font-semibold text-white text-sm flex items-center justify-center gap-2 disabled:opacity-50 shadow-glow-cyan"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                    Verifying with Database...
+                  </>
+                ) : (
+                  <>
+                    Verify OTP & Access Admin Panel <ArrowRight size={15} />
+                  </>
+                )}
+              </button>
+
+              <div className="flex items-center justify-between pt-2 text-xs text-slate-400 border-t border-white/10 mt-3">
+                <span>Didn't receive email?</span>
+                <button
+                  type="button"
+                  disabled={resendCooldown > 0 || loading}
+                  onClick={handleSendOtp}
+                  className="text-brand-cyan hover:underline disabled:opacity-40 flex items-center gap-1 font-medium"
+                >
+                  <RefreshCw size={12} />
+                  {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend Code'}
+                </button>
+              </div>
+            </form>
+          )}
+
+        </div>
+
+        {/* Back to Home Link */}
+        <div className="text-center mt-6">
+          <Link to="/" className="text-slate-400 hover:text-white transition-colors text-xs font-medium">
+            ← Return to Digi 8 Solutions Public Portal
+          </Link>
+        </div>
       </div>
     </div>
   );
