@@ -3,7 +3,8 @@ import {
   Users, UserPlus, Shield, Check, X, ShieldAlert, KeyRound, 
   Copy, RefreshCw, Eye, EyeOff, Search, Lock, 
   Briefcase, Code2, TrendingUp, CheckCircle2, AlertCircle,
-  Clock, Database, Sliders, ChevronDown
+  Database, Sliders, ChevronDown, CheckSquare, Square,
+  Layers, Settings, HelpCircle
 } from 'lucide-react';
 import AdminLayout, { AdminRole } from './AdminLayout';
 import { 
@@ -14,23 +15,86 @@ import {
   AdminUserRecord 
 } from '../../lib/api';
 
+// Only Root Super Admin accounts remain by default
 const DEFAULT_SEED_USERS: AdminUserRecord[] = [
-  { id: '1', name: 'Digi-8 Super Admin', email: 'admin@digi8solutions.com', role: 'Super Admin', status: 'active', created_at: new Date().toISOString() },
-  { id: '2', name: 'Digi-8 Official Admin', email: 'digi8solutions@gmail.com', role: 'Super Admin', status: 'active', created_at: new Date().toISOString() },
-  { id: '3', name: 'Digi-8 HR Admin', email: 'hr@digi8solutions.com', role: 'HR Admin', status: 'active', created_at: new Date().toISOString() },
-  { id: '4', name: 'Sub Administrator', email: 'subadmin@digi8solutions.com', role: 'Sub Admin', status: 'active', created_at: new Date().toISOString() },
-  { id: '5', name: 'Lead Developer', email: 'dev@digi8solutions.com', role: 'Developer', status: 'active', created_at: new Date().toISOString() },
-  { id: '6', name: 'Marketing Executive', email: 'marketing@digi8solutions.com', role: 'Marketing Executive', status: 'active', created_at: new Date().toISOString() },
-  { id: '7', name: 'Database Administrator', email: 'dbadmin@digi8solutions.com', role: 'Database Admin', status: 'active', created_at: new Date().toISOString() },
+  { 
+    id: '1', 
+    name: 'Digi-8 Super Admin', 
+    email: 'admin@digi8solutions.com', 
+    role: 'Super Admin', 
+    status: 'active', 
+    allowed_modules: ['*'],
+    created_at: new Date().toISOString() 
+  },
+  { 
+    id: '2', 
+    name: 'Digi-8 Official Admin', 
+    email: 'digi8solutions@gmail.com', 
+    role: 'Super Admin', 
+    status: 'active', 
+    allowed_modules: ['*'],
+    created_at: new Date().toISOString() 
+  }
 ];
 
-const ROLE_PERMISSIONS: Record<AdminRole, { title: string; color: string; bg: string; border: string; sections: string[]; icon: any }> = {
+export interface SystemModule {
+  id: string;
+  name: string;
+  category: 'Core' | 'Careers & ATS' | 'Business & CRM' | 'System & Tools';
+  path: string;
+  description: string;
+}
+
+export const SYSTEM_MODULES: SystemModule[] = [
+  { id: 'dashboard', name: 'Dashboard Overview', category: 'Core', path: '/admin/dashboard', description: 'Metrics, system telemetry, and quick actions' },
+  { id: 'careers_overview', name: 'Careers Overview', category: 'Careers & ATS', path: '/admin/careers', description: 'Job openings, status toggle, and ATS portal' },
+  { id: 'careers_pipeline', name: 'ATS Kanban Pipeline', category: 'Careers & ATS', path: '/admin/careers/pipeline', description: 'Drag-and-drop applicant pipeline stages' },
+  { id: 'careers_candidates', name: 'Candidate CRM', category: 'Careers & ATS', path: '/admin/careers/candidates', description: 'Candidate profiles, resumes, and ratings' },
+  { id: 'careers_interviews', name: 'Interviews & Schedule', category: 'Careers & ATS', path: '/admin/careers/interviews', description: 'Interview schedules, feedback, and scoring' },
+  { id: 'careers_automations', name: 'Email Automations', category: 'Careers & ATS', path: '/admin/careers/automations', description: 'Recruitment email templates and triggers' },
+  { id: 'careers_analytics', name: 'Recruitment Funnel', category: 'Careers & ATS', path: '/admin/careers/analytics', description: 'Hiring funnel velocity, time to hire' },
+  { id: 'tickets', name: 'Support Tickets', category: 'Business & CRM', path: '/admin/tickets', description: 'Client issues, triage, status updates' },
+  { id: 'leads', name: 'Leads Center', category: 'Business & CRM', path: '/admin/leads', description: 'Captured business inquiries and leads' },
+  { id: 'quotes', name: 'Quotes Estimator', category: 'Business & CRM', path: '/admin/quotes', description: 'Quote builder submissions and estimations' },
+  { id: 'projects', name: 'Projects & Portfolio', category: 'Business & CRM', path: '/admin/projects', description: 'Client projects and case studies showcase' },
+  { id: 'contacts', name: 'Contact Inquiries', category: 'Business & CRM', path: '/admin/contacts', description: 'General contact submissions and messages' },
+  { id: 'testimonials', name: 'Testimonials', category: 'Business & CRM', path: '/admin/testimonials', description: 'Client testimonials and feedback ratings' },
+  { id: 'blog', name: 'Blog & Articles', category: 'Business & CRM', path: '/admin/blog', description: 'SEO blog posts and content publishing' },
+  { id: 'pricing', name: 'Pricing Plans', category: 'Business & CRM', path: '/admin/pricing', description: 'Service pricing tiers and packages' },
+  { id: 'analytics', name: 'Business Analytics', category: 'Business & CRM', path: '/admin/analytics', description: 'Site traffic and conversion metrics' },
+  { id: 'settings', name: 'Developer Tools & Settings', category: 'System & Tools', path: '/admin/settings', description: 'System health, configuration, and API settings' }
+];
+
+export const DEFAULT_ROLE_MODULES: Record<AdminRole, string[]> = {
+  'Super Admin': SYSTEM_MODULES.map(m => m.path),
+  'Sub Admin': [
+    '/admin/dashboard', '/admin/careers', '/admin/careers/pipeline', '/admin/careers/candidates',
+    '/admin/careers/interviews', '/admin/careers/automations', '/admin/careers/analytics',
+    '/admin/tickets', '/admin/leads', '/admin/quotes', '/admin/projects', '/admin/contacts',
+    '/admin/testimonials', '/admin/blog', '/admin/pricing', '/admin/analytics'
+  ],
+  'HR Admin': [
+    '/admin/dashboard', '/admin/careers', '/admin/careers/pipeline', '/admin/careers/candidates',
+    '/admin/careers/interviews', '/admin/careers/automations', '/admin/careers/analytics'
+  ],
+  'Developer': [
+    '/admin/dashboard', '/admin/tickets', '/admin/projects', '/admin/settings'
+  ],
+  'Marketing Executive': [
+    '/admin/dashboard', '/admin/leads', '/admin/quotes', '/admin/contacts',
+    '/admin/testimonials', '/admin/blog', '/admin/pricing', '/admin/analytics'
+  ],
+  'Database Admin': [
+    '/admin/dashboard', '/admin/settings'
+  ]
+};
+
+const ROLE_PERMISSIONS: Record<AdminRole, { title: string; color: string; bg: string; border: string; icon: any }> = {
   'Super Admin': {
     title: 'Super Admin',
     color: 'text-purple-400',
     bg: 'bg-purple-500/10',
     border: 'border-purple-500/30',
-    sections: ['Full Access', 'User Management', 'Financials', 'Careers/ATS', 'Tickets', 'Settings'],
     icon: ShieldAlert
   },
   'Sub Admin': {
@@ -38,7 +102,6 @@ const ROLE_PERMISSIONS: Record<AdminRole, { title: string; color: string; bg: st
     color: 'text-cyan-400',
     bg: 'bg-cyan-500/10',
     border: 'border-cyan-500/30',
-    sections: ['Careers/ATS', 'Leads', 'Quotes', 'Projects', 'Contacts', 'Blog', 'Pricing', 'Analytics'],
     icon: Shield
   },
   'HR Admin': {
@@ -46,7 +109,6 @@ const ROLE_PERMISSIONS: Record<AdminRole, { title: string; color: string; bg: st
     color: 'text-emerald-400',
     bg: 'bg-emerald-500/10',
     border: 'border-emerald-500/30',
-    sections: ['Careers Overview', 'ATS Pipeline', 'Candidate CRM', 'Interviews', 'Email Automations', 'Funnel Analytics'],
     icon: Briefcase
   },
   'Developer': {
@@ -54,7 +116,6 @@ const ROLE_PERMISSIONS: Record<AdminRole, { title: string; color: string; bg: st
     color: 'text-amber-400',
     bg: 'bg-amber-500/10',
     border: 'border-amber-500/30',
-    sections: ['Support Tickets', 'Projects & Portfolio', 'System Tools & Config'],
     icon: Code2
   },
   'Marketing Executive': {
@@ -62,7 +123,6 @@ const ROLE_PERMISSIONS: Record<AdminRole, { title: string; color: string; bg: st
     color: 'text-rose-400',
     bg: 'bg-rose-500/10',
     border: 'border-rose-500/30',
-    sections: ['Leads Center', 'Quotes Estimator', 'Contact Inquiries', 'Testimonials', 'Blog Editor'],
     icon: TrendingUp
   },
   'Database Admin': {
@@ -70,18 +130,17 @@ const ROLE_PERMISSIONS: Record<AdminRole, { title: string; color: string; bg: st
     color: 'text-slate-400',
     bg: 'bg-slate-500/10',
     border: 'border-slate-500/30',
-    sections: ['System Health', 'Database Diagnostics', 'Execution Telemetry'],
     icon: Database
   }
 };
 
 const ALL_ROLES: AdminRole[] = [
-  'Super Admin',
   'Sub Admin',
   'HR Admin',
   'Developer',
   'Marketing Executive',
-  'Database Admin'
+  'Database Admin',
+  'Super Admin'
 ];
 
 export default function AdminUsers() {
@@ -95,6 +154,7 @@ export default function AdminUsers() {
   const [formName, setFormName] = useState('');
   const [formEmail, setFormEmail] = useState('');
   const [formRole, setFormRole] = useState<AdminRole>('Sub Admin');
+  const [selectedModules, setSelectedModules] = useState<string[]>(DEFAULT_ROLE_MODULES['Sub Admin']);
   const [formPassword, setFormPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [formSubmitting, setFormSubmitting] = useState(false);
@@ -106,6 +166,7 @@ export default function AdminUsers() {
     email: string;
     password: string;
     role: string;
+    allowed_modules?: string[];
   } | null>(null);
   const [copiedToast, setCopiedToast] = useState(false);
 
@@ -119,16 +180,22 @@ export default function AdminUsers() {
   // Quick Role Change Dropdown Target
   const [roleChangeUser, setRoleChangeUser] = useState<AdminUserRecord | null>(null);
 
+  // Edit Permissions Modal
+  const [editModulesUser, setEditModulesUser] = useState<AdminUserRecord | null>(null);
+  const [editUserModules, setEditUserModules] = useState<string[]>([]);
+  const [editModulesSubmitting, setEditModulesSubmitting] = useState(false);
+  const [editSuccess, setEditSuccess] = useState('');
+
   const loadUsers = async () => {
     setLoading(true);
     try {
       const data = await getAdminUsersList();
       if (data && data.length > 0) {
-        // Merge with seed users ensuring no duplicates by email
+        // Merge with seed users ensuring primary super admins always exist
         const merged = [...data];
         for (const seed of DEFAULT_SEED_USERS) {
           if (!merged.some(u => u.email.toLowerCase() === seed.email.toLowerCase())) {
-            merged.push(seed);
+            merged.unshift(seed);
           }
         }
         setUsers(merged);
@@ -155,6 +222,19 @@ export default function AdminUsers() {
     setFormPassword(pass);
   };
 
+  // When changing role in form, auto-select default modules for that role
+  const handleRoleSelect = (role: AdminRole) => {
+    setFormRole(role);
+    setSelectedModules(DEFAULT_ROLE_MODULES[role] || []);
+  };
+
+  // Toggle individual module selection
+  const handleToggleModule = (modulePath: string) => {
+    setSelectedModules(prev => 
+      prev.includes(modulePath) ? prev.filter(p => p !== modulePath) : [...prev, modulePath]
+    );
+  };
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
@@ -164,13 +244,19 @@ export default function AdminUsers() {
       return;
     }
 
+    if (selectedModules.length === 0) {
+      setFormError('Please select at least one accessible module for this user.');
+      return;
+    }
+
     setFormSubmitting(true);
     const res = await createAdminUserRecord({
       name: formName.trim() || 'Staff Member',
       email: formEmail.trim().toLowerCase(),
       password: formPassword.trim(),
       role: formRole,
-      status: 'active'
+      status: 'active',
+      allowed_modules: selectedModules
     });
     setFormSubmitting(false);
 
@@ -184,7 +270,8 @@ export default function AdminUsers() {
       name: formName.trim() || 'Staff Member',
       email: formEmail.trim().toLowerCase(),
       password: formPassword.trim(),
-      role: formRole
+      role: formRole,
+      allowed_modules: selectedModules
     });
 
     // Reset form
@@ -197,12 +284,25 @@ export default function AdminUsers() {
 
   const handleCopyCredentials = () => {
     if (!createdCredentials) return;
+    const modulesText = (createdCredentials.allowed_modules || [])
+      .map(p => {
+        const mod = SYSTEM_MODULES.find(m => m.path === p);
+        return mod ? `  • ${mod.name} (${p})` : `  • ${p}`;
+      })
+      .join('\n');
+
     const text = `Digi 8 Solutions Staff Credentials:
 Name: ${createdCredentials.name}
 Role: ${createdCredentials.role}
 Email / Username: ${createdCredentials.email}
 Password: ${createdCredentials.password}
-Login Portal: ${window.location.origin}/admin/staff`;
+Login Portal: ${window.location.origin}/admin/staff
+
+Authorized Modules (${(createdCredentials.allowed_modules || []).length}):
+${modulesText}
+
+Note: Log in directly without OTP or email verification hoops.`;
+
     navigator.clipboard.writeText(text);
     setCopiedToast(true);
     setTimeout(() => setCopiedToast(false), 3000);
@@ -219,8 +319,9 @@ Login Portal: ${window.location.origin}/admin/staff`;
   };
 
   const handleRoleChange = async (userId: string | number, newRole: AdminRole) => {
-    await updateAdminUserRecord(userId, { role: newRole });
-    setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
+    const defaultMods = DEFAULT_ROLE_MODULES[newRole] || [];
+    await updateAdminUserRecord(userId, { role: newRole, allowed_modules: defaultMods });
+    setUsers(users.map(u => u.id === userId ? { ...u, role: newRole, allowed_modules: defaultMods } : u));
     setRoleChangeUser(null);
   };
 
@@ -251,6 +352,37 @@ Login Portal: ${window.location.origin}/admin/staff`;
     }
   };
 
+  // Open Edit Permissions Modal
+  const openEditPermissionsModal = (user: AdminUserRecord) => {
+    setEditModulesUser(user);
+    if (user.allowed_modules && user.allowed_modules.length > 0 && !user.allowed_modules.includes('*')) {
+      setEditUserModules([...user.allowed_modules]);
+    } else if (user.role === 'Super Admin') {
+      setEditUserModules(SYSTEM_MODULES.map(m => m.path));
+    } else {
+      setEditUserModules(DEFAULT_ROLE_MODULES[user.role as AdminRole] || []);
+    }
+    setEditSuccess('');
+  };
+
+  const handleSavePermissions = async () => {
+    if (!editModulesUser) return;
+    setEditModulesSubmitting(true);
+    setEditSuccess('');
+
+    await updateAdminUserRecord(editModulesUser.id, {
+      allowed_modules: editUserModules
+    });
+
+    setUsers(users.map(u => u.id === editModulesUser.id ? { ...u, allowed_modules: editUserModules } : u));
+    setEditModulesSubmitting(false);
+    setEditSuccess('Access modules saved successfully!');
+    setTimeout(() => {
+      setEditModulesUser(null);
+      setEditSuccess('');
+    }, 1200);
+  };
+
   // Filtered list
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
@@ -274,6 +406,16 @@ Login Portal: ${window.location.origin}/admin/staff`;
     return { total, active, superAdmins, subAdmins, hrAdmins, devs, marketing };
   }, [users]);
 
+  // Categories of modules
+  const moduleCategories = useMemo(() => {
+    const cats: Record<string, SystemModule[]> = {};
+    for (const mod of SYSTEM_MODULES) {
+      if (!cats[mod.category]) cats[mod.category] = [];
+      cats[mod.category].push(mod);
+    }
+    return cats;
+  }, []);
+
   return (
     <AdminLayout>
       <div className="max-w-7xl w-full mx-auto space-y-6">
@@ -282,11 +424,11 @@ Login Portal: ${window.location.origin}/admin/staff`;
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-cyan/10 border border-brand-cyan/20 text-brand-cyan text-xs font-mono mb-2">
-              <KeyRound size={13} /> Direct Staff Provisioning Gateway
+              <KeyRound size={13} /> Direct Staff & Permissions Gateway
             </div>
             <h1 className="font-outfit font-black text-white text-3xl tracking-tight">Staff & Access Management</h1>
             <p className="text-slate-400 text-sm font-inter">
-              Directly create, provision, and assign role-based credentials without email or OTP verification hoops.
+              Create and manage staff logins (HR, Sub Admin, Dev, Marketing) with customized access modules.
             </p>
           </div>
 
@@ -325,7 +467,7 @@ Login Portal: ${window.location.origin}/admin/staff`;
           <div className="glass-panel p-4 border border-purple-500/20 bg-purple-500/[0.03]">
             <div className="text-xs font-bold uppercase tracking-wider text-purple-400 mb-1">Super Admins</div>
             <div className="text-2xl font-black font-outfit text-purple-300">{stats.superAdmins}</div>
-            <div className="text-[11px] text-slate-400 mt-1">Full System Authority</div>
+            <div className="text-[11px] text-slate-400 mt-1">Full Root Authority</div>
           </div>
           <div className="glass-panel p-4 border border-cyan-500/20 bg-cyan-500/[0.03]">
             <div className="text-xs font-bold uppercase tracking-wider text-cyan-400 mb-1">Sub Admins</div>
@@ -335,7 +477,7 @@ Login Portal: ${window.location.origin}/admin/staff`;
           <div className="glass-panel p-4 border border-emerald-500/20 bg-emerald-500/[0.03]">
             <div className="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-1">HR Admins</div>
             <div className="text-2xl font-black font-outfit text-emerald-300">{stats.hrAdmins}</div>
-            <div className="text-[11px] text-slate-400 mt-1">Careers & Candidate CRM</div>
+            <div className="text-[11px] text-slate-400 mt-1">Careers & ATS Pipeline</div>
           </div>
           <div className="glass-panel p-4 border border-amber-500/20 bg-amber-500/[0.03]">
             <div className="text-xs font-bold uppercase tracking-wider text-amber-400 mb-1">Developers</div>
@@ -367,7 +509,7 @@ Login Portal: ${window.location.origin}/admin/staff`;
                   <p className="text-xs text-slate-300 mt-1">
                     The staff account is live and ready for immediate login at <code className="text-brand-cyan">/admin/staff</code>. Copy credentials below to share with employee.
                   </p>
-                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono">
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs font-mono">
                     <div className="bg-black/40 px-3 py-2 rounded-lg border border-white/10">
                       <span className="text-slate-400 block text-[10px]">Email / Username:</span>
                       <span className="text-white font-semibold">{createdCredentials.email}</span>
@@ -379,6 +521,10 @@ Login Portal: ${window.location.origin}/admin/staff`;
                     <div className="bg-black/40 px-3 py-2 rounded-lg border border-white/10">
                       <span className="text-slate-400 block text-[10px]">Assigned Role:</span>
                       <span className="text-emerald-400 font-semibold">{createdCredentials.role}</span>
+                    </div>
+                    <div className="bg-black/40 px-3 py-2 rounded-lg border border-white/10">
+                      <span className="text-slate-400 block text-[10px]">Modules Granted:</span>
+                      <span className="text-purple-300 font-semibold">{(createdCredentials.allowed_modules || []).length} Modules</span>
                     </div>
                   </div>
                 </div>
@@ -403,7 +549,7 @@ Login Portal: ${window.location.origin}/admin/staff`;
           </div>
         )}
 
-        {/* Create Staff Login Form (Direct Provisioning) */}
+        {/* Create Staff Login Form (Direct Provisioning with Custom Access Modules) */}
         {isAdding && (
           <div className="glass-strong p-6 sm:p-8 rounded-2xl border-2 border-brand-cyan/40 shadow-2xl bg-gradient-to-b from-[#0a0f1d] to-[#070b14] animate-slide-up">
             <div className="flex items-center justify-between pb-4 mb-6 border-b border-white/10">
@@ -413,7 +559,7 @@ Login Portal: ${window.location.origin}/admin/staff`;
                 </div>
                 <div>
                   <h2 className="text-xl font-outfit font-bold text-white">Create New Staff Login</h2>
-                  <p className="text-xs text-slate-400">Zero-verification: User will be activated immediately upon creation.</p>
+                  <p className="text-xs text-slate-400">Zero-verification: User will be activated immediately with custom module permissions.</p>
                 </div>
               </div>
               <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono">
@@ -459,12 +605,17 @@ Login Portal: ${window.location.origin}/admin/staff`;
                 </div>
               </div>
 
-              {/* Role Selection with Permission preview */}
+              {/* Role Selection Preset */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2 font-inter">
-                  Select Assigned Role & Access Level
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 font-inter">
+                    1. Select Role Preset
+                  </label>
+                  <span className="text-[11px] text-slate-400">
+                    Selecting a role auto-configures recommended modules below
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                   {ALL_ROLES.map(role => {
                     const roleInfo = ROLE_PERMISSIONS[role];
                     const IconComponent = roleInfo.icon;
@@ -472,33 +623,104 @@ Login Portal: ${window.location.origin}/admin/staff`;
                     return (
                       <div
                         key={role}
-                        onClick={() => setFormRole(role)}
-                        className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                        onClick={() => handleRoleSelect(role)}
+                        className={`p-3 rounded-xl border cursor-pointer transition-all ${
                           isSelected 
                             ? 'border-brand-cyan bg-brand-cyan/10 shadow-glow-cyan/20 ring-1 ring-brand-cyan' 
                             : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.05]'
                         }`}
                       >
-                        <div className="flex items-center justify-between mb-1.5">
-                          <div className="flex items-center gap-2">
-                            <IconComponent size={16} className={roleInfo.color} />
-                            <span className="text-sm font-outfit font-bold text-white">{role}</span>
-                          </div>
-                          {isSelected && <Check size={14} className="text-brand-cyan" />}
+                        <div className="flex items-center justify-between mb-1">
+                          <IconComponent size={15} className={roleInfo.color} />
+                          {isSelected && <Check size={13} className="text-brand-cyan" />}
                         </div>
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {roleInfo.sections.slice(0, 3).map(sec => (
-                            <span key={sec} className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-slate-300">
-                              {sec}
-                            </span>
-                          ))}
-                          {roleInfo.sections.length > 3 && (
-                            <span className="text-[10px] text-slate-500">+{roleInfo.sections.length - 3} more</span>
-                          )}
-                        </div>
+                        <div className="text-xs font-outfit font-bold text-white truncate">{role}</div>
                       </div>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* Custom Access Modules Checkboxes */}
+              <div className="p-5 rounded-xl border border-white/10 bg-black/30 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+                  <div className="flex items-center gap-2">
+                    <Layers size={17} className="text-brand-cyan" />
+                    <div>
+                      <h4 className="text-sm font-bold text-white">2. Customize Accessible Modules</h4>
+                      <p className="text-[11px] text-slate-400">
+                        Check or uncheck individual sections this staff member is authorized to access.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-brand-cyan/10 text-brand-cyan border border-brand-cyan/20">
+                      {selectedModules.length} of {SYSTEM_MODULES.length} Selected
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedModules(SYSTEM_MODULES.map(m => m.path))}
+                      className="text-xs px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
+                    >
+                      Select All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedModules([])}
+                      className="text-xs px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                {/* Grouped by Category */}
+                <div className="space-y-4">
+                  {Object.entries(moduleCategories).map(([category, mods]) => (
+                    <div key={category} className="space-y-2">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-brand-cyan" />
+                        {category}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                        {mods.map(mod => {
+                          const isChecked = selectedModules.includes(mod.path);
+                          return (
+                            <div
+                              key={mod.id}
+                              onClick={() => handleToggleModule(mod.path)}
+                              className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-2.5 ${
+                                isChecked
+                                  ? 'border-brand-cyan/60 bg-brand-cyan/[0.08] text-white'
+                                  : 'border-white/5 bg-white/[0.01] hover:bg-white/[0.03] text-slate-400'
+                              }`}
+                            >
+                              <div className="mt-0.5 shrink-0">
+                                {isChecked ? (
+                                  <CheckSquare size={16} className="text-brand-cyan" />
+                                ) : (
+                                  <Square size={16} className="text-slate-600" />
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-xs font-semibold text-white flex items-center gap-1.5">
+                                  {mod.name}
+                                  <span className="text-[10px] font-mono text-slate-400 bg-white/5 px-1 rounded">
+                                    {mod.path.replace('/admin/', '')}
+                                  </span>
+                                </div>
+                                <div className="text-[11px] text-slate-400 leading-tight mt-0.5">
+                                  {mod.description}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -506,7 +728,7 @@ Login Portal: ${window.location.origin}/admin/staff`;
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 font-inter">
-                    Direct Login Password
+                    3. Direct Login Password
                   </label>
                   <button
                     type="button"
@@ -540,7 +762,7 @@ Login Portal: ${window.location.origin}/admin/staff`;
               <div className="p-3.5 rounded-xl bg-brand-cyan/5 border border-brand-cyan/20 text-xs text-slate-300 flex items-start gap-2">
                 <CheckCircle2 size={16} className="text-brand-cyan shrink-0 mt-0.5" />
                 <span>
-                  <strong>Zero-Verification Guarantee:</strong> This user will NOT be asked to click any confirmation links, enter OTP codes, or verify their email. They can sign in immediately at the <strong>Staff Login Gateway</strong> using the password assigned above.
+                  <strong>Zero-Verification Guarantee:</strong> This employee will sign in at <strong>/admin/staff</strong> with the password above and will only have access to the <strong>{selectedModules.length} modules</strong> checked above.
                 </span>
               </div>
 
@@ -611,7 +833,7 @@ Login Portal: ${window.location.origin}/admin/staff`;
               <Users size={18} className="text-brand-cyan" /> Registered Accounts ({filteredUsers.length})
             </h2>
             <div className="text-xs text-slate-400">
-              Showing active administrative and team credentials
+              Configured administrative and staff credentials
             </div>
           </div>
 
@@ -621,7 +843,7 @@ Login Portal: ${window.location.origin}/admin/staff`;
                 <tr>
                   <th className="px-5 py-3.5">User & Email</th>
                   <th className="px-5 py-3.5">Assigned Role</th>
-                  <th className="px-5 py-3.5">Accessible Sections</th>
+                  <th className="px-5 py-3.5">Authorized Modules</th>
                   <th className="px-5 py-3.5">Status</th>
                   <th className="px-5 py-3.5">Created</th>
                   <th className="px-5 py-3.5 text-right">Actions</th>
@@ -639,6 +861,11 @@ Login Portal: ${window.location.origin}/admin/staff`;
                     const roleInfo = ROLE_PERMISSIONS[user.role as AdminRole] || ROLE_PERMISSIONS['Sub Admin'];
                     const RoleIcon = roleInfo.icon;
                     const isProtected = user.email === 'admin@digi8solutions.com' || user.email === 'digi8solutions@gmail.com';
+
+                    // Effective modules
+                    const userMods = user.allowed_modules && user.allowed_modules.length > 0 && !user.allowed_modules.includes('*')
+                      ? user.allowed_modules
+                      : (user.role === 'Super Admin' ? SYSTEM_MODULES.map(m => m.path) : DEFAULT_ROLE_MODULES[user.role as AdminRole] || []);
 
                     return (
                       <tr key={user.id} className="hover:bg-white/[0.02] transition-colors">
@@ -677,20 +904,38 @@ Login Portal: ${window.location.origin}/admin/staff`;
                           </div>
                         </td>
 
-                        {/* Section Pills */}
+                        {/* Module Permissions Pill / Edit Button */}
                         <td className="px-5 py-4">
-                          <div className="flex flex-wrap gap-1 max-w-xs">
-                            {roleInfo.sections.slice(0, 2).map(sec => (
-                              <span key={sec} className="text-[10px] px-2 py-0.5 rounded-md bg-white/5 text-slate-300 border border-white/5">
-                                {sec}
-                              </span>
-                            ))}
-                            {roleInfo.sections.length > 2 && (
-                              <span className="text-[10px] text-slate-500 flex items-center px-1">
-                                +{roleInfo.sections.length - 2} more
-                              </span>
-                            )}
-                          </div>
+                          {isProtected ? (
+                            <span className="text-xs px-2.5 py-1 rounded-md bg-purple-500/10 text-purple-300 border border-purple-500/20 font-mono">
+                              Full Root Access (All Modules)
+                            </span>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <div className="flex flex-wrap gap-1 max-w-xs">
+                                {userMods.slice(0, 3).map(path => {
+                                  const mod = SYSTEM_MODULES.find(m => m.path === path);
+                                  return (
+                                    <span key={path} className="text-[10px] px-2 py-0.5 rounded-md bg-white/5 text-slate-300 border border-white/5">
+                                      {mod ? mod.name : path.replace('/admin/', '')}
+                                    </span>
+                                  );
+                                })}
+                                {userMods.length > 3 && (
+                                  <span className="text-[10px] text-brand-cyan flex items-center px-1 font-mono">
+                                    +{userMods.length - 3} more
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => openEditPermissionsModal(user)}
+                                className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white text-[11px] transition-colors flex items-center gap-1 border border-white/10 shrink-0"
+                                title="Edit Module Permissions"
+                              >
+                                <Sliders size={11} /> Edit
+                              </button>
+                            </div>
+                          )}
                         </td>
 
                         {/* Status */}
@@ -717,6 +962,16 @@ Login Portal: ${window.location.origin}/admin/staff`;
                         {/* Actions */}
                         <td className="px-5 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
+                            {!isProtected && (
+                              <button
+                                onClick={() => openEditPermissionsModal(user)}
+                                className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-medium transition-colors flex items-center gap-1 border border-white/5"
+                                title="Configure Module Access"
+                              >
+                                <Sliders size={12} /> Modules
+                              </button>
+                            )}
+
                             <button
                               onClick={() => {
                                 setResetModalUser(user);
@@ -748,6 +1003,141 @@ Login Portal: ${window.location.origin}/admin/staff`;
             </table>
           </div>
         </div>
+
+        {/* Edit Custom Permissions / Modules Modal */}
+        {editModulesUser && (
+          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+            <div className="glass-strong max-w-2xl w-full p-6 sm:p-8 rounded-2xl border-2 border-brand-cyan/40 shadow-2xl animate-scale-up my-8 max-h-[90vh] overflow-y-auto custom-scrollbar">
+              <div className="flex items-center justify-between pb-4 mb-4 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-brand-cyan/20 border border-brand-cyan/30 flex items-center justify-center text-brand-cyan">
+                    <Sliders size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-outfit font-bold text-lg text-white">Customize Module Permissions</h3>
+                    <p className="text-xs text-slate-400">
+                      User: <strong className="text-white">{editModulesUser.name}</strong> ({editModulesUser.email})
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setEditModulesUser(null)} 
+                  className="text-slate-400 hover:text-white p-2"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {editSuccess && (
+                <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
+                  <CheckCircle2 size={16} />
+                  <span>{editSuccess}</span>
+                </div>
+              )}
+
+              {/* Quick Presets Bar */}
+              <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/10 mb-4 space-y-2">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                  <span>Quick Apply Role Presets:</span>
+                  <span className="font-mono text-brand-cyan">{editUserModules.length} Modules Active</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {ALL_ROLES.filter(r => r !== 'Super Admin').map(role => (
+                    <button
+                      key={role}
+                      type="button"
+                      onClick={() => setEditUserModules(DEFAULT_ROLE_MODULES[role] || [])}
+                      className="text-xs px-2.5 py-1 rounded-lg bg-white/5 hover:bg-brand-cyan/20 text-slate-300 hover:text-brand-cyan border border-white/5 transition-colors"
+                    >
+                      {role}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setEditUserModules(SYSTEM_MODULES.map(m => m.path))}
+                    className="text-xs px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/20 transition-colors"
+                  >
+                    Select All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditUserModules([])}
+                    className="text-xs px-2.5 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/20 transition-colors"
+                  >
+                    Clear All
+                  </button>
+                </div>
+              </div>
+
+              {/* Grouped Modules Checkboxes */}
+              <div className="space-y-4 mb-6">
+                {Object.entries(moduleCategories).map(([category, mods]) => (
+                  <div key={category} className="space-y-2">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-brand-cyan" />
+                      {category}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {mods.map(mod => {
+                        const isChecked = editUserModules.includes(mod.path);
+                        return (
+                          <div
+                            key={mod.id}
+                            onClick={() => {
+                              setEditUserModules(prev =>
+                                prev.includes(mod.path) ? prev.filter(p => p !== mod.path) : [...prev, mod.path]
+                              );
+                            }}
+                            className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-2.5 ${
+                              isChecked
+                                ? 'border-brand-cyan/60 bg-brand-cyan/[0.08] text-white'
+                                : 'border-white/5 bg-white/[0.01] hover:bg-white/[0.03] text-slate-400'
+                            }`}
+                          >
+                            <div className="mt-0.5 shrink-0">
+                              {isChecked ? (
+                                <CheckSquare size={16} className="text-brand-cyan" />
+                              ) : (
+                                <Square size={16} className="text-slate-600" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-xs font-semibold text-white">
+                                {mod.name}
+                              </div>
+                              <div className="text-[10px] text-slate-400 mt-0.5 truncate">
+                                {mod.description}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setEditModulesUser(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={editModulesSubmitting}
+                  onClick={handleSavePermissions}
+                  className="btn-glow px-5 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 shadow-glow-cyan disabled:opacity-50"
+                >
+                  {editModulesSubmitting ? 'Saving...' : 'Save Permissions'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Quick Password Reset Modal */}
         {resetModalUser && (

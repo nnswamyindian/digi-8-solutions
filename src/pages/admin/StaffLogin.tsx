@@ -1,25 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Zap, ShieldCheck, AlertCircle, ArrowRight, Lock, User, Eye, EyeOff, CheckCircle2 } from "lucide-react";
-import { checkAuth, buildApiUrl } from "../../lib/api";
-
-// Built-in default staff accounts
-const DEFAULT_STAFF_ACCOUNTS = [
-  { email: "subadmin@digi8solutions.com",   password: "SubAdmin@2026",     role: "Sub Admin",            name: "Sub Administrator" },
-  { email: "hr@digi8solutions.com",          password: "HRPortal@2026",    role: "HR Admin",             name: "HR Manager" },
-  { email: "dev@digi8solutions.com",         password: "DevTeam@2026",     role: "Developer",            name: "Lead Developer" },
-  { email: "marketing@digi8solutions.com",   password: "Marketing@2026",   role: "Marketing Executive",  name: "Marketing Executive" },
-  { email: "dbadmin@digi8solutions.com",     password: "DbAdmin@2026",     role: "Database Admin",       name: "Database Administrator" },
-];
-
-const roleGradients: Record<string, string> = {
-  "Sub Admin":            "from-cyan-500 to-blue-600",
-  "HR Admin":             "from-emerald-500 to-teal-600",
-  "Developer":            "from-amber-500 to-orange-500",
-  "Marketing Executive":  "from-rose-500 to-pink-600",
-  "Database Admin":       "from-slate-500 to-gray-600",
-  "Super Admin":          "from-purple-500 to-indigo-600",
-};
+import { Zap, AlertCircle, ArrowRight, Lock, User, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { buildApiUrl } from "../../lib/api";
 
 export default function StaffLogin() {
   const [email, setEmail] = useState("");
@@ -53,16 +35,25 @@ export default function StaffLogin() {
     let matchedUser: any = null;
     let matchedToken: string | null = null;
 
-    // 1. Check Pre-Configured Staff Accounts
-    const defaultAccount = DEFAULT_STAFF_ACCOUNTS.find(
-      a => a.email.toLowerCase() === cleanEmail && a.password === cleanPass
-    );
-    if (defaultAccount) {
-      matchedUser = { email: defaultAccount.email, name: defaultAccount.name, role: defaultAccount.role };
-      matchedToken = `staff_${defaultAccount.role.replace(/\s/g, "_")}_token`;
+    // 1. Attempt Server-Side Authentication
+    try {
+      const res = await fetch(buildApiUrl('/api/auth/login'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, password: cleanPass })
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.data?.token) {
+        matchedToken = data.data.token;
+        matchedUser = data.data.user;
+      } else if (data && data.error) {
+        // If server explicitly returned an error, we keep track of it
+      }
+    } catch {
+      // Backend offline or unreachable, fall back to checking locally stored accounts
     }
 
-    // 2. Check Custom Staff Logins Created by Admin in Local Store
+    // 2. Check Custom Staff Logins Created by Super Admin (local cache)
     if (!matchedUser) {
       try {
         const localStore = localStorage.getItem("digi8_staff_users_db");
@@ -77,30 +68,20 @@ export default function StaffLogin() {
               setLoading(false);
               return;
             }
-            matchedUser = { id: matched.id, email: matched.email, name: matched.name, role: matched.role };
+            matchedUser = {
+              id: matched.id,
+              email: matched.email,
+              name: matched.name,
+              role: matched.role,
+              allowed_modules: matched.allowed_modules || []
+            };
             matchedToken = `staff_${matched.role.replace(/\s/g, "_")}_token`;
           }
         }
       } catch {}
     }
 
-    // 3. Attempt Server-Side Authentication
-    try {
-      const res = await fetch(buildApiUrl('/api/auth/login'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: cleanEmail, password: cleanPass })
-      });
-      const data = await res.json();
-      if (res.ok && data.success && data.data?.token) {
-        matchedToken = data.data.token;
-        matchedUser = data.data.user;
-      }
-    } catch {
-      // Backend offline or error, continue with local match
-    }
-
-    // 4. Complete Login
+    // 3. Complete Login if authenticated
     if (matchedUser && matchedToken) {
       localStorage.setItem("admin_token", matchedToken);
       localStorage.setItem("admin_user", JSON.stringify(matchedUser));
@@ -110,14 +91,8 @@ export default function StaffLogin() {
       return;
     }
 
-    setErrorMsg("Invalid email or password. Please verify credentials or contact the Super Administrator.");
+    setErrorMsg("Invalid staff email or password. Please verify your credentials or contact the Super Administrator.");
     setLoading(false);
-  };
-
-  const fillQuickAccount = (acc: typeof DEFAULT_STAFF_ACCOUNTS[0]) => {
-    setEmail(acc.email);
-    setPassword(acc.password);
-    setErrorMsg("");
   };
 
   return (
@@ -132,17 +107,17 @@ export default function StaffLogin() {
             <Zap size={30} className="text-white" />
           </div>
           <h1 className="font-sora font-black text-white text-2xl tracking-tight">Staff Portal Login</h1>
-          <p className="text-slate-400 font-inter text-xs mt-1">Digi 8 Solutions — Direct Team Access</p>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono mt-3">
-            <CheckCircle2 size={13} /> Zero-Verification Direct Login
+          <p className="text-slate-400 font-inter text-xs mt-1">Digi 8 Solutions — Authorized Team Access</p>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-cyan/10 border border-brand-cyan/20 text-brand-cyan text-xs font-mono mt-3">
+            <ShieldCheck size={13} /> Role-Based Custom Module Access
           </div>
         </div>
 
         <div className="glass-strong rounded-2xl p-7 border border-white/10 shadow-2xl backdrop-blur-xl">
           <form onSubmit={handleLogin} className="space-y-5">
             {errorMsg && (
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-start gap-2">
-                <AlertCircle size={15} className="shrink-0 mt-0.5 text-red-400" />
+              <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-start gap-2">
+                <AlertCircle size={16} className="shrink-0 mt-0.5 text-red-400" />
                 <span>{errorMsg}</span>
               </div>
             )}
@@ -156,7 +131,7 @@ export default function StaffLogin() {
                   required
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="e.g. hr@digi8solutions.com"
+                  placeholder="Enter your staff email"
                   className="form-input w-full pl-10 pr-4 py-3.5 rounded-xl text-sm font-inter"
                 />
               </div>
@@ -171,7 +146,7 @@ export default function StaffLogin() {
                   required
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  placeholder="Your staff password"
+                  placeholder="Enter your staff password"
                   className="form-input w-full pl-10 pr-12 py-3.5 rounded-xl text-sm font-inter"
                 />
                 <button type="button" onClick={() => setShowPass(p => !p)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors">
@@ -188,32 +163,20 @@ export default function StaffLogin() {
               {loading ? (
                 <><div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" /> Verifying Credentials...</>
               ) : (
-                <>Access Staff Dashboard <ArrowRight size={15} /></>
+                <>Sign In to Workspace <ArrowRight size={15} /></>
               )}
             </button>
           </form>
 
-          {/* Quick Demo Credentials */}
-          <div className="mt-6 pt-5 border-t border-white/10">
-            <p className="text-xs text-slate-400 text-center mb-2 font-inter">Click to autofill pre-configured staff accounts:</p>
-            <div className="grid grid-cols-2 gap-1.5">
-              {DEFAULT_STAFF_ACCOUNTS.map(acc => (
-                <button
-                  key={acc.role}
-                  type="button"
-                  onClick={() => fillQuickAccount(acc)}
-                  className="text-[11px] p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 text-left transition-colors flex flex-col"
-                >
-                  <span className="font-semibold text-white truncate">{acc.role}</span>
-                  <span className="text-[10px] text-slate-400 truncate">{acc.email.split('@')[0]}</span>
-                </button>
-              ))}
-            </div>
+          <div className="mt-6 pt-5 border-t border-white/10 text-center">
+            <p className="text-xs text-slate-400 font-inter">
+              Accounts and custom module access are provisioned directly by the Super Administrator.
+            </p>
           </div>
         </div>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-6 text-xs">
-          <Link to="/admin" className="text-slate-400 hover:text-white transition-colors font-medium">← Super Admin Login (OTP)</Link>
+          <Link to="/admin" className="text-slate-400 hover:text-white transition-colors font-medium">← Super Admin Gateway (OTP)</Link>
           <Link to="/" className="text-slate-400 hover:text-white transition-colors font-medium">Return to Public Portal</Link>
         </div>
       </div>

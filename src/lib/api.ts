@@ -494,6 +494,7 @@ export interface AdminUserRecord {
   role: string;
   status: 'active' | 'suspended' | 'pending';
   auth_provider?: string;
+  allowed_modules?: string[];
   created_at: string;
 }
 
@@ -505,7 +506,7 @@ export async function getAdminUsersList(): Promise<AdminUserRecord[]> {
       }
     });
     const data = await res.json();
-    if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+    if (data.success && Array.isArray(data.data)) {
       return data.data;
     }
   } catch (err) {
@@ -527,6 +528,7 @@ export async function createAdminUserRecord(payload: {
   password: string;
   role: string;
   status?: string;
+  allowed_modules?: string[];
 }): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
     const res = await fetch(buildApiUrl('/api/admin/users'), {
@@ -559,6 +561,7 @@ export async function createAdminUserRecord(payload: {
         role: payload.role,
         status: payload.status || 'active',
         password: payload.password,
+        allowed_modules: payload.allowed_modules || [],
         auth_provider: 'local',
         created_at: new Date().toISOString()
       };
@@ -575,7 +578,7 @@ export async function createAdminUserRecord(payload: {
 
 export async function updateAdminUserRecord(
   id: string | number,
-  payload: { name?: string; role?: string; status?: string; password?: string }
+  payload: { name?: string; role?: string; status?: string; password?: string; allowed_modules?: string[] }
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const res = await fetch(buildApiUrl(`/api/admin/users/${id}`), {

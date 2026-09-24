@@ -1193,7 +1193,7 @@ app.post('/api/auth/login', async (req, res) => {
         }
       }
 
-      // 2. Default credentials fallback
+      // 2. Default credentials fallback (ONLY Super Admin fallback)
       const officialAdmin = process.env.ADMIN_EMAIL || 'digi8solutions@gmail.com';
       if (!user) {
         if (email === 'admin@digi8solutions.com' && password === 'AdminDigi8Password2026!') {
@@ -1201,59 +1201,58 @@ app.post('/api/auth/login', async (req, res) => {
             id: 1,
             email: 'admin@digi8solutions.com',
             name: 'Digi-8 Super Admin',
-            role: 'Super Admin'
-          };
-        } else if (email === 'hr@digi8solutions.com' && (password === 'HrAdminDigi8Password2026!' || password === 'HRPortal@2026' || password === (process.env.HR_ADMIN_PASSWORD || 'HrAdminDigi8Password2026!'))) {
-          user = {
-            id: 2,
-            email: 'hr@digi8solutions.com',
-            name: 'Digi-8 HR Admin',
-            role: 'HR Admin'
+            role: 'Super Admin',
+            allowed_modules: ['all']
           };
         } else if (email === officialAdmin && (password === 'AdminDigi8Password2026!' || password === (process.env.ADMIN_PASSWORD || 'AdminDigi8Password2026!'))) {
           user = {
-            id: 3,
+            id: 2,
             email: officialAdmin,
             name: 'Digi-8 Official Admin',
-            role: 'Super Admin'
+            role: 'Super Admin',
+            allowed_modules: ['all']
           };
         } else {
-          // Check other predefined staff accounts
-          const defaultStaffCheck: Record<string, { pass: string; role: string; name: string }> = {
-            'subadmin@digi8solutions.com': { pass: 'SubAdmin@2026', role: 'Sub Admin', name: 'Sub Administrator' },
-            'dev@digi8solutions.com': { pass: 'DevTeam@2026', role: 'Developer', name: 'Lead Developer' },
-            'marketing@digi8solutions.com': { pass: 'Marketing@2026', role: 'Marketing Executive', name: 'Marketing Executive' },
-            'dbadmin@digi8solutions.com': { pass: 'DbAdmin@2026', role: 'Database Admin', name: 'Database Administrator' }
-          };
-          const lowerEmail = String(email || '').toLowerCase().trim();
-          if (defaultStaffCheck[lowerEmail] && defaultStaffCheck[lowerEmail].pass === password) {
-            user = {
-              id: Date.now(),
-              email: lowerEmail,
-              name: defaultStaffCheck[lowerEmail].name,
-              role: defaultStaffCheck[lowerEmail].role
-            };
-          } else {
-            return res.status(401).json({ success: false, error: 'Invalid email or password' });
-          }
+          return res.status(401).json({ success: false, error: 'Invalid email or password' });
         }
       }
     }
 
-    const token = jwt.sign({ id: user.id, role: user.role, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '1d' });
-    sendSuccess(res, { token, user: { id: user.id, email: user.email, role: user.role, name: user.name, avatar_url: user.avatar_url || null } }, 'Logged in successfully');
+    const userModules = typeof user.allowed_modules === 'string'
+      ? parseJsonField(user.allowed_modules, [])
+      : (user.allowed_modules || []);
+
+    const token = jwt.sign(
+      { id: user.id, role: user.role, email: user.email, name: user.name, allowed_modules: userModules },
+      JWT_SECRET,
+      { expiresIn: '1d' }
+    );
+    sendSuccess(res, {
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        name: user.name,
+        allowed_modules: userModules,
+        avatar_url: user.avatar_url || null
+      }
+    }, 'Logged in successfully');
   } catch (err) { sendError(res, err); }
 });
 
-// ── USER MANAGEMENT ENDPOINTS (ADMIN CREATES LOGINS DIRECTLY WITHOUT VERIFICATION) ──
+// ── USER MANAGEMENT ENDPOINTS (ADMIN CREATES LOGINS DIRECTLY WITH CUSTOM ACCESS MODULES) ──
 
 const handleGetAdminUsers = async (_req: express.Request, res: express.Response) => {
   try {
     let usersList: any[] = [];
     try {
-      const [rows]: any = await pool.query('SELECT id, name, email, role, status, auth_provider, created_at FROM admin_users ORDER BY created_at DESC');
+      const [rows]: any = await pool.query('SELECT id, name, email, role, status, auth_provider, allowed_modules, created_at FROM admin_users ORDER BY created_at DESC');
       if (rows && rows.length > 0) {
-        usersList = rows;
+        usersList = rows.map((r: any) => ({
+          ...r,
+          allowed_modules: typeof r.allowed_modules === 'string' ? parseJsonField(r.allowed_modules, []) : (r.allowed_modules || [])
+        }));
       }
     } catch (dbErr) {
       console.warn('[DB WARNING] Fetching users in persistent fallback mode');
@@ -1268,6 +1267,7 @@ const handleGetAdminUsers = async (_req: express.Request, res: express.Response)
         role: u.role,
         status: u.status || 'active',
         auth_provider: u.auth_provider || 'local',
+        allowed_modules: Array.isArray(u.allowed_modules) ? u.allowed_modules : [],
         created_at: u.created_at || new Date().toISOString()
       }));
     }
@@ -1283,7 +1283,7 @@ app.get('/api/admin_users', handleGetAdminUsers);
 
 const handleCreateAdminUser = async (req: express.Request, res: express.Response) => {
   try {
-    const { name, email, password, role, status } = req.body;
+    const { name, email, password, role, status, allowed_modules } = req.body;
     if (!email || !password) {
       return res.status(400).json({ success: false, error: 'Email and password are required to create a staff login.' });
     }
@@ -1292,6 +1292,7 @@ const handleCreateAdminUser = async (req: express.Request, res: express.Response
     const userRole = role || 'Sub Admin';
     const userName = name ? String(name).trim() : 'Staff Member';
     const userStatus = status || 'active';
+    const userModules = Array.isArray(allowed_modules) ? allowed_modules : [];
 
     // Check if user already exists in DB or store
     try {
@@ -1312,8 +1313,8 @@ const handleCreateAdminUser = async (req: express.Request, res: express.Response
 
     try {
       const [result]: any = await pool.query(
-        'INSERT INTO admin_users (name, email, password_hash, role, status, auth_provider) VALUES (?, ?, ?, ?, ?, ?)',
-        [userName, normalizedEmail, passwordHash, userRole, userStatus, 'local']
+        'INSERT INTO admin_users (name, email, password_hash, role, status, auth_provider, allowed_modules) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [userName, normalizedEmail, passwordHash, userRole, userStatus, 'local', JSON.stringify(userModules)]
       );
       insertId = result.insertId;
     } catch (dbErr) {
@@ -1327,6 +1328,7 @@ const handleCreateAdminUser = async (req: express.Request, res: express.Response
       password_hash: passwordHash,
       role: userRole,
       status: userStatus,
+      allowed_modules: userModules,
       auth_provider: 'local',
       created_at: new Date().toISOString()
     };
@@ -1337,7 +1339,7 @@ const handleCreateAdminUser = async (req: express.Request, res: express.Response
     broadcastAdminNotification(
       'USER_CREATED',
       '👤 Staff Login Created',
-      `${userName} was directly provisioned as ${userRole} (Instant Active Access)`,
+      `${userName} was directly provisioned as ${userRole} with ${userModules.length} custom access modules.`,
       { id: insertId, name: userName, email: normalizedEmail, role: userRole }
     );
 
@@ -1347,8 +1349,9 @@ const handleCreateAdminUser = async (req: express.Request, res: express.Response
       email: normalizedEmail,
       role: userRole,
       status: userStatus,
+      allowed_modules: userModules,
       created_at: newUser.created_at
-    }, 'Staff login created and activated immediately without verification.');
+    }, 'Staff login created and activated immediately with custom access modules.');
   } catch (err) {
     sendError(res, err);
   }
@@ -1360,7 +1363,7 @@ app.post('/api/admin_users', handleCreateAdminUser);
 const handleUpdateAdminUser = async (req: express.Request, res: express.Response) => {
   try {
     const userId = req.params.id;
-    const { name, role, status, password } = req.body;
+    const { name, role, status, password, allowed_modules } = req.body;
 
     let newHash: string | null = null;
     if (password && String(password).trim().length > 0) {
@@ -1373,6 +1376,10 @@ const handleUpdateAdminUser = async (req: express.Request, res: express.Response
       if (name) { updates.push('name = ?'); values.push(name); }
       if (role) { updates.push('role = ?'); values.push(role); }
       if (status) { updates.push('status = ?'); values.push(status); }
+      if (allowed_modules !== undefined) {
+        updates.push('allowed_modules = ?');
+        values.push(JSON.stringify(Array.isArray(allowed_modules) ? allowed_modules : []));
+      }
       if (newHash) { updates.push('password_hash = ?'); values.push(newHash); }
 
       if (updates.length > 0) {
@@ -1387,11 +1394,12 @@ const handleUpdateAdminUser = async (req: express.Request, res: express.Response
       if (name) store.admin_users[idx].name = name;
       if (role) store.admin_users[idx].role = role;
       if (status) store.admin_users[idx].status = status;
+      if (allowed_modules !== undefined) store.admin_users[idx].allowed_modules = Array.isArray(allowed_modules) ? allowed_modules : [];
       if (newHash) store.admin_users[idx].password_hash = newHash;
       savePersistentStore(store);
     }
 
-    sendSuccess(res, null, 'User details updated successfully.');
+    sendSuccess(res, null, 'User details and access modules updated successfully.');
   } catch (err) {
     sendError(res, err);
   }

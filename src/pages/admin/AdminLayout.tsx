@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, ReactNode, useMemo } from "react";
+import { useState, useEffect, ReactNode, useMemo } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, FileText, Briefcase, MessageSquare, Settings,
@@ -92,6 +92,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const [userEmail, setUserEmail] = useState("");
   const [userName, setUserName] = useState("");
   const [userRole, setUserRole] = useState<AdminRole>("Super Admin");
+  const [userAllowedModules, setUserAllowedModules] = useState<string[]>([]);
   const [liveAlert, setLiveAlert] = useState<{ title: string; message: string; timestamp: string } | null>(null);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const navigate = useNavigate();
@@ -105,28 +106,52 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         if (userObj?.email) setUserEmail(userObj.email);
         if (userObj?.name) setUserName(userObj.name);
         if (userObj?.role) setUserRole(userObj.role as AdminRole);
+        if (Array.isArray(userObj?.allowed_modules)) {
+          setUserAllowedModules(userObj.allowed_modules);
+        }
       } else {
         setUserEmail("admin@digi8solutions.com");
         setUserName("Digi-8 Super Admin");
         setUserRole("Super Admin");
+        setUserAllowedModules([]);
       }
     } catch {
       setUserEmail("admin@digi8solutions.com");
       setUserRole("Super Admin");
+      setUserAllowedModules([]);
     }
   }, []);
 
-  // Route guard — runs after role is set
+  // Route guard — runs after role or allowed_modules is set
   useEffect(() => {
     if (!userRole || userRole === "Super Admin") return;
-    const allowed = roleAllowedPrefixes[userRole] || [];
-    const isAllowed = allowed.some(prefix =>
-      location.pathname === prefix || location.pathname.startsWith(prefix + "/")
-    );
-    if (!isAllowed && location.pathname.startsWith("/admin")) {
-      navigate("/admin/dashboard", { replace: true });
+
+    let isAllowed = false;
+    if (userAllowedModules && userAllowedModules.length > 0) {
+      isAllowed = userAllowedModules.some(m => {
+        const normalizedM = m.startsWith('/') ? m : `/admin/${m}`;
+        return (
+          location.pathname === normalizedM ||
+          location.pathname.startsWith(`${normalizedM}/`) ||
+          (normalizedM === '/admin/careers' && location.pathname.startsWith('/admin/careers'))
+        );
+      });
+    } else {
+      const allowed = roleAllowedPrefixes[userRole] || [];
+      isAllowed = allowed.some(prefix =>
+        location.pathname === prefix || location.pathname.startsWith(prefix + "/")
+      );
     }
-  }, [userRole, location.pathname, navigate]);
+
+    if (!isAllowed && location.pathname.startsWith("/admin")) {
+      let destination = "/admin/dashboard";
+      if (userAllowedModules && userAllowedModules.length > 0) {
+        const first = userAllowedModules[0];
+        destination = first.startsWith('/') ? first : `/admin/${first}`;
+      }
+      navigate(destination, { replace: true });
+    }
+  }, [userRole, userAllowedModules, location.pathname, navigate]);
 
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "default") {
@@ -160,8 +185,23 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   };
 
   const visibleNavItems = useMemo(() => {
+    if (userRole === "Super Admin") return navItems;
+
+    if (userAllowedModules && userAllowedModules.length > 0) {
+      return navItems.filter(item => {
+        return userAllowedModules.some(m => {
+          const normalizedM = m.startsWith('/') ? m : `/admin/${m}`;
+          return (
+            item.href === normalizedM ||
+            item.href.startsWith(`${normalizedM}/`) ||
+            normalizedM.startsWith(`${item.href}/`)
+          );
+        });
+      });
+    }
+
     return navItems.filter(item => item.roles.length === 0 || item.roles.includes(userRole));
-  }, [userRole]);
+  }, [userRole, userAllowedModules]);
 
   const breadcrumbs = useMemo(() => {
     const crumbs: { label: string; href: string }[] = [{ label: "Dashboard", href: "/admin/dashboard" }];

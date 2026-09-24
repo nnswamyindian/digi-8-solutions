@@ -77,29 +77,6 @@ export const loadPersistentStore = (): PersistentDbStore => {
     });
   }
 
-  const defaultStaffAccounts = [
-    { id: 3, name: 'Digi-8 HR Admin', email: 'hr@digi8solutions.com', password: 'HRPortal@2026', role: 'HR Admin' },
-    { id: 4, name: 'Sub Administrator', email: 'subadmin@digi8solutions.com', password: 'SubAdmin@2026', role: 'Sub Admin' },
-    { id: 5, name: 'Lead Developer', email: 'dev@digi8solutions.com', password: 'DevTeam@2026', role: 'Developer' },
-    { id: 6, name: 'Marketing Executive', email: 'marketing@digi8solutions.com', password: 'Marketing@2026', role: 'Marketing Executive' },
-    { id: 7, name: 'Database Administrator', email: 'dbadmin@digi8solutions.com', password: 'DbAdmin@2026', role: 'Database Admin' }
-  ];
-
-  for (const staff of defaultStaffAccounts) {
-    if (!memoryStore.admin_users.some(u => u.email.toLowerCase() === staff.email.toLowerCase())) {
-      memoryStore.admin_users.push({
-        id: staff.id,
-        name: staff.name,
-        email: staff.email.toLowerCase(),
-        password_hash: bcrypt.hashSync(staff.password, 10),
-        role: staff.role,
-        status: 'active',
-        auth_provider: 'local',
-        created_at: new Date().toISOString()
-      });
-    }
-  }
-
   savePersistentStore(memoryStore);
   return memoryStore;
 };
@@ -240,10 +217,11 @@ export const initDb = async () => {
       );
     `);
 
-      // Safe migrations for social auth columns
+      // Safe migrations for social auth and custom access modules
       try { await connection.query(`ALTER TABLE admin_users ADD COLUMN google_id VARCHAR(255) NULL`); } catch {}
       try { await connection.query(`ALTER TABLE admin_users ADD COLUMN avatar_url VARCHAR(255) NULL`); } catch {}
       try { await connection.query(`ALTER TABLE admin_users ADD COLUMN auth_provider VARCHAR(50) DEFAULT 'local'`); } catch {}
+      try { await connection.query(`ALTER TABLE admin_users ADD COLUMN allowed_modules TEXT NULL`); } catch {}
 
       // Admin OTPs table for 2FA / Social / Signup verification
       await connection.query(`
@@ -271,7 +249,7 @@ export const initDb = async () => {
         console.log(`[DB INFO] Default Super Admin user created: ${superAdminEmail}`);
       }
 
-      // Seed official company Gmail as Super Admin for direct Google Login
+      // Seed official company Gmail as Super Admin for direct Google / OTP Login
       const officialGmail = process.env.ADMIN_EMAIL || 'digi8solutions@gmail.com';
       const [gmailRows]: any = await connection.query('SELECT * FROM admin_users WHERE email = ?', [officialGmail]);
       if (gmailRows.length === 0) {
@@ -281,38 +259,6 @@ export const initDb = async () => {
           ['Digi-8 Official Admin', officialGmail, gmailHash, 'Super Admin', 'google']
         );
         console.log(`[DB INFO] Default Gmail Super Admin user created: ${officialGmail}`);
-      }
-
-      const hrAdminEmail = 'hr@digi8solutions.com';
-      const hrAdminPassword = process.env.HR_ADMIN_PASSWORD || 'HrAdminDigi8Password2026!';
-
-      const [hrRows]: any = await connection.query('SELECT * FROM admin_users WHERE email = ?', [hrAdminEmail]);
-      if (hrRows.length === 0) {
-        const hrHash = await bcrypt.hash(hrAdminPassword, 10);
-        await connection.query(
-          'INSERT INTO admin_users (name, email, password_hash, role, auth_provider) VALUES (?, ?, ?, ?, ?)',
-          ['Digi-8 HR Admin', hrAdminEmail, hrHash, 'HR Admin', 'local']
-        );
-        console.log(`[DB INFO] Default HR Admin user created: ${hrAdminEmail}`);
-      }
-
-      const otherStaff = [
-        { name: 'Sub Administrator', email: 'subadmin@digi8solutions.com', password: 'SubAdmin@2026', role: 'Sub Admin' },
-        { name: 'Lead Developer', email: 'dev@digi8solutions.com', password: 'DevTeam@2026', role: 'Developer' },
-        { name: 'Marketing Executive', email: 'marketing@digi8solutions.com', password: 'Marketing@2026', role: 'Marketing Executive' },
-        { name: 'Database Administrator', email: 'dbadmin@digi8solutions.com', password: 'DbAdmin@2026', role: 'Database Admin' }
-      ];
-
-      for (const s of otherStaff) {
-        const [existing]: any = await connection.query('SELECT * FROM admin_users WHERE email = ?', [s.email]);
-        if (existing.length === 0) {
-          const sHash = await bcrypt.hash(s.password, 10);
-          await connection.query(
-            'INSERT INTO admin_users (name, email, password_hash, role, auth_provider) VALUES (?, ?, ?, ?, ?)',
-            [s.name, s.email, sHash, s.role, 'local']
-          );
-          console.log(`[DB INFO] Default ${s.role} created: ${s.email}`);
-        }
       }
 
       await connection.query(`
