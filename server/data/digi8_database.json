@@ -39,6 +39,46 @@
       "status": "active",
       "auth_provider": "email_otp",
       "created_at": "2026-09-13T14:33:43.662Z"
+    },
+    {
+      "id": 4,
+      "name": "Sub Administrator",
+      "email": "subadmin@digi8solutions.com",
+      "password_hash": "$2b$10$fX7EPi3SW3NRAAgwhwE1euJqIBhtVoNJ8b..1SeIcItQhxImNNgky",
+      "role": "Sub Admin",
+      "status": "active",
+      "auth_provider": "local",
+      "created_at": "2026-09-24T17:33:07.532Z"
+    },
+    {
+      "id": 5,
+      "name": "Lead Developer",
+      "email": "dev@digi8solutions.com",
+      "password_hash": "$2b$10$ReVSUs3ZdMdZUeuVEh54T.FMNwo0bj59gekTxvqajLr4hAoL2gBga",
+      "role": "Developer",
+      "status": "active",
+      "auth_provider": "local",
+      "created_at": "2026-09-24T17:33:07.646Z"
+    },
+    {
+      "id": 6,
+      "name": "Marketing Executive",
+      "email": "marketing@digi8solutions.com",
+      "password_hash": "$2b$10$goCnH/Cyxc3UCmDiS.QIGezf96gykCFEWgUgP.0VA.2WXGV2moeLW",
+      "role": "Marketing Executive",
+      "status": "active",
+      "auth_provider": "local",
+      "created_at": "2026-09-24T17:33:07.767Z"
+    },
+    {
+      "id": 7,
+      "name": "Database Administrator",
+      "email": "dbadmin@digi8solutions.com",
+      "password_hash": "$2b$10$4Z/1jpejS8UdnioBGFkc9..CleszyVi1eATlM5q8ANerzhHMfzRIa",
+      "role": "Database Admin",
+      "status": "active",
+      "auth_provider": "local",
+      "created_at": "2026-09-24T17:33:07.886Z"
     }
   ],
   "admin_otps": [
