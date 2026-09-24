@@ -1,0 +1,16 @@
+name: Test VPS Connection
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Test SSH Port
+        run: |
+          echo "Testing VPS connection..."
+          timeout 10 bash -c '</dev/tcp/${{ secrets.VPS_HOST }}/22' \
+            && echo "SUCCESS - GitHub can reach VPS port 22" \
+            || (echo "FAILED - GitHub cannot reach VPS port 22" && exit 1)
