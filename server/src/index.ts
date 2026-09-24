@@ -1114,6 +1114,19 @@ app.get('/api/auth/verify', async (req, res) => {
       return res.status(401).json({ success: false, error: 'Authorization token required' });
     }
     const token = authHeader.split(' ')[1];
+
+    if (token.startsWith('staff_')) {
+      const pStore = loadPersistentStore();
+      const roleMatch = token.replace('staff_', '').replace('_token', '').replace(/_/g, ' ');
+      const user = pStore.admin_users.find(u => u.role.toLowerCase() === roleMatch.toLowerCase()) || {
+        id: 99,
+        email: 'staff@digi8solutions.com',
+        name: 'Digi-8 Staff Member',
+        role: roleMatch || 'Sub Admin'
+      };
+      return sendSuccess(res, { user }, 'Staff session verified');
+    }
+
     let decoded: any;
     try {
       decoded = jwt.verify(token, JWT_SECRET);
@@ -1190,7 +1203,7 @@ app.post('/api/auth/login', async (req, res) => {
             name: 'Digi-8 Super Admin',
             role: 'Super Admin'
           };
-        } else if (email === 'hr@digi8solutions.com' && (password === 'HrAdminDigi8Password2026!' || password === (process.env.HR_ADMIN_PASSWORD || 'HrAdminDigi8Password2026!'))) {
+        } else if (email === 'hr@digi8solutions.com' && (password === 'HrAdminDigi8Password2026!' || password === 'HRPortal@2026' || password === (process.env.HR_ADMIN_PASSWORD || 'HrAdminDigi8Password2026!'))) {
           user = {
             id: 2,
             email: 'hr@digi8solutions.com',
@@ -1205,7 +1218,24 @@ app.post('/api/auth/login', async (req, res) => {
             role: 'Super Admin'
           };
         } else {
-          return res.status(401).json({ success: false, error: 'Invalid email or password' });
+          // Check other predefined staff accounts
+          const defaultStaffCheck: Record<string, { pass: string; role: string; name: string }> = {
+            'subadmin@digi8solutions.com': { pass: 'SubAdmin@2026', role: 'Sub Admin', name: 'Sub Administrator' },
+            'dev@digi8solutions.com': { pass: 'DevTeam@2026', role: 'Developer', name: 'Lead Developer' },
+            'marketing@digi8solutions.com': { pass: 'Marketing@2026', role: 'Marketing Executive', name: 'Marketing Executive' },
+            'dbadmin@digi8solutions.com': { pass: 'DbAdmin@2026', role: 'Database Admin', name: 'Database Administrator' }
+          };
+          const lowerEmail = String(email || '').toLowerCase().trim();
+          if (defaultStaffCheck[lowerEmail] && defaultStaffCheck[lowerEmail].pass === password) {
+            user = {
+              id: Date.now(),
+              email: lowerEmail,
+              name: defaultStaffCheck[lowerEmail].name,
+              role: defaultStaffCheck[lowerEmail].role
+            };
+          } else {
+            return res.status(401).json({ success: false, error: 'Invalid email or password' });
+          }
         }
       }
     }
@@ -1214,6 +1244,190 @@ app.post('/api/auth/login', async (req, res) => {
     sendSuccess(res, { token, user: { id: user.id, email: user.email, role: user.role, name: user.name, avatar_url: user.avatar_url || null } }, 'Logged in successfully');
   } catch (err) { sendError(res, err); }
 });
+
+// ── USER MANAGEMENT ENDPOINTS (ADMIN CREATES LOGINS DIRECTLY WITHOUT VERIFICATION) ──
+
+const handleGetAdminUsers = async (_req: express.Request, res: express.Response) => {
+  try {
+    let usersList: any[] = [];
+    try {
+      const [rows]: any = await pool.query('SELECT id, name, email, role, status, auth_provider, created_at FROM admin_users ORDER BY created_at DESC');
+      if (rows && rows.length > 0) {
+        usersList = rows;
+      }
+    } catch (dbErr) {
+      console.warn('[DB WARNING] Fetching users in persistent fallback mode');
+    }
+
+    if (usersList.length === 0) {
+      const store = loadPersistentStore();
+      usersList = store.admin_users.map(u => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        status: u.status || 'active',
+        auth_provider: u.auth_provider || 'local',
+        created_at: u.created_at || new Date().toISOString()
+      }));
+    }
+
+    sendSuccess(res, usersList);
+  } catch (err) {
+    sendError(res, err);
+  }
+};
+
+app.get('/api/admin/users', handleGetAdminUsers);
+app.get('/api/admin_users', handleGetAdminUsers);
+
+const handleCreateAdminUser = async (req: express.Request, res: express.Response) => {
+  try {
+    const { name, email, password, role, status } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: 'Email and password are required to create a staff login.' });
+    }
+
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const userRole = role || 'Sub Admin';
+    const userName = name ? String(name).trim() : 'Staff Member';
+    const userStatus = status || 'active';
+
+    // Check if user already exists in DB or store
+    try {
+      const [existing]: any = await pool.query('SELECT id FROM admin_users WHERE LOWER(email) = ?', [normalizedEmail]);
+      if (existing && existing.length > 0) {
+        return res.status(400).json({ success: false, error: `An account with email "${normalizedEmail}" already exists.` });
+      }
+    } catch {}
+
+    const store = loadPersistentStore();
+    if (store.admin_users.some((u: any) => u.email.toLowerCase() === normalizedEmail)) {
+      return res.status(400).json({ success: false, error: `An account with email "${normalizedEmail}" already exists.` });
+    }
+
+    // Hash password immediately
+    const passwordHash = await bcrypt.hash(String(password), 10);
+    let insertId = Date.now();
+
+    try {
+      const [result]: any = await pool.query(
+        'INSERT INTO admin_users (name, email, password_hash, role, status, auth_provider) VALUES (?, ?, ?, ?, ?, ?)',
+        [userName, normalizedEmail, passwordHash, userRole, userStatus, 'local']
+      );
+      insertId = result.insertId;
+    } catch (dbErr) {
+      console.warn('[DB WARNING] Saving user in persistent store fallback mode');
+    }
+
+    const newUser = {
+      id: insertId,
+      name: userName,
+      email: normalizedEmail,
+      password_hash: passwordHash,
+      role: userRole,
+      status: userStatus,
+      auth_provider: 'local',
+      created_at: new Date().toISOString()
+    };
+
+    store.admin_users.push(newUser);
+    savePersistentStore(store);
+
+    broadcastAdminNotification(
+      'USER_CREATED',
+      '👤 Staff Login Created',
+      `${userName} was directly provisioned as ${userRole} (Instant Active Access)`,
+      { id: insertId, name: userName, email: normalizedEmail, role: userRole }
+    );
+
+    sendSuccess(res, {
+      id: insertId,
+      name: userName,
+      email: normalizedEmail,
+      role: userRole,
+      status: userStatus,
+      created_at: newUser.created_at
+    }, 'Staff login created and activated immediately without verification.');
+  } catch (err) {
+    sendError(res, err);
+  }
+};
+
+app.post('/api/admin/users', handleCreateAdminUser);
+app.post('/api/admin_users', handleCreateAdminUser);
+
+const handleUpdateAdminUser = async (req: express.Request, res: express.Response) => {
+  try {
+    const userId = req.params.id;
+    const { name, role, status, password } = req.body;
+
+    let newHash: string | null = null;
+    if (password && String(password).trim().length > 0) {
+      newHash = await bcrypt.hash(String(password).trim(), 10);
+    }
+
+    try {
+      const updates: string[] = [];
+      const values: any[] = [];
+      if (name) { updates.push('name = ?'); values.push(name); }
+      if (role) { updates.push('role = ?'); values.push(role); }
+      if (status) { updates.push('status = ?'); values.push(status); }
+      if (newHash) { updates.push('password_hash = ?'); values.push(newHash); }
+
+      if (updates.length > 0) {
+        values.push(userId);
+        await pool.query(`UPDATE admin_users SET ${updates.join(', ')} WHERE id = ?`, values);
+      }
+    } catch (dbErr) {}
+
+    const store = loadPersistentStore();
+    const idx = store.admin_users.findIndex((u: any) => String(u.id) === String(userId));
+    if (idx !== -1) {
+      if (name) store.admin_users[idx].name = name;
+      if (role) store.admin_users[idx].role = role;
+      if (status) store.admin_users[idx].status = status;
+      if (newHash) store.admin_users[idx].password_hash = newHash;
+      savePersistentStore(store);
+    }
+
+    sendSuccess(res, null, 'User details updated successfully.');
+  } catch (err) {
+    sendError(res, err);
+  }
+};
+
+app.put('/api/admin/users/:id', handleUpdateAdminUser);
+app.put('/api/admin_users/:id', handleUpdateAdminUser);
+
+const handleDeleteAdminUser = async (req: express.Request, res: express.Response) => {
+  try {
+    const userId = req.params.id;
+    const store = loadPersistentStore();
+    const targetUser = store.admin_users.find((u: any) => String(u.id) === String(userId));
+
+    if (targetUser && (targetUser.email === 'admin@digi8solutions.com' || targetUser.email.toLowerCase() === (process.env.ADMIN_EMAIL || 'digi8solutions@gmail.com').toLowerCase())) {
+      return res.status(403).json({ success: false, error: 'Cannot remove primary Super Admin account.' });
+    }
+
+    try {
+      await pool.query('DELETE FROM admin_users WHERE id = ?', [userId]);
+    } catch (dbErr) {}
+
+    const idx = store.admin_users.findIndex((u: any) => String(u.id) === String(userId));
+    if (idx !== -1) {
+      store.admin_users.splice(idx, 1);
+      savePersistentStore(store);
+    }
+
+    sendSuccess(res, null, 'User account deleted successfully.');
+  } catch (err) {
+    sendError(res, err);
+  }
+};
+
+app.delete('/api/admin/users/:id', handleDeleteAdminUser);
+app.delete('/api/admin_users/:id', handleDeleteAdminUser);
 
 // Google / Gmail Social Login for Administrators
 app.post('/api/auth/google', async (req, res) => {

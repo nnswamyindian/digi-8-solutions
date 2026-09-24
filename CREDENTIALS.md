@@ -23,6 +23,33 @@ The `/admin` gateway is exclusively secured by **One-Time Passcode (OTP)** authe
 
 ---
 
+## 2. Staff Authentication & Zero-Verification Provisioning
+
+The Super Administrator can directly create and provision staff logins from **[User Management](http://localhost:5173/admin/users)** with **zero email verification or OTP required**. Once created, the account is immediately active.
+
+### Staff Login Portal:
+- **URL:** [http://localhost:5173/admin/staff](http://localhost:5173/admin/staff)
+- **Mechanism:** Direct Email / Username + Password Authentication (No OTP or confirmation link needed).
+
+### Pre-Configured Staff Accounts:
+| Role | Email | Password | Accessible Portals |
+| :--- | :--- | :--- | :--- |
+| **Sub Admin** | `subadmin@digi8solutions.com` | `SubAdmin@2026` | Operations, Careers/ATS, Leads, Quotes, Projects, Contacts, Blog, Pricing, Analytics |
+| **HR Admin** | `hr@digi8solutions.com` | `HRPortal@2026` | Careers Overview, ATS Pipeline, Candidate CRM, Interviews, Email Automations, Funnel Analytics |
+| **Developer** | `dev@digi8solutions.com` | `DevTeam@2026` | Support Tickets, Projects & Portfolio, Developer Settings |
+| **Marketing Executive** | `marketing@digi8solutions.com` | `Marketing@2026` | Leads Center, Quotes Estimator, Contact Inquiries, Testimonials, Blog Editor |
+| **Database Admin** | `dbadmin@digi8solutions.com` | `DbAdmin@2026` | Dashboard, System Telemetry & Database Diagnostics |
+
+### How Admin Provisions Logins:
+1. Go to **Admin Dashboard → User Management** (`/admin/users`).
+2. Click **"Create Staff Login"**.
+3. Enter Name, Email/Username, select Role, and enter (or generate) a Password.
+4. Click **"Create & Activate Login Now"**.
+5. The account is immediately created and active. Click **"Copy Credentials"** to give them directly to the employee.
+6. The employee logs in at `/admin/staff` and accesses only their permitted role sections!
+
+---
+
 ## 2. Platform Portals & Navigation URLs
 
 ### Administrative Portals

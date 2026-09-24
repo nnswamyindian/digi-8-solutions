@@ -77,18 +77,27 @@ export const loadPersistentStore = (): PersistentDbStore => {
     });
   }
 
-  const hrEmail = 'hr@digi8solutions.com';
-  if (!memoryStore.admin_users.some(u => u.email === hrEmail)) {
-    memoryStore.admin_users.push({
-      id: 3,
-      name: 'Digi-8 HR Admin',
-      email: hrEmail,
-      password_hash: '',
-      role: 'HR Admin',
-      status: 'active',
-      auth_provider: 'local',
-      created_at: new Date().toISOString()
-    });
+  const defaultStaffAccounts = [
+    { id: 3, name: 'Digi-8 HR Admin', email: 'hr@digi8solutions.com', password: 'HRPortal@2026', role: 'HR Admin' },
+    { id: 4, name: 'Sub Administrator', email: 'subadmin@digi8solutions.com', password: 'SubAdmin@2026', role: 'Sub Admin' },
+    { id: 5, name: 'Lead Developer', email: 'dev@digi8solutions.com', password: 'DevTeam@2026', role: 'Developer' },
+    { id: 6, name: 'Marketing Executive', email: 'marketing@digi8solutions.com', password: 'Marketing@2026', role: 'Marketing Executive' },
+    { id: 7, name: 'Database Administrator', email: 'dbadmin@digi8solutions.com', password: 'DbAdmin@2026', role: 'Database Admin' }
+  ];
+
+  for (const staff of defaultStaffAccounts) {
+    if (!memoryStore.admin_users.some(u => u.email.toLowerCase() === staff.email.toLowerCase())) {
+      memoryStore.admin_users.push({
+        id: staff.id,
+        name: staff.name,
+        email: staff.email.toLowerCase(),
+        password_hash: bcrypt.hashSync(staff.password, 10),
+        role: staff.role,
+        status: 'active',
+        auth_provider: 'local',
+        created_at: new Date().toISOString()
+      });
+    }
   }
 
   savePersistentStore(memoryStore);
@@ -285,6 +294,25 @@ export const initDb = async () => {
           ['Digi-8 HR Admin', hrAdminEmail, hrHash, 'HR Admin', 'local']
         );
         console.log(`[DB INFO] Default HR Admin user created: ${hrAdminEmail}`);
+      }
+
+      const otherStaff = [
+        { name: 'Sub Administrator', email: 'subadmin@digi8solutions.com', password: 'SubAdmin@2026', role: 'Sub Admin' },
+        { name: 'Lead Developer', email: 'dev@digi8solutions.com', password: 'DevTeam@2026', role: 'Developer' },
+        { name: 'Marketing Executive', email: 'marketing@digi8solutions.com', password: 'Marketing@2026', role: 'Marketing Executive' },
+        { name: 'Database Administrator', email: 'dbadmin@digi8solutions.com', password: 'DbAdmin@2026', role: 'Database Admin' }
+      ];
+
+      for (const s of otherStaff) {
+        const [existing]: any = await connection.query('SELECT * FROM admin_users WHERE email = ?', [s.email]);
+        if (existing.length === 0) {
+          const sHash = await bcrypt.hash(s.password, 10);
+          await connection.query(
+            'INSERT INTO admin_users (name, email, password_hash, role, auth_provider) VALUES (?, ?, ?, ?, ?)',
+            [s.name, s.email, sHash, s.role, 'local']
+          );
+          console.log(`[DB INFO] Default ${s.role} created: ${s.email}`);
+        }
       }
 
       await connection.query(`

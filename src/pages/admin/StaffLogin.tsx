@@ -1,11 +1,10 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Zap, ShieldCheck, AlertCircle, ArrowRight, Lock, User, Eye, EyeOff } from "lucide-react";
-import { checkAuth } from "../../lib/api";
+import { Zap, ShieldCheck, AlertCircle, ArrowRight, Lock, User, Eye, EyeOff, CheckCircle2 } from "lucide-react";
+import { checkAuth, buildApiUrl } from "../../lib/api";
 
-// Staff credentials (in a real app these are stored in the DB & verified server-side)
-// For demo: these are mock logins. Replace with real API-based auth as needed.
-const STAFF_ACCOUNTS = [
+// Built-in default staff accounts
+const DEFAULT_STAFF_ACCOUNTS = [
   { email: "subadmin@digi8solutions.com",   password: "SubAdmin@2026",     role: "Sub Admin",            name: "Sub Administrator" },
   { email: "hr@digi8solutions.com",          password: "HRPortal@2026",    role: "HR Admin",             name: "HR Manager" },
   { email: "dev@digi8solutions.com",         password: "DevTeam@2026",     role: "Developer",            name: "Lead Developer" },
@@ -19,6 +18,7 @@ const roleGradients: Record<string, string> = {
   "Developer":            "from-amber-500 to-orange-500",
   "Marketing Executive":  "from-rose-500 to-pink-600",
   "Database Admin":       "from-slate-500 to-gray-600",
+  "Super Admin":          "from-purple-500 to-indigo-600",
 };
 
 export default function StaffLogin() {
@@ -39,21 +39,77 @@ export default function StaffLogin() {
     e.preventDefault();
     setLoading(true);
     setErrorMsg("");
-    await new Promise(r => setTimeout(r, 600));
 
-    const account = STAFF_ACCOUNTS.find(a => a.email.toLowerCase() === email.toLowerCase() && a.password === password);
-    if (!account) {
-      setErrorMsg("Invalid credentials. Please check your email and password.");
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPass = password.trim();
+
+    // 1. Attempt Server-Side Authentication
+    try {
+      const res = await fetch(buildApiUrl('/api/auth/login'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, password: cleanPass })
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.data?.token) {
+        localStorage.setItem("admin_token", data.data.token);
+        localStorage.setItem("admin_user", JSON.stringify(data.data.user));
+        window.dispatchEvent(new Event("admin_auth_changed"));
+        setLoading(false);
+        navigate("/admin/dashboard", { replace: true });
+        return;
+      }
+    } catch {
+      // Backend offline or error, proceed to fallback checking
+    }
+
+    // 2. Check Custom Staff Logins Created by Admin in Local Store
+    try {
+      const localStore = localStorage.getItem("digi8_staff_users_db");
+      if (localStore) {
+        const customUsers = JSON.parse(localStore);
+        const matched = customUsers.find(
+          (u: any) => u.email.toLowerCase() === cleanEmail && (u.password === cleanPass || !u.password)
+        );
+        if (matched) {
+          if (matched.status === 'suspended') {
+            setErrorMsg("This staff account has been suspended by the Super Administrator.");
+            setLoading(false);
+            return;
+          }
+          const userObj = { id: matched.id, email: matched.email, name: matched.name, role: matched.role };
+          localStorage.setItem("admin_user", JSON.stringify(userObj));
+          localStorage.setItem("admin_token", `staff_${matched.role.replace(/\s/g, "_")}_token`);
+          window.dispatchEvent(new Event("admin_auth_changed"));
+          setLoading(false);
+          navigate("/admin/dashboard", { replace: true });
+          return;
+        }
+      }
+    } catch {}
+
+    // 3. Check Default Built-in Accounts
+    const defaultAccount = DEFAULT_STAFF_ACCOUNTS.find(
+      a => a.email.toLowerCase() === cleanEmail && a.password === cleanPass
+    );
+    if (defaultAccount) {
+      const userObj = { email: defaultAccount.email, name: defaultAccount.name, role: defaultAccount.role };
+      localStorage.setItem("admin_user", JSON.stringify(userObj));
+      localStorage.setItem("admin_token", `staff_${defaultAccount.role.replace(/\s/g, "_")}_token`);
+      window.dispatchEvent(new Event("admin_auth_changed"));
       setLoading(false);
+      navigate("/admin/dashboard", { replace: true });
       return;
     }
 
-    // Store session
-    const userObj = { email: account.email, name: account.name, role: account.role };
-    localStorage.setItem("admin_user", JSON.stringify(userObj));
-    localStorage.setItem("admin_token", `staff_${account.role.replace(/\s/g, "_")}_token`);
+    setErrorMsg("Invalid email or password. Please verify credentials or contact the Super Administrator.");
     setLoading(false);
-    navigate("/admin/dashboard", { replace: true });
+  };
+
+  const fillQuickAccount = (acc: typeof DEFAULT_STAFF_ACCOUNTS[0]) => {
+    setEmail(acc.email);
+    setPassword(acc.password);
+    setErrorMsg("");
   };
 
   return (
@@ -68,9 +124,9 @@ export default function StaffLogin() {
             <Zap size={30} className="text-white" />
           </div>
           <h1 className="font-sora font-black text-white text-2xl tracking-tight">Staff Portal Login</h1>
-          <p className="text-slate-400 font-inter text-xs mt-1">Digi 8 Solutions — Role-Based Team Access</p>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-cyan/10 border border-brand-cyan/20 text-brand-cyan text-xs font-mono mt-3">
-            <ShieldCheck size={13} /> Secure Role-Based Access
+          <p className="text-slate-400 font-inter text-xs mt-1">Digi 8 Solutions — Direct Team Access</p>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono mt-3">
+            <CheckCircle2 size={13} /> Zero-Verification Direct Login
           </div>
         </div>
 
@@ -84,7 +140,7 @@ export default function StaffLogin() {
             )}
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 uppercase tracking-widest mb-2">Staff Email</label>
+              <label className="block text-xs font-bold text-slate-300 uppercase tracking-widest mb-2">Staff Email / Username</label>
               <div className="relative">
                 <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
@@ -116,28 +172,40 @@ export default function StaffLogin() {
               </div>
             </div>
 
-            <button type="submit" disabled={loading} className="btn-glow w-full py-3.5 rounded-xl font-poppins font-semibold text-white text-sm flex items-center justify-center gap-2 shadow-glow-cyan transition-all disabled:opacity-50">
+            <button 
+              type="submit" 
+              disabled={loading} 
+              className="btn-glow w-full py-3.5 rounded-xl font-poppins font-semibold text-white text-sm flex items-center justify-center gap-2 shadow-glow-cyan transition-all disabled:opacity-50"
+            >
               {loading ? (
-                <><div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" /> Verifying...</>
+                <><div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" /> Verifying Credentials...</>
               ) : (
                 <>Access Staff Dashboard <ArrowRight size={15} /></>
               )}
             </button>
           </form>
 
-          {/* Available roles info */}
+          {/* Quick Demo Credentials */}
           <div className="mt-6 pt-5 border-t border-white/10">
-            <p className="text-xs text-slate-500 text-center mb-3 font-inter">Available staff roles:</p>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {["Sub Admin", "HR Admin", "Developer", "Marketing Executive", "Database Admin"].map(role => (
-                <span key={role} className={`text-[10px] font-semibold px-2 py-1 rounded-full bg-gradient-to-r ${roleGradients[role]} text-white`}>{role}</span>
+            <p className="text-xs text-slate-400 text-center mb-2 font-inter">Click to autofill pre-configured staff accounts:</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {DEFAULT_STAFF_ACCOUNTS.map(acc => (
+                <button
+                  key={acc.role}
+                  type="button"
+                  onClick={() => fillQuickAccount(acc)}
+                  className="text-[11px] p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 text-left transition-colors flex flex-col"
+                >
+                  <span className="font-semibold text-white truncate">{acc.role}</span>
+                  <span className="text-[10px] text-slate-400 truncate">{acc.email.split('@')[0]}</span>
+                </button>
               ))}
             </div>
           </div>
         </div>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-6 text-xs">
-          <Link to="/admin" className="text-slate-400 hover:text-white transition-colors font-medium">← Super Admin Login</Link>
+          <Link to="/admin" className="text-slate-400 hover:text-white transition-colors font-medium">← Super Admin Login (OTP)</Link>
           <Link to="/" className="text-slate-400 hover:text-white transition-colors font-medium">Return to Public Portal</Link>
         </div>
       </div>
