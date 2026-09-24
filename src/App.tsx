@@ -86,7 +86,11 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  if (state === 'unauthed') return <Navigate to="/admin" replace />;
+  if (state === 'unauthed') {
+    const stored = localStorage.getItem('admin_user');
+    const isStaff = stored && (stored.includes('Sub Admin') || stored.includes('HR Admin') || stored.includes('Developer') || stored.includes('Marketing') || stored.includes('Database Admin'));
+    return <Navigate to={isStaff ? "/admin/staff" : "/admin"} replace />;
+  }
   return <>{children}</>;
 }
 

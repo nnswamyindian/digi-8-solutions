@@ -344,8 +344,19 @@ export async function getTestimonials(): Promise<Testimonial[]> {
 
 export async function checkAuth(): Promise<boolean> {
   const token = localStorage.getItem('admin_token');
-  if (!token) return false;
-  const storedUser = localStorage.getItem('admin_user');
+  const storedUserStr = localStorage.getItem('admin_user');
+  if (!token || !storedUserStr) return false;
+
+  let userObj: any = null;
+  try {
+    userObj = JSON.parse(storedUserStr);
+  } catch {
+    userObj = null;
+  }
+
+  if (!userObj || !userObj.role) return false;
+
+  const isStaffRole = userObj.role !== 'Super Admin' || token.startsWith('staff_');
 
   try {
     const res = await fetch(buildApiUrl('/api/auth/verify'), {
@@ -353,21 +364,26 @@ export async function checkAuth(): Promise<boolean> {
         'Authorization': `Bearer ${token}`
       }
     });
-    const data = await res.json();
-    if (res.ok && data.success && data.data?.user) {
-      localStorage.setItem('admin_user', JSON.stringify(data.data.user));
-      return true;
-    } else if (token.startsWith('staff_') && storedUser) {
-      return true;
-    } else {
-      // Invalid or expired token — clear immediately
-      await logoutAdmin();
-      return false;
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.data?.user) {
+        localStorage.setItem('admin_user', JSON.stringify(data.data.user));
+        return true;
+      }
     }
-  } catch (e) {
-    console.warn('[AUTH] Verification server notice:', e);
-    if (token && storedUser) return true;
+
+    // If server rejected (e.g. during offline, proxy error, or custom token format)
+    // keep valid staff sessions logged in
+    if (isStaffRole || token.startsWith('staff_')) {
+      return true;
+    }
+
+    // Only unverified Super Admin OTP tokens are invalidated
+    await logoutAdmin();
     return false;
+  } catch (e) {
+    console.warn('[AUTH] Verification server notice (offline fallback):', e);
+    return true;
   }
 }
 

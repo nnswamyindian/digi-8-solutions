@@ -30,9 +30,16 @@ export default function StaffLogin() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    checkAuth().then((isAuthed) => {
-      if (isAuthed) navigate("/admin/dashboard", { replace: true });
-    });
+    const token = localStorage.getItem("admin_token");
+    const userStr = localStorage.getItem("admin_user");
+    if (token && userStr) {
+      try {
+        const u = JSON.parse(userStr);
+        if (u && u.role && u.role !== 'Super Admin') {
+          navigate("/admin/dashboard", { replace: true });
+        }
+      } catch {}
+    }
   }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -43,7 +50,41 @@ export default function StaffLogin() {
     const cleanEmail = email.trim().toLowerCase();
     const cleanPass = password.trim();
 
-    // 1. Attempt Server-Side Authentication
+    let matchedUser: any = null;
+    let matchedToken: string | null = null;
+
+    // 1. Check Pre-Configured Staff Accounts
+    const defaultAccount = DEFAULT_STAFF_ACCOUNTS.find(
+      a => a.email.toLowerCase() === cleanEmail && a.password === cleanPass
+    );
+    if (defaultAccount) {
+      matchedUser = { email: defaultAccount.email, name: defaultAccount.name, role: defaultAccount.role };
+      matchedToken = `staff_${defaultAccount.role.replace(/\s/g, "_")}_token`;
+    }
+
+    // 2. Check Custom Staff Logins Created by Admin in Local Store
+    if (!matchedUser) {
+      try {
+        const localStore = localStorage.getItem("digi8_staff_users_db");
+        if (localStore) {
+          const customUsers = JSON.parse(localStore);
+          const matched = customUsers.find(
+            (u: any) => u.email.toLowerCase() === cleanEmail && (u.password === cleanPass || !u.password)
+          );
+          if (matched) {
+            if (matched.status === 'suspended') {
+              setErrorMsg("This staff account has been suspended by the Super Administrator.");
+              setLoading(false);
+              return;
+            }
+            matchedUser = { id: matched.id, email: matched.email, name: matched.name, role: matched.role };
+            matchedToken = `staff_${matched.role.replace(/\s/g, "_")}_token`;
+          }
+        }
+      } catch {}
+    }
+
+    // 3. Attempt Server-Side Authentication
     try {
       const res = await fetch(buildApiUrl('/api/auth/login'), {
         method: 'POST',
@@ -52,50 +93,17 @@ export default function StaffLogin() {
       });
       const data = await res.json();
       if (res.ok && data.success && data.data?.token) {
-        localStorage.setItem("admin_token", data.data.token);
-        localStorage.setItem("admin_user", JSON.stringify(data.data.user));
-        window.dispatchEvent(new Event("admin_auth_changed"));
-        setLoading(false);
-        navigate("/admin/dashboard", { replace: true });
-        return;
+        matchedToken = data.data.token;
+        matchedUser = data.data.user;
       }
     } catch {
-      // Backend offline or error, proceed to fallback checking
+      // Backend offline or error, continue with local match
     }
 
-    // 2. Check Custom Staff Logins Created by Admin in Local Store
-    try {
-      const localStore = localStorage.getItem("digi8_staff_users_db");
-      if (localStore) {
-        const customUsers = JSON.parse(localStore);
-        const matched = customUsers.find(
-          (u: any) => u.email.toLowerCase() === cleanEmail && (u.password === cleanPass || !u.password)
-        );
-        if (matched) {
-          if (matched.status === 'suspended') {
-            setErrorMsg("This staff account has been suspended by the Super Administrator.");
-            setLoading(false);
-            return;
-          }
-          const userObj = { id: matched.id, email: matched.email, name: matched.name, role: matched.role };
-          localStorage.setItem("admin_user", JSON.stringify(userObj));
-          localStorage.setItem("admin_token", `staff_${matched.role.replace(/\s/g, "_")}_token`);
-          window.dispatchEvent(new Event("admin_auth_changed"));
-          setLoading(false);
-          navigate("/admin/dashboard", { replace: true });
-          return;
-        }
-      }
-    } catch {}
-
-    // 3. Check Default Built-in Accounts
-    const defaultAccount = DEFAULT_STAFF_ACCOUNTS.find(
-      a => a.email.toLowerCase() === cleanEmail && a.password === cleanPass
-    );
-    if (defaultAccount) {
-      const userObj = { email: defaultAccount.email, name: defaultAccount.name, role: defaultAccount.role };
-      localStorage.setItem("admin_user", JSON.stringify(userObj));
-      localStorage.setItem("admin_token", `staff_${defaultAccount.role.replace(/\s/g, "_")}_token`);
+    // 4. Complete Login
+    if (matchedUser && matchedToken) {
+      localStorage.setItem("admin_token", matchedToken);
+      localStorage.setItem("admin_user", JSON.stringify(matchedUser));
       window.dispatchEvent(new Event("admin_auth_changed"));
       setLoading(false);
       navigate("/admin/dashboard", { replace: true });
