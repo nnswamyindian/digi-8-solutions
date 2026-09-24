@@ -39,6 +39,7 @@ import CustomizedGifting from './pages/services/CustomizedGifting';
 
 // Admin pages
 import AdminLogin from './pages/admin/AdminLogin';
+import StaffLogin from './pages/admin/StaffLogin';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminCareers from './pages/admin/AdminCareers';
 import AdminAtsPipeline from './pages/admin/AdminAtsPipeline';
@@ -97,6 +98,7 @@ function AppShell() {
     return (
       <Routes>
         <Route path="/admin" element={<AdminLogin />} />
+        <Route path="/admin/staff" element={<StaffLogin />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/admin/dashboard" element={<RequireAuth><AdminDashboard /></RequireAuth>} />

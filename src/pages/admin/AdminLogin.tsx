@@ -222,11 +222,15 @@ export default function AdminLogin() {
         </div>
 
         {/* Back to Home Link */}
-        <div className="text-center mt-6">
-          <Link to="/" className="text-slate-400 hover:text-white transition-colors text-xs font-medium">
+        <div className="text-center mt-6 space-y-2">
+          <Link to="/" className="block text-slate-400 hover:text-white transition-colors text-xs font-medium">
             ← Return to Digi 8 Solutions Public Portal
           </Link>
+          <Link to="/admin/staff" className="block text-brand-cyan hover:text-white transition-colors text-xs font-medium">
+            Staff Login (HR / Developer / Marketing) →
+          </Link>
         </div>
+
       </div>
     </div>
   );
