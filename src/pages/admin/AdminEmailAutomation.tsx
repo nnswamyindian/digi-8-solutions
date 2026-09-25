@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Mail, Sparkles, Plus, Edit2, Trash2, CheckCircle2,
+  Mail, Sparkles, Plus, Edit2, Trash2,
   Clock, RefreshCw, Send, Eye, X, ToggleLeft, ToggleRight
 } from 'lucide-react';
 import {

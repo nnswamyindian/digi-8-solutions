@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Sparkles, X, Check, Copy, RefreshCw, Wand2,
-  FileText, CheckCircle2, ListChecks
+  FileText, CheckCircle2, ListChecks, HelpCircle
 } from 'lucide-react';
 import {
   generateJobWithAI,
@@ -39,7 +39,7 @@ export default function AiJobGeneratorModal({
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedSpec, setGeneratedSpec] = useState<GeneratedJobSpec | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'roles' | 'requirements'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'roles' | 'requirements' | 'questions'>('overview');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -296,6 +296,17 @@ export default function AiJobGeneratorModal({
                 >
                   <CheckCircle2 size={14} /> Requirements & Skills ({generatedSpec.requirements.length})
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('questions')}
+                  className={`pb-2.5 px-3 text-xs font-semibold flex items-center gap-1.5 transition-colors border-b-2 ${
+                    activeTab === 'questions'
+                      ? 'border-brand-cyan text-brand-cyan font-bold'
+                      : 'border-transparent text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <HelpCircle size={14} /> Screening Questions ({generatedSpec.customQuestions?.length || 0})
+                </button>
               </div>
 
               {/* Tab 1: Full Job Description */}
@@ -421,6 +432,68 @@ export default function AiJobGeneratorModal({
                         <p className="text-xs text-slate-200 leading-relaxed font-inter flex-1">
                           {req}
                         </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 4: Key Screening Questions */}
+              {activeTab === 'questions' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-300">
+                      These <span className="text-brand-cyan font-bold">{generatedSpec.customQuestions?.length || 0}</span> role-specific screening questions will be mapped to the application form:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(
+                        (generatedSpec.customQuestions || []).map((q, i) => `${i + 1}. [${q.type}] ${q.question} ${q.required ? '(Required)' : ''}`).join('\n'),
+                        'questions'
+                      )}
+                      className="text-[10px] text-slate-400 hover:text-white flex items-center gap-1"
+                    >
+                      {copiedKey === 'questions' ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                      {copiedKey === 'questions' ? 'Copied List' : 'Copy All'}
+                    </button>
+                  </div>
+                  <div className="space-y-2.5">
+                    {(generatedSpec.customQuestions || []).map((q, idx) => (
+                      <div
+                        key={q.id || idx}
+                        className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 hover:border-brand-cyan/30 transition-colors space-y-2"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-2.5 flex-1">
+                            <span className="w-5 h-5 rounded-full bg-brand-cyan/10 text-brand-cyan text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5 border border-brand-cyan/20">
+                              Q{idx + 1}
+                            </span>
+                            <div className="space-y-1 flex-1">
+                              <p className="text-xs font-semibold text-white leading-relaxed font-inter">
+                                {q.question}
+                              </p>
+                              {q.options && q.options.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {q.options.map((opt, oIdx) => (
+                                    <span key={oIdx} className="text-[10px] px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300">
+                                      {opt}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-400 uppercase">
+                              {q.type}
+                            </span>
+                            {q.required && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-rose-500/10 border border-rose-500/20 text-rose-400">
+                                Required
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>

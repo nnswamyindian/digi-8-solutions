@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   TrendingUp, Users, Clock, Award, Download,
-  RefreshCw, Layers, CheckCircle2, ChevronRight
+  RefreshCw, Layers, CheckCircle2
 } from 'lucide-react';
 import {
   fetchFunnelAnalytics,
@@ -145,7 +145,7 @@ export default function AdminAtsAnalytics() {
           </div>
           <div>
             <p className="text-xs text-slate-400 font-medium">Avg Time to Hire</p>
-            <p className="text-2xl font-black text-white">~14.5 Days</p>
+            <p className="text-2xl font-black text-white">~{timeToHire.averageTimeToHireDays || 14.5} Days</p>
           </div>
         </div>
       </div>
@@ -162,7 +162,7 @@ export default function AdminAtsAnalytics() {
         </div>
 
         <div className="space-y-4">
-          {funnelData.funnel.map((st, idx) => {
+          {funnelData.funnel.map((st) => {
             const percentage = funnelData.totalApplications > 0
               ? Math.max(Math.round((st.count / funnelData.totalApplications) * 100), 4)
               : 0;

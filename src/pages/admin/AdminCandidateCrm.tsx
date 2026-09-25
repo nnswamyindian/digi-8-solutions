@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  Users, Search, Filter, Mail, Phone, MapPin, Tag,
-  ExternalLink, ChevronRight, Briefcase, RefreshCw,
+  Users, Search, Filter,
+  ChevronRight, RefreshCw,
   Sparkles, Layers
 } from 'lucide-react';
 import {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Save, Plus, Trash2, HelpCircle, AlertCircle, Sparkles, Wand2, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2, HelpCircle, AlertCircle, Sparkles, Wand2, RefreshCw, X, Tag } from 'lucide-react';
 import AdminLayout from './AdminLayout';
 import {
   createCareerJob,
@@ -10,7 +10,7 @@ import {
   type ApplicationQuestion
 } from '../../lib/api';
 import AiJobGeneratorModal from '../../components/admin/ats/AiJobGeneratorModal';
-import { generateJobWithAI, type GeneratedJobSpec } from '../../lib/aiJobGenerator';
+import { generateJobWithAI, generateRelevantSkills, type GeneratedJobSpec } from '../../lib/aiJobGenerator';
 
 export default function AdminJobEditor() {
   const { id } = useParams<{ id: string }>();
@@ -109,12 +109,15 @@ export default function AdminJobEditor() {
     setResponsibilities(spec.responsibilities);
     setRequirements(spec.requirements);
     setSkillsText(spec.skills.join(', '));
+    if (spec.customQuestions && spec.customQuestions.length > 0) {
+      setCustomQuestions(spec.customQuestions);
+    }
     if (spec.suggestedCompensation && !compensation) {
       setCompensation(spec.suggestedCompensation);
     }
   };
 
-  const handleQuickAiFillSection = (section: 'description' | 'responsibilities' | 'requirements' | 'skills' | 'all') => {
+  const handleQuickAiFillSection = (section: 'description' | 'responsibilities' | 'requirements' | 'skills' | 'questions' | 'all') => {
     const roleTitle = title.trim() || 'Senior Full Stack Developer';
     setIsAiGeneratingInline(true);
     setTimeout(() => {
@@ -138,6 +141,11 @@ export default function AdminJobEditor() {
       if (section === 'skills' || section === 'all') {
         setSkillsText(spec.skills.join(', '));
       }
+      if (section === 'questions' || section === 'all') {
+        if (spec.customQuestions && spec.customQuestions.length > 0) {
+          setCustomQuestions(spec.customQuestions);
+        }
+      }
       if (section === 'all' && !title.trim()) {
         setTitle(spec.title);
         if (!isEditing) {
@@ -147,6 +155,35 @@ export default function AdminJobEditor() {
       setIsAiGeneratingInline(false);
     }, 300);
   };
+
+  // Skills Management Helpers
+  const currentSkillsList = skillsText
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const addSkillTag = (skillToAdd: string) => {
+    const trimmed = skillToAdd.trim();
+    if (!trimmed) return;
+    if (!currentSkillsList.some(s => s.toLowerCase() === trimmed.toLowerCase())) {
+      const updated = [...currentSkillsList, trimmed];
+      setSkillsText(updated.join(', '));
+    }
+  };
+
+  const removeSkillTag = (skillToRemove: string) => {
+    const updated = currentSkillsList.filter(
+      s => s.toLowerCase() !== skillToRemove.toLowerCase()
+    );
+    setSkillsText(updated.join(', '));
+  };
+
+  const suggestedSkills = generateRelevantSkills(
+    title.trim() || 'Software Engineer',
+    category
+  ).filter(
+    suggestion => !currentSkillsList.some(s => s.toLowerCase() === suggestion.toLowerCase())
+  );
 
   // Responsibilities Handlers
   const addResponsibility = () => setResponsibilities([...responsibilities, '']);
@@ -656,27 +693,77 @@ export default function AdminJobEditor() {
           </div>
 
           {/* Skills Tags */}
-          <div className="pt-4 border-t border-white/5">
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-semibold text-slate-300">
-                Key Skills (comma-separated tags)
-              </label>
+          <div className="pt-4 border-t border-white/5 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300">
+                  Key Skills & Technologies
+                </label>
+                <p className="text-[11px] text-slate-400">
+                  Required technical competencies, frameworks, or tools for this position.
+                </p>
+              </div>
               <button
                 type="button"
                 disabled={isAiGeneratingInline}
                 onClick={() => handleQuickAiFillSection('skills')}
-                className="text-xs text-brand-cyan hover:text-cyan-300 flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-brand-cyan/10 border border-brand-cyan/20 font-medium transition-colors"
+                className="text-xs text-brand-cyan hover:text-cyan-300 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-cyan/10 border border-brand-cyan/20 font-medium transition-colors hover:scale-[1.02] active:scale-[0.98]"
               >
-                <Sparkles size={11} /> AI Suggest Skills
+                <Sparkles size={11} /> AI Auto-Fill Skills
               </button>
             </div>
+
+            {/* Active Skills Pills */}
+            {currentSkillsList.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 p-2.5 rounded-xl bg-white/[0.02] border border-white/10 min-h-[42px]">
+                {currentSkillsList.map(skill => (
+                  <span
+                    key={skill}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-brand-cyan/15 text-cyan-200 border border-brand-cyan/30 group"
+                  >
+                    <Tag size={10} className="text-brand-cyan" />
+                    <span>{skill}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeSkillTag(skill)}
+                      className="p-0.5 text-cyan-400/70 hover:text-rose-400 hover:bg-white/10 rounded transition-colors"
+                      title="Remove skill"
+                    >
+                      <X size={11} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
             <input
               type="text"
-              placeholder="React, TypeScript, Tailwind CSS, REST APIs, Git"
+              placeholder="Type skills separated by commas (e.g. React, TypeScript, Node.js, Docker)"
               value={skillsText}
               onChange={e => setSkillsText(e.target.value)}
               className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-cyan"
             />
+
+            {/* Role-Intelligent Skill Recommendations */}
+            {suggestedSkills.length > 0 && (
+              <div className="pt-1">
+                <span className="text-[11px] font-medium text-slate-400 flex items-center gap-1 mb-1.5">
+                  <Sparkles size={11} className="text-brand-cyan" /> Suggested for this role (click to add):
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {suggestedSkills.slice(0, 10).map(suggestion => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() => addSkillTag(suggestion)}
+                      className="text-[11px] px-2.5 py-0.5 rounded-full bg-white/5 hover:bg-brand-cyan/20 text-slate-300 hover:text-brand-cyan border border-white/10 hover:border-brand-cyan/30 transition-all flex items-center gap-1"
+                    >
+                      <Plus size={10} /> {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -688,29 +775,49 @@ export default function AdminJobEditor() {
                 4. Job-Specific Application Questions
               </h2>
               <p className="text-xs text-slate-400">
-                Define custom questions candidates must answer during the application process.
+                Define custom screening questions candidates must answer during the application process.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={addQuestion}
-              className="btn-outline-glass px-3 py-1.5 rounded-xl text-xs font-semibold text-brand-cyan flex items-center gap-1"
-            >
-              <Plus size={13} /> Add Question
-            </button>
-          </div>
-
-          {customQuestions.length === 0 ? (
-            <div className="p-8 text-center border border-dashed border-white/10 rounded-2xl">
-              <HelpCircle size={24} className="mx-auto mb-2 text-slate-500" />
-              <p className="text-xs text-slate-400">No custom questions created yet.</p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={isAiGeneratingInline}
+                onClick={() => handleQuickAiFillSection('questions')}
+                className="px-3 py-1.5 rounded-xl bg-brand-cyan/10 hover:bg-brand-cyan/20 text-brand-cyan border border-brand-cyan/25 text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Sparkles size={12} /> AI Generate Questions
+              </button>
               <button
                 type="button"
                 onClick={addQuestion}
-                className="text-xs text-brand-cyan hover:underline mt-2 font-semibold"
+                className="btn-outline-glass px-3 py-1.5 rounded-xl text-xs font-semibold text-brand-cyan flex items-center gap-1"
               >
-                + Add your first role-specific question
+                <Plus size={13} /> Add Question
               </button>
+            </div>
+          </div>
+
+          {customQuestions.length === 0 ? (
+            <div className="p-8 text-center border border-dashed border-white/10 rounded-2xl bg-white/[0.01]">
+              <HelpCircle size={24} className="mx-auto mb-2 text-slate-500" />
+              <p className="text-xs text-slate-400">No screening questions configured for this role yet.</p>
+              <div className="flex items-center justify-center gap-3 mt-3">
+                <button
+                  type="button"
+                  disabled={isAiGeneratingInline}
+                  onClick={() => handleQuickAiFillSection('questions')}
+                  className="px-4 py-2 rounded-xl bg-brand-cyan/15 hover:bg-brand-cyan/25 text-brand-cyan border border-brand-cyan/30 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm shadow-brand-cyan/10 hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <Sparkles size={13} /> Auto-Generate Role-Specific Questions
+                </button>
+                <button
+                  type="button"
+                  onClick={addQuestion}
+                  className="text-xs text-slate-400 hover:text-white underline font-medium"
+                >
+                  + Add question manually
+                </button>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
@@ -719,7 +826,9 @@ export default function AdminJobEditor() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono font-bold text-slate-400">Q{idx + 1}</span>
+                        <span className="text-[10px] font-mono font-bold text-slate-400 bg-white/5 px-2 py-0.5 rounded">
+                          Q{idx + 1}
+                        </span>
                         <input
                           type="text"
                           placeholder="e.g. How many years of experience do you have with React?"
@@ -731,18 +840,18 @@ export default function AdminJobEditor() {
 
                       <div className="flex flex-wrap items-center gap-4 text-xs">
                         <div className="flex items-center gap-2">
-                          <span className="text-slate-400">Type:</span>
+                          <span className="text-slate-400 text-[11px]">Answer Type:</span>
                           <select
                             value={q.type}
                             onChange={e => updateQuestion(idx, { type: e.target.value as any })}
-                            className="bg-[#101423] border border-white/10 rounded-lg px-2 py-1 text-xs text-white"
+                            className="bg-[#101423] border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-brand-cyan"
                           >
                             <option value="short text">Short Text</option>
                             <option value="long text">Long Text</option>
                             <option value="number">Number</option>
                             <option value="dropdown">Dropdown</option>
                             <option value="radio">Radio Buttons</option>
-                            <option value="url">Website / URL</option>
+                            <option value="url">Website / Portfolio URL</option>
                           </select>
                         </div>
 
@@ -753,7 +862,7 @@ export default function AdminJobEditor() {
                             onChange={e => updateQuestion(idx, { required: e.target.checked })}
                             className="accent-brand-cyan"
                           />
-                          <span>Required Question</span>
+                          <span className="text-xs">Required Question</span>
                         </label>
                       </div>
 
@@ -779,7 +888,8 @@ export default function AdminJobEditor() {
                     <button
                       type="button"
                       onClick={() => removeQuestion(idx)}
-                      className="p-1.5 text-slate-500 hover:text-rose-400"
+                      className="p-1.5 text-slate-500 hover:text-rose-400 transition-colors"
+                      title="Delete question"
                     >
                       <Trash2 size={15} />
                     </button>

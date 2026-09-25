@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  Users, Search, Filter, Plus, Calendar, Settings,
-  Clock, CheckCircle2, ChevronRight, Briefcase, RefreshCw,
-  ExternalLink, SlidersHorizontal, Eye, EyeOff, Trash2
+  Search, Filter, Settings,
+  ChevronRight, RefreshCw,
+  SlidersHorizontal, Eye, EyeOff, Trash2
 } from 'lucide-react';
 import {
   type JobApplication,
@@ -13,7 +13,6 @@ import {
   fetchCareersJobs,
   updateApplicationStage,
   createRecruitmentStage,
-  updateRecruitmentStage,
   deleteRecruitmentStage
 } from '../../lib/api';
 import CandidateWorkspaceModal from '../../components/admin/ats/CandidateWorkspaceModal';
@@ -40,7 +39,6 @@ export default function AdminAtsPipeline() {
 
   // Stage Customization Modal state
   const [showStageSettings, setShowStageSettings] = useState(false);
-  const [editingStage, setEditingStage] = useState<RecruitmentStage | null>(null);
   const [newStageName, setNewStageName] = useState('');
   const [newStageSlug, setNewStageSlug] = useState('');
   const [newStageColor, setNewStageColor] = useState('#06b6d4');
@@ -161,27 +159,6 @@ export default function AdminAtsPipeline() {
       }
     } catch (err) {
       console.error('Error creating stage:', err);
-    } finally {
-      setStageOpLoading(false);
-    }
-  };
-
-  // Update existing stage
-  const handleUpdateStage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingStage) return;
-    setStageOpLoading(true);
-    try {
-      await updateRecruitmentStage(editingStage.id, {
-        name: editingStage.name,
-        color_code: editingStage.color_code,
-        candidate_visible: editingStage.candidate_visible ? 1 : 0,
-        candidate_label: editingStage.candidate_label
-      });
-      setStages(prev => prev.map(s => s.id === editingStage.id ? editingStage : s));
-      setEditingStage(null);
-    } catch (err) {
-      console.error('Error updating stage:', err);
     } finally {
       setStageOpLoading(false);
     }

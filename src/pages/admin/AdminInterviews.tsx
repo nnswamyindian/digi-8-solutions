@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Calendar, Plus, Clock, ExternalLink, Star,
-  CheckCircle2, AlertCircle, RefreshCw, X, Trash2, User
+  RefreshCw, X, Trash2, User
 } from 'lucide-react';
 import {
   type InterviewItem,
@@ -10,7 +10,6 @@ import {
   fetchInterviews,
   scheduleInterview,
   updateInterview,
-  deleteInterview,
   fetchInterviewFeedback,
   submitInterviewFeedback,
   fetchCareerApplications

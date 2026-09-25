@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   X, Mail, Phone, MapPin, Briefcase, Calendar, CheckCircle2,
-  Clock, AlertCircle, MessageSquare, Tag, FileText, Send, User,
-  Star, ExternalLink, Download, Plus, Trash2, CheckSquare, Sparkles, ChevronRight
+  Clock, MessageSquare, Tag, FileText, Send, User,
+  Star, ExternalLink, Download, Plus, Trash2, CheckSquare, Sparkles
 } from 'lucide-react';
 import {
   type JobApplication,
@@ -14,7 +14,6 @@ import {
   type InterviewFeedback,
   type EmailTemplate,
   type EmailLog,
-  type StageHistory,
   fetchRecruitmentStages,
   updateApplicationStage,
   fetchApplicationTimeline,

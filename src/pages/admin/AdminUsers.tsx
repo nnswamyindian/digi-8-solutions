@@ -4,7 +4,7 @@ import {
   Copy, RefreshCw, Eye, EyeOff, Search, Lock, 
   Briefcase, Code2, TrendingUp, CheckCircle2, AlertCircle,
   Database, Sliders, ChevronDown, CheckSquare, Square,
-  Layers, Settings, HelpCircle
+  Layers
 } from 'lucide-react';
 import AdminLayout, { AdminRole } from './AdminLayout';
 import { 

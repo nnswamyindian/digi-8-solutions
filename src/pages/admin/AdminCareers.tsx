@@ -3,8 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   Users, Plus, Search, RefreshCw,
   ExternalLink, Edit, Copy, Eye, EyeOff, Trash2, Download,
-  AlertCircle, FileSpreadsheet, ArrowUpRight,
-  Calendar, Mail, BarChart2, Briefcase
+  AlertCircle, FileSpreadsheet, ArrowUpRight
 } from 'lucide-react';
 import AdminLayout from './AdminLayout';
 import AtsNavHeader from '../../components/admin/ats/AtsNavHeader';
