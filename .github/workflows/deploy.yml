@@ -16,33 +16,43 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: 22
           script: |
-            # Navigate to project directory (robustly checking common path variants)
-            if [ -d "/var/www/digi8sloutions" ]; then
-              cd /var/www/digi8sloutions
-            elif [ -d "/var/www/digi8solutions" ]; then
+            set -e
+
+            # Navigate to project directory (prioritize correct spelling)
+            if [ -d "/var/www/digi8solutions" ]; then
               cd /var/www/digi8solutions
             elif [ -d "/var/www/digi8" ]; then
               cd /var/www/digi8
+            elif [ -d "/var/www/digi8sloutions" ]; then
+              cd /var/www/digi8sloutions
             else
-              echo "Error: Directory not found in /var/www"
+              echo "❌ Error: Project directory not found in /var/www"
               exit 1
             fi
+
+            echo "📍 Active VPS Directory: $(pwd)"
             
-            # Pull latest changes
-            git pull origin main
+            # Fetch latest commits and reset to origin/main (prevents local untracked conflicts)
+            git fetch origin main
+            git reset --hard origin/main
+            echo "✅ Synced to commit: $(git log -1 --oneline)"
             
             # 1. Update Backend
+            echo "⚙️ Building Backend..."
             cd server
             npm install
             npm run build
             # Restart backend using PM2 (supports both process names: digi8-backend or digi8-api)
             pm2 restart digi8-backend || pm2 restart digi8-api || pm2 start dist/index.js --name digi8-backend
             pm2 save
+            cd ..
             
             # 2. Update Frontend
-            cd ..
+            echo "🎨 Building Frontend..."
             npm install
             npm run build
             
-            # 3. Reload Nginx to flush cache & serve fresh bundle
-            sudo systemctl reload nginx || true
+            # 3. Reload Nginx to serve fresh bundle
+            echo "🔄 Reloading Nginx..."
+            sudo systemctl reload nginx
+            echo "🚀 Deployment successfully completed!"
