@@ -92,11 +92,13 @@ export default function AdminLogin() {
         {/* Header Branding with Digi 8 Logo */}
         <div className="text-center mb-6">
           <Link to="/" className="inline-block group mb-3">
-            <img
-              src="/logo.png"
-              alt="Digi 8 Solutions"
-              className="h-16 sm:h-20 w-auto object-contain mx-auto drop-shadow-[0_0_25px_rgba(6,182,212,0.45)] transition-transform group-hover:scale-105"
-            />
+            <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center p-2.5 mx-auto drop-shadow-[0_0_25px_rgba(6,182,212,0.45)] group-hover:scale-105 transition-all">
+              <img
+                src="/favicon.svg"
+                alt="Digi 8 Solutions"
+                className="w-full h-full object-contain"
+              />
+            </div>
           </Link>
           <h1 className="font-sora font-black text-white text-2xl tracking-tight">Super Admin Gateway</h1>
           <p className="text-slate-400 font-inter text-xs mt-1">Digi 8 Solutions Executive Control Portal</p>

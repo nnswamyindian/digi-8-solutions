@@ -56,11 +56,13 @@ export default function AtsNavHeader({ title, subtitle, badge, actionButton }: A
 
           {title && (
             <div className="border-l border-white/10 pl-3 flex items-center gap-3">
-              <img
-                src="/logo.png"
-                alt="Digi 8"
-                className="h-9 w-auto object-contain hidden lg:block drop-shadow-[0_0_12px_rgba(6,182,212,0.25)] shrink-0"
-              />
+              <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center p-1 shrink-0 hidden sm:flex shadow-[0_0_12px_rgba(6,182,212,0.2)]">
+                <img
+                  src="/favicon.svg"
+                  alt="Digi 8"
+                  className="w-full h-full object-contain"
+                />
+              </div>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="font-outfit font-black text-2xl md:text-3xl text-white tracking-tight">

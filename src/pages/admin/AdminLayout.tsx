@@ -242,11 +242,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           {/* Logo */}
           <div className="flex items-center justify-between mb-8 px-2 pt-2">
             <Link to="/" className="flex items-center gap-2.5 group">
-              <img
-                src="/logo.png"
-                alt="Digi8 Solutions"
-                className="h-9 w-auto object-contain transition-transform group-hover:scale-105"
-              />
+              <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center p-1 shrink-0 group-hover:scale-105 group-hover:border-cyan-500/40 transition-all shadow-[0_0_15px_rgba(6,182,212,0.25)]">
+                <img
+                  src="/favicon.svg"
+                  alt="Digi 8"
+                  className="w-full h-full object-contain"
+                />
+              </div>
               <div>
                 <div className="font-sora font-bold text-sm text-white flex items-center gap-1.5">
                   Digi 8
@@ -309,7 +311,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               <Menu size={18} />
             </button>
             <Link to="/admin/dashboard" className="lg:hidden flex items-center mr-1 shrink-0" title="Digi 8 Dashboard">
-              <img src="/logo.png" alt="Digi 8" className="h-7 w-auto object-contain" />
+              <img src="/favicon.svg" alt="Digi 8" className="w-7 h-7 object-contain" />
             </Link>
             {location.pathname !== "/admin/dashboard" && (
               <button onClick={handleBack} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 text-xs font-inter transition-all shrink-0 active:scale-95" title="Go Back">

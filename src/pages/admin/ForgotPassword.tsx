@@ -37,11 +37,13 @@ export default function ForgotPassword() {
       <div className="relative z-10 w-full max-w-md">
         <div className="text-center mb-8">
           <Link to="/" className="inline-block group mb-3">
-            <img
-              src="/logo.png"
-              alt="Digi 8 Solutions"
-              className="h-14 sm:h-18 w-auto object-contain mx-auto drop-shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-transform group-hover:scale-105"
-            />
+            <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center p-2 mx-auto drop-shadow-[0_0_20px_rgba(6,182,212,0.4)] group-hover:scale-105 transition-all">
+              <img
+                src="/favicon.svg"
+                alt="Digi 8 Solutions"
+                className="w-full h-full object-contain"
+              />
+            </div>
           </Link>
           <h1 className="font-sora font-black text-white text-2xl">Reset Password</h1>
           <p className="text-slate-400 font-inter text-sm mt-1">Enter your email to receive a reset link</p>

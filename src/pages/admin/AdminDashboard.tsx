@@ -217,22 +217,19 @@ export default function AdminDashboard() {
       <div className="max-w-6xl w-full mx-auto space-y-8 pb-20">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
-          <div className="flex items-center gap-4">
-            <img
-              src="/logo.png"
-              alt="Digi 8 Solutions"
-              className="h-12 w-auto object-contain hidden sm:block drop-shadow-[0_0_15px_rgba(6,182,212,0.3)] shrink-0"
-            />
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center p-2 shrink-0 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+              <img
+                src="/favicon.svg"
+                alt="Digi 8"
+                className="w-full h-full object-contain"
+              />
+            </div>
             <div>
-              <div className="flex items-center gap-2 mb-0.5">
-                <h1 className="font-outfit font-black text-white text-2xl sm:text-3xl tracking-tight">
-                  {isHR ? 'HR & Recruitment Dashboard' : 'Dashboard Overview'}
-                </h1>
-                <span className="px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 text-[10px] font-mono font-bold border border-cyan-500/20">
-                  DIGI 8
-                </span>
-              </div>
-              <p className="text-slate-400 text-xs sm:text-sm font-inter">
+              <h1 className="font-outfit font-black text-white text-2xl sm:text-3xl tracking-tight">
+                {isHR ? 'HR & Recruitment Dashboard' : 'Dashboard Overview'}
+              </h1>
+              <p className="text-slate-400 text-xs sm:text-sm font-inter mt-0.5">
                 {isHR
                   ? 'Real-time talent acquisition pipeline, active job openings, candidate evaluations, and recruitment telemetry.'
                   : 'Real-time control center for Digi 8 business leads, ATS recruitment, and customer operations.'}
