@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Zap, AlertCircle, ArrowRight, Lock, User, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { AlertCircle, ArrowRight, Lock, User, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { buildApiUrl } from "../../lib/api";
 
 export default function StaffLogin() {
@@ -103,9 +103,13 @@ export default function StaffLogin() {
 
       <div className="relative z-10 w-full max-w-md">
         <div className="text-center mb-6">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-cyan via-brand-blue to-brand-purple flex items-center justify-center mx-auto mb-3 shadow-glow-cyan">
-            <Zap size={30} className="text-white" />
-          </div>
+          <Link to="/" className="inline-block group mb-3">
+            <img
+              src="/logo.png"
+              alt="Digi 8 Solutions"
+              className="h-16 sm:h-20 w-auto object-contain mx-auto drop-shadow-[0_0_25px_rgba(6,182,212,0.45)] transition-transform group-hover:scale-105"
+            />
+          </Link>
           <h1 className="font-sora font-black text-white text-2xl tracking-tight">Staff Portal Login</h1>
           <p className="text-slate-400 font-inter text-xs mt-1">Digi 8 Solutions — Authorized Team Access</p>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-cyan/10 border border-brand-cyan/20 text-brand-cyan text-xs font-mono mt-3">

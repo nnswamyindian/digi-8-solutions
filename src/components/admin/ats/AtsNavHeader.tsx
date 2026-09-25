@@ -55,18 +55,25 @@ export default function AtsNavHeader({ title, subtitle, badge, actionButton }: A
           )}
 
           {title && (
-            <div className="border-l border-white/10 pl-3">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="font-outfit font-black text-2xl md:text-3xl text-white tracking-tight">
-                  {title}
-                </h1>
-                {badge && (
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                    {badge}
-                  </span>
-                )}
+            <div className="border-l border-white/10 pl-3 flex items-center gap-3">
+              <img
+                src="/logo.png"
+                alt="Digi 8"
+                className="h-9 w-auto object-contain hidden lg:block drop-shadow-[0_0_12px_rgba(6,182,212,0.25)] shrink-0"
+              />
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="font-outfit font-black text-2xl md:text-3xl text-white tracking-tight">
+                    {title}
+                  </h1>
+                  {badge && (
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                      {badge}
+                    </span>
+                  )}
+                </div>
+                {subtitle && <p className="text-slate-400 text-xs md:text-sm mt-0.5 font-inter">{subtitle}</p>}
               </div>
-              {subtitle && <p className="text-slate-400 text-xs md:text-sm mt-0.5 font-inter">{subtitle}</p>}
             </div>
           )}
         </div>

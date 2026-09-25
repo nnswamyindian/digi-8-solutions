@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  Zap, ShieldCheck, Mail, AlertCircle, ArrowRight,
+  ShieldCheck, Mail, AlertCircle, ArrowRight,
   CheckCircle2, KeyRound, RefreshCw, Send, Lock
 } from 'lucide-react';
 import { checkAuth, sendAuthOtp, verifyAuthOtp } from '../../lib/api';
@@ -89,11 +89,15 @@ export default function AdminLogin() {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-brand-cyan/10 rounded-full blur-3xl" />
 
       <div className="relative z-10 w-full max-w-md">
-        {/* Header Branding */}
+        {/* Header Branding with Digi 8 Logo */}
         <div className="text-center mb-6">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-cyan via-brand-blue to-brand-purple flex items-center justify-center mx-auto mb-3 shadow-glow-cyan">
-            <Zap size={30} className="text-white" />
-          </div>
+          <Link to="/" className="inline-block group mb-3">
+            <img
+              src="/logo.png"
+              alt="Digi 8 Solutions"
+              className="h-16 sm:h-20 w-auto object-contain mx-auto drop-shadow-[0_0_25px_rgba(6,182,212,0.45)] transition-transform group-hover:scale-105"
+            />
+          </Link>
           <h1 className="font-sora font-black text-white text-2xl tracking-tight">Super Admin Gateway</h1>
           <p className="text-slate-400 font-inter text-xs mt-1">Digi 8 Solutions Executive Control Portal</p>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono mt-3">

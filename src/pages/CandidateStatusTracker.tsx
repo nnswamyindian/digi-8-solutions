@@ -54,8 +54,17 @@ export default function CandidateStatusTracker() {
 
         {/* Hero Header */}
         <div className="text-center space-y-3">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-bold tracking-wide">
-            <ShieldCheck size={14} /> Candidate Self-Service Portal
+          <Link to="/" className="inline-block group mb-1">
+            <img
+              src="/logo.png"
+              alt="Digi 8 Solutions"
+              className="h-14 sm:h-16 w-auto object-contain mx-auto drop-shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-transform group-hover:scale-105"
+            />
+          </Link>
+          <div>
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-bold tracking-wide">
+              <ShieldCheck size={14} /> Candidate Self-Service Portal
+            </div>
           </div>
           <h1 className="font-outfit font-black text-3xl sm:text-4xl text-white tracking-tight">
             Track Your Application Status

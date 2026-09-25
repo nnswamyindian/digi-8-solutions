@@ -2,10 +2,10 @@ import { useState, useEffect, ReactNode, useMemo } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, FileText, Briefcase, MessageSquare, Settings,
-  LogOut, Menu, X, Zap, BarChart2, Tag, BookOpen, Bell, DollarSign, Shield, Ticket,
+  LogOut, Menu, X, BarChart2, Tag, BookOpen, Bell, DollarSign, Shield, Ticket,
   UserCheck, Calendar, Mail, Search, ArrowLeft, ChevronRight, Code2, TrendingUp
 } from "lucide-react";
-import { supabase, buildApiUrl, logoutAdmin } from "../../lib/api";
+import { buildApiUrl, logoutAdmin } from "../../lib/api";
 import CommandPalette from "../../components/admin/ats/CommandPalette";
 
 // ──────────────────────────────────────────────
@@ -241,16 +241,21 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         <div className="flex flex-col h-full p-4">
           {/* Logo */}
           <div className="flex items-center justify-between mb-8 px-2 pt-2">
-            <Link to="/" className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-gradient-to-br ${gradientClass}`}>
-                <Zap size={16} className="text-white" />
-              </div>
+            <Link to="/" className="flex items-center gap-2.5 group">
+              <img
+                src="/logo.png"
+                alt="Digi8 Solutions"
+                className="h-9 w-auto object-contain transition-transform group-hover:scale-105"
+              />
               <div>
-                <div className="font-sora font-bold text-sm text-white">Digi 8</div>
+                <div className="font-sora font-bold text-sm text-white flex items-center gap-1.5">
+                  Digi 8
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono font-bold border border-cyan-500/30">PORTAL</span>
+                </div>
                 <div className={`text-[9px] uppercase tracking-widest font-mono ${badgeColorClass} font-bold`}>{userRole}</div>
               </div>
             </Link>
-            <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-slate-400 hover:text-white"><X size={18} /></button>
+            <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/5"><X size={18} /></button>
           </div>
 
           {/* Nav */}
@@ -303,6 +308,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-xl bg-white/5 text-slate-400 hover:text-white shrink-0" aria-label="Toggle navigation menu">
               <Menu size={18} />
             </button>
+            <Link to="/admin/dashboard" className="lg:hidden flex items-center mr-1 shrink-0" title="Digi 8 Dashboard">
+              <img src="/logo.png" alt="Digi 8" className="h-7 w-auto object-contain" />
+            </Link>
             {location.pathname !== "/admin/dashboard" && (
               <button onClick={handleBack} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 text-xs font-inter transition-all shrink-0 active:scale-95" title="Go Back">
                 <ArrowLeft size={14} className="text-cyan-400" /><span className="hidden sm:inline font-medium">Back</span>

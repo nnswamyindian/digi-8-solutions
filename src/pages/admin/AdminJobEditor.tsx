@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Save, Plus, Trash2, HelpCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2, HelpCircle, AlertCircle, Sparkles, Wand2, RefreshCw } from 'lucide-react';
 import AdminLayout from './AdminLayout';
 import {
   createCareerJob,
@@ -9,6 +9,8 @@ import {
   type JobPosting,
   type ApplicationQuestion
 } from '../../lib/api';
+import AiJobGeneratorModal from '../../components/admin/ats/AiJobGeneratorModal';
+import { generateJobWithAI, type GeneratedJobSpec } from '../../lib/aiJobGenerator';
 
 export default function AdminJobEditor() {
   const { id } = useParams<{ id: string }>();
@@ -18,6 +20,10 @@ export default function AdminJobEditor() {
   const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // AI Copilot State
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [isAiGeneratingInline, setIsAiGeneratingInline] = useState(false);
 
   // Form Fields
   const [title, setTitle] = useState('');
@@ -86,6 +92,60 @@ export default function AdminJobEditor() {
       const generatedSlug = val.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       setSlug(generatedSlug);
     }
+  };
+
+  // AI Copilot Integration Handlers
+  const handleApplyAiSpec = (spec: GeneratedJobSpec) => {
+    setTitle(spec.title);
+    if (!isEditing) {
+      setSlug(spec.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''));
+    }
+    setCategory(spec.category);
+    setExperience(spec.experience);
+    setWorkMode(spec.workMode);
+    setJobType(spec.jobType);
+    setShortDescription(spec.shortDescription);
+    setDescription(spec.description);
+    setResponsibilities(spec.responsibilities);
+    setRequirements(spec.requirements);
+    setSkillsText(spec.skills.join(', '));
+    if (spec.suggestedCompensation && !compensation) {
+      setCompensation(spec.suggestedCompensation);
+    }
+  };
+
+  const handleQuickAiFillSection = (section: 'description' | 'responsibilities' | 'requirements' | 'skills' | 'all') => {
+    const roleTitle = title.trim() || 'Senior Full Stack Developer';
+    setIsAiGeneratingInline(true);
+    setTimeout(() => {
+      const spec = generateJobWithAI({
+        title: roleTitle,
+        category,
+        experience,
+        workMode,
+        jobType
+      });
+      if (section === 'description' || section === 'all') {
+        setShortDescription(spec.shortDescription);
+        setDescription(spec.description);
+      }
+      if (section === 'responsibilities' || section === 'all') {
+        setResponsibilities(spec.responsibilities);
+      }
+      if (section === 'requirements' || section === 'all') {
+        setRequirements(spec.requirements);
+      }
+      if (section === 'skills' || section === 'all') {
+        setSkillsText(spec.skills.join(', '));
+      }
+      if (section === 'all' && !title.trim()) {
+        setTitle(spec.title);
+        if (!isEditing) {
+          setSlug(spec.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''));
+        }
+      }
+      setIsAiGeneratingInline(false);
+    }, 300);
   };
 
   // Responsibilities Handlers
@@ -248,6 +308,52 @@ export default function AdminJobEditor() {
           </div>
         )}
 
+        {/* AI Copilot Launch Banner */}
+        <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-brand-cyan/15 via-brand-purple/15 to-brand-blue/15 border border-brand-cyan/30 shadow-[0_0_35px_rgba(6,182,212,0.15)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-brand-cyan via-brand-blue to-brand-purple flex items-center justify-center shadow-glow-cyan text-white shrink-0">
+              <Sparkles size={22} className="animate-spin-slow" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-white flex items-center gap-2">
+                <span>Digi-8 AI Job Specification Copilot</span>
+                <span className="px-2 py-0.5 rounded-full bg-brand-cyan/20 text-brand-cyan text-[10px] font-mono font-bold uppercase tracking-wider border border-brand-cyan/30">
+                  AI Auto-Fill
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 font-inter mt-0.5">
+                Generate high-converting role descriptions, 6+ key responsibilities & roles, requirements, and tags in 1 click.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowAiModal(true)}
+              className="btn-glow px-4 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 bg-gradient-to-r from-brand-cyan via-brand-blue to-brand-purple shadow-glow-cyan hover:scale-[1.03] active:scale-[0.98] transition-all"
+            >
+              <Wand2 size={14} /> Open AI Generator
+            </button>
+            <button
+              type="button"
+              disabled={isAiGeneratingInline}
+              onClick={() => handleQuickAiFillSection('all')}
+              className="px-3.5 py-2.5 rounded-xl border border-white/10 text-xs font-semibold text-slate-200 hover:text-white hover:bg-white/5 flex items-center gap-1.5 transition-colors disabled:opacity-50"
+              title="Fast auto-fill based on current Title"
+            >
+              {isAiGeneratingInline ? (
+                <>
+                  <RefreshCw size={12} className="animate-spin" /> Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles size={13} className="text-brand-cyan" /> Quick Auto-Fill All
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
         {/* SECTION 1: Basic Information */}
         <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-4">
           <h2 className="font-outfit font-bold text-lg text-white border-b border-white/5 pb-2">
@@ -397,9 +503,19 @@ export default function AdminJobEditor() {
 
         {/* SECTION 2: Descriptions */}
         <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-4">
-          <h2 className="font-outfit font-bold text-lg text-white border-b border-white/5 pb-2">
-            2. Opportunity Description
-          </h2>
+          <div className="flex items-center justify-between border-b border-white/5 pb-2">
+            <h2 className="font-outfit font-bold text-lg text-white">
+              2. Opportunity Description
+            </h2>
+            <button
+              type="button"
+              disabled={isAiGeneratingInline}
+              onClick={() => handleQuickAiFillSection('description')}
+              className="px-3 py-1 rounded-xl bg-brand-cyan/10 hover:bg-brand-cyan/20 text-brand-cyan border border-brand-cyan/25 text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <Sparkles size={12} /> Auto-Generate Description
+            </button>
+          </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5">
@@ -431,21 +547,47 @@ export default function AdminJobEditor() {
 
         {/* SECTION 3: Responsibilities & Requirements */}
         <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-6">
-          <h2 className="font-outfit font-bold text-lg text-white border-b border-white/5 pb-2">
-            3. Responsibilities & Requirements
-          </h2>
+          <div className="flex items-center justify-between border-b border-white/5 pb-2">
+            <h2 className="font-outfit font-bold text-lg text-white">
+              3. Responsibilities & Requirements
+            </h2>
+            <button
+              type="button"
+              disabled={isAiGeneratingInline}
+              onClick={() => {
+                handleQuickAiFillSection('responsibilities');
+                handleQuickAiFillSection('requirements');
+                handleQuickAiFillSection('skills');
+              }}
+              className="px-3 py-1 rounded-xl bg-brand-cyan/10 hover:bg-brand-cyan/20 text-brand-cyan border border-brand-cyan/25 text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <Sparkles size={12} /> Auto-Fill Roles & Skills
+            </button>
+          </div>
 
           {/* Responsibilities */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-slate-300">Key Responsibilities</label>
-              <button
-                type="button"
-                onClick={addResponsibility}
-                className="text-xs text-brand-cyan hover:underline flex items-center gap-1"
-              >
-                <Plus size={12} /> Add Item
-              </button>
+              <label className="text-xs font-semibold text-slate-300">
+                Key Responsibilities (Roles & Duties)
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={isAiGeneratingInline}
+                  onClick={() => handleQuickAiFillSection('responsibilities')}
+                  className="text-xs text-brand-cyan hover:text-cyan-300 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-cyan/10 border border-brand-cyan/20 font-medium transition-colors"
+                >
+                  <Sparkles size={11} /> AI Auto-Fill Key Roles
+                </button>
+                <button
+                  type="button"
+                  onClick={addResponsibility}
+                  className="text-xs text-brand-cyan hover:underline flex items-center gap-1"
+                >
+                  <Plus size={12} /> Add Item
+                </button>
+              </div>
             </div>
             {responsibilities.map((resp, i) => (
               <div key={i} className="flex items-center gap-2">
@@ -473,13 +615,23 @@ export default function AdminJobEditor() {
           <div className="space-y-3 pt-4 border-t border-white/5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-slate-300">Requirements & Qualifications</label>
-              <button
-                type="button"
-                onClick={addRequirement}
-                className="text-xs text-brand-cyan hover:underline flex items-center gap-1"
-              >
-                <Plus size={12} /> Add Item
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={isAiGeneratingInline}
+                  onClick={() => handleQuickAiFillSection('requirements')}
+                  className="text-xs text-brand-cyan hover:text-cyan-300 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-cyan/10 border border-brand-cyan/20 font-medium transition-colors"
+                >
+                  <Sparkles size={11} /> AI Auto-Fill Requirements
+                </button>
+                <button
+                  type="button"
+                  onClick={addRequirement}
+                  className="text-xs text-brand-cyan hover:underline flex items-center gap-1"
+                >
+                  <Plus size={12} /> Add Item
+                </button>
+              </div>
             </div>
             {requirements.map((req, i) => (
               <div key={i} className="flex items-center gap-2">
@@ -505,9 +657,19 @@ export default function AdminJobEditor() {
 
           {/* Skills Tags */}
           <div className="pt-4 border-t border-white/5">
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Key Skills (comma-separated tags)
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-slate-300">
+                Key Skills (comma-separated tags)
+              </label>
+              <button
+                type="button"
+                disabled={isAiGeneratingInline}
+                onClick={() => handleQuickAiFillSection('skills')}
+                className="text-xs text-brand-cyan hover:text-cyan-300 flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-brand-cyan/10 border border-brand-cyan/20 font-medium transition-colors"
+              >
+                <Sparkles size={11} /> AI Suggest Skills
+              </button>
+            </div>
             <input
               type="text"
               placeholder="React, TypeScript, Tailwind CSS, REST APIs, Git"
@@ -647,6 +809,18 @@ export default function AdminJobEditor() {
         </div>
 
       </div>
+
+      {/* AI Job Specification Generator Modal */}
+      <AiJobGeneratorModal
+        isOpen={showAiModal}
+        onClose={() => setShowAiModal(false)}
+        initialTitle={title}
+        initialCategory={category}
+        initialExperience={experience}
+        initialWorkMode={workMode}
+        initialJobType={jobType}
+        onApplySpec={handleApplyAiSpec}
+      />
     </AdminLayout>
   );
 }
