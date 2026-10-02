@@ -4126,7 +4126,11 @@
       "upi_display_name": "9666252024@sbi",
       "show_upi_qr": true,
       "show_bank_details": true,
-      "payment_instructions": "Scan the UPI QR code using any UPI App (GPay, PhonePe, Paytm, BHIM) to pay instantly. For direct NEFT/RTGS/IMPS, transfer to our HDFC corporate account above and mention the Invoice number in the transaction description."
+      "payment_instructions": "Scan the UPI QR code using any UPI App (GPay, PhonePe, Paytm, BHIM) to pay instantly. For direct NEFT/RTGS/IMPS, transfer to our HDFC corporate account above and mention the Invoice number in the transaction description.",
+      "seal_url": "/images/seal.png",
+      "signature_url": "/images/signature.png",
+      "authorized_signatory_name": "Authorized Signatory",
+      "authorized_signatory_title": "Corporate Finance & Accounts Division"
     }
   ],
   "invoice_audit_logs": [

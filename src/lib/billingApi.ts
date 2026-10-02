@@ -61,6 +61,10 @@ export interface PaymentDetailsSnapshot {
   show_upi_qr?: boolean;
   show_bank_details?: boolean;
   payment_instructions?: string;
+  seal_url?: string;
+  signature_url?: string;
+  authorized_signatory_name?: string;
+  authorized_signatory_title?: string;
 }
 
 export interface Invoice {
@@ -185,6 +189,10 @@ export interface BillingSettings {
   show_upi_qr?: boolean;
   show_bank_details?: boolean;
   payment_instructions?: string;
+  seal_url?: string;
+  signature_url?: string;
+  authorized_signatory_name?: string;
+  authorized_signatory_title?: string;
 }
 
 export interface ProjectFinancialSummary {
@@ -742,8 +750,30 @@ export async function updateBillingSettings(payload: Partial<BillingSettings>): 
   try {
     const res = await fetch(buildApiUrl('/api/billing/settings'), {
       method: 'PUT',
-      headers: getAuthHeaders(),
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify(payload)
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function uploadBillingAsset(
+  type: 'seal' | 'signature',
+  dataUrlOrBase64: string
+): Promise<{ success: boolean; url?: string; error?: string; message?: string }> {
+  try {
+    const res = await fetch(buildApiUrl('/api/billing/upload-asset'), {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ type, data: dataUrlOrBase64 })
     });
     return await res.json();
   } catch (err: any) {

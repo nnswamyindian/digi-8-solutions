@@ -1,5 +1,7 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import fs from 'fs';
+import path from 'path';
 import pool, { loadPersistentStore, savePersistentStore } from './db.js';
 import { broadcastAdminNotification } from './index.js';
 import { generateInvoicePdfBuffer, InvoicePdfData } from './pdfGenerator.js';
@@ -345,7 +347,11 @@ export function getPaymentDetailsSnapshot(): any {
     upi_display_name: settings.upi_display_name || 'Digi8 Solutions Pvt Ltd',
     show_upi_qr: settings.show_upi_qr !== false,
     show_bank_details: settings.show_bank_details !== false,
-    payment_instructions: settings.payment_instructions || 'Scan the UPI QR code using any UPI App (GPay, PhonePe, Paytm, BHIM) to pay instantly. For direct NEFT/RTGS/IMPS, transfer to our HDFC corporate account above and mention the Invoice number in the transaction description.'
+    payment_instructions: settings.payment_instructions || 'Scan the UPI QR code using any UPI App (GPay, PhonePe, Paytm, BHIM) to pay instantly. For direct NEFT/RTGS/IMPS, transfer to our HDFC corporate account above and mention the Invoice number in the transaction description.',
+    seal_url: settings.seal_url || '/images/seal.png',
+    signature_url: settings.signature_url || '/images/signature.png',
+    authorized_signatory_name: settings.authorized_signatory_name || 'Authorized Signatory',
+    authorized_signatory_title: settings.authorized_signatory_title || 'Corporate Finance & Accounts Division'
   };
 }
 
@@ -598,7 +604,7 @@ async function fetchCompleteInvoiceData(id: string | number) {
       items = itemRows || [];
       const [custRows]: any = await pool.query('SELECT * FROM customers WHERE id = ?', [invoice.customer_id]);
       if (custRows && custRows.length > 0) customer = custRows[0];
-      const [setRows]: any = await pool.query('SELECT * FROM billing_settings LIMIT 1');
+      const [setRows]: any = await pool.query('SELECT * FROM invoice_settings LIMIT 1');
       if (setRows && setRows.length > 0) settings = setRows[0];
     }
   } catch {
@@ -607,7 +613,7 @@ async function fetchCompleteInvoiceData(id: string | number) {
     if (invoice) {
       items = (store.invoice_items || []).filter(item => item.invoice_id === invoice.id);
       customer = (store.customers || []).find(c => c.id === invoice.customer_id);
-      settings = store.billing_settings;
+      settings = store.invoice_settings?.[0] || store.billing_settings;
     }
   }
 
@@ -683,8 +689,16 @@ router.get('/invoices/:id/pdf', async (req, res) => {
         bank_branch: snapshot?.bank_branch || 'Mindspace Branch, Mumbai',
         upi_id: snapshot?.upi_id || 'digi8solutions@hdfcbank',
         upi_display_name: snapshot?.upi_display_name || 'Digi8 Solutions Pvt Ltd',
-        payment_instructions: snapshot?.payment_instructions
+        payment_instructions: snapshot?.payment_instructions,
+        seal_url: snapshot?.seal_url || settings?.seal_url || '/images/seal.png',
+        signature_url: snapshot?.signature_url || settings?.signature_url || '/images/signature.png',
+        authorized_signatory_name: snapshot?.authorized_signatory_name || settings?.authorized_signatory_name || 'Authorized Signatory',
+        authorized_signatory_title: snapshot?.authorized_signatory_title || settings?.authorized_signatory_title || 'Corporate Finance & Accounts Division'
       },
+      seal_url: snapshot?.seal_url || settings?.seal_url || '/images/seal.png',
+      signature_url: snapshot?.signature_url || settings?.signature_url || '/images/signature.png',
+      authorized_signatory_name: snapshot?.authorized_signatory_name || settings?.authorized_signatory_name || 'Authorized Signatory',
+      authorized_signatory_title: snapshot?.authorized_signatory_title || settings?.authorized_signatory_title || 'Corporate Finance & Accounts Division',
       terms_conditions: invoice.terms_conditions || settings?.terms_conditions
     };
 
@@ -778,8 +792,16 @@ router.post('/invoices/:id/send-email', async (req, res) => {
         bank_branch: snapshot?.bank_branch || 'Mindspace Branch, Mumbai',
         upi_id: snapshot?.upi_id || 'digi8solutions@hdfcbank',
         upi_display_name: snapshot?.upi_display_name || 'Digi8 Solutions Pvt Ltd',
-        payment_instructions: snapshot?.payment_instructions
+        payment_instructions: snapshot?.payment_instructions,
+        seal_url: snapshot?.seal_url || settings?.seal_url || '/images/seal.png',
+        signature_url: snapshot?.signature_url || settings?.signature_url || '/images/signature.png',
+        authorized_signatory_name: snapshot?.authorized_signatory_name || settings?.authorized_signatory_name || 'Authorized Signatory',
+        authorized_signatory_title: snapshot?.authorized_signatory_title || settings?.authorized_signatory_title || 'Corporate Finance & Accounts Division'
       },
+      seal_url: snapshot?.seal_url || settings?.seal_url || '/images/seal.png',
+      signature_url: snapshot?.signature_url || settings?.signature_url || '/images/signature.png',
+      authorized_signatory_name: snapshot?.authorized_signatory_name || settings?.authorized_signatory_name || 'Authorized Signatory',
+      authorized_signatory_title: snapshot?.authorized_signatory_title || settings?.authorized_signatory_title || 'Corporate Finance & Accounts Division',
       terms_conditions: invoice.terms_conditions || settings?.terms_conditions
     };
 
@@ -2802,7 +2824,11 @@ router.put('/billing/settings', async (req, res) => {
       upi_display_name,
       show_upi_qr,
       show_bank_details,
-      payment_instructions
+      payment_instructions,
+      seal_url,
+      signature_url,
+      authorized_signatory_name,
+      authorized_signatory_title
     } = req.body;
 
     try {
@@ -2834,14 +2860,19 @@ router.put('/billing/settings', async (req, res) => {
           upi_display_name = COALESCE(?, upi_display_name),
           show_upi_qr = COALESCE(?, show_upi_qr),
           show_bank_details = COALESCE(?, show_bank_details),
-          payment_instructions = COALESCE(?, payment_instructions)
+          payment_instructions = COALESCE(?, payment_instructions),
+          seal_url = COALESCE(?, seal_url),
+          signature_url = COALESCE(?, signature_url),
+          authorized_signatory_name = COALESCE(?, authorized_signatory_name),
+          authorized_signatory_title = COALESCE(?, authorized_signatory_title)
          WHERE id = 1`,
         [
           company_name, company_address, company_city, company_state, company_state_code, company_pincode,
           company_phone, company_email, company_website, company_gstin, company_pan,
           invoice_prefix, financial_year, starting_number, next_number, number_padding,
           terms_conditions, bank_name, bank_account_holder, bank_account_number, bank_ifsc, bank_branch,
-          upi_id, upi_display_name, show_upi_qr, show_bank_details, payment_instructions
+          upi_id, upi_display_name, show_upi_qr, show_bank_details, payment_instructions,
+          seal_url, signature_url, authorized_signatory_name, authorized_signatory_title
         ]
       );
     } catch {
@@ -2875,12 +2906,78 @@ router.put('/billing/settings', async (req, res) => {
         ...(upi_display_name !== undefined && { upi_display_name }),
         ...(show_upi_qr !== undefined && { show_upi_qr }),
         ...(show_bank_details !== undefined && { show_bank_details }),
-        ...(payment_instructions !== undefined && { payment_instructions })
+        ...(payment_instructions !== undefined && { payment_instructions }),
+        ...(seal_url !== undefined && { seal_url }),
+        ...(signature_url !== undefined && { signature_url }),
+        ...(authorized_signatory_name !== undefined && { authorized_signatory_name }),
+        ...(authorized_signatory_title !== undefined && { authorized_signatory_title })
       }];
       savePersistentStore(store);
     }
 
     res.json({ success: true, message: 'Invoice settings updated successfully' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/billing/upload-asset - Upload company seal or authorized signature image
+router.post('/billing/upload-asset', async (req, res) => {
+  try {
+    const authUser = getAuthUser(req);
+    if (authUser?.role === 'Sales Executive') {
+      return res.status(403).json({ success: false, error: 'Sales users cannot modify corporate branding assets.' });
+    }
+
+    const { type, data } = req.body;
+    if (!type || !['seal', 'signature'].includes(type)) {
+      return res.status(400).json({ success: false, error: 'Asset type must be "seal" or "signature".' });
+    }
+    if (!data || typeof data !== 'string') {
+      return res.status(400).json({ success: false, error: 'Image data is required.' });
+    }
+
+    // Extract base64 payload
+    let base64Payload = data;
+    const commaIndex = data.indexOf(',');
+    if (commaIndex !== -1) {
+      base64Payload = data.substring(commaIndex + 1);
+    }
+    const buffer = Buffer.from(base64Payload, 'base64');
+
+    // Save to public/images/<type>.png and server/uploads/<type>.png
+    const publicDir = path.resolve(process.cwd(), 'public/images');
+    const uploadsDir = path.resolve(process.cwd(), 'server/uploads');
+
+    if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir, { recursive: true });
+    if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+    const fileName = `${type}.png`;
+    fs.writeFileSync(path.join(publicDir, fileName), buffer);
+    try {
+      fs.writeFileSync(path.join(uploadsDir, fileName), buffer);
+    } catch {}
+
+    const assetUrl = `/images/${fileName}`;
+
+    // Also update current invoice_settings
+    try {
+      const colName = type === 'seal' ? 'seal_url' : 'signature_url';
+      await pool.query(`UPDATE invoice_settings SET ${colName} = ? WHERE id = 1`, [assetUrl]);
+    } catch {}
+
+    const store = loadPersistentStore();
+    const current = store.invoice_settings?.[0] || {};
+    if (type === 'seal') current.seal_url = assetUrl;
+    if (type === 'signature') current.signature_url = assetUrl;
+    store.invoice_settings = [current];
+    savePersistentStore(store);
+
+    res.json({
+      success: true,
+      url: assetUrl,
+      message: `${type === 'seal' ? 'Company Seal' : 'Authorized Signature'} asset uploaded and configured successfully.`
+    });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

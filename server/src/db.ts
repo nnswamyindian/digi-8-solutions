@@ -271,7 +271,11 @@ export const DEFAULT_BILLING_SETTINGS = {
   upi_display_name: 'Digi8 Solutions Pvt Ltd',
   show_upi_qr: true,
   show_bank_details: true,
-  payment_instructions: 'Scan the UPI QR code using any UPI App (GPay, PhonePe, Paytm, BHIM) to pay instantly. For direct NEFT/RTGS/IMPS, transfer to our HDFC corporate account above and mention the Invoice number in the transaction description.'
+  payment_instructions: 'Scan the UPI QR code using any UPI App (GPay, PhonePe, Paytm, BHIM) to pay instantly. For direct NEFT/RTGS/IMPS, transfer to our HDFC corporate account above and mention the Invoice number in the transaction description.',
+  seal_url: '/images/seal.png',
+  signature_url: '/images/signature.png',
+  authorized_signatory_name: 'Authorized Signatory',
+  authorized_signatory_title: 'Corporate Finance & Accounts Division'
 };
 
 export const DEFAULT_PROJECTS = [
@@ -2059,6 +2063,10 @@ export const initDb = async () => {
       try { await connection.query(`ALTER TABLE invoice_settings ADD COLUMN show_upi_qr BOOLEAN DEFAULT TRUE`); } catch {}
       try { await connection.query(`ALTER TABLE invoice_settings ADD COLUMN show_bank_details BOOLEAN DEFAULT TRUE`); } catch {}
       try { await connection.query(`ALTER TABLE invoice_settings ADD COLUMN payment_instructions TEXT NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE invoice_settings ADD COLUMN seal_url VARCHAR(500) NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE invoice_settings ADD COLUMN signature_url VARCHAR(500) NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE invoice_settings ADD COLUMN authorized_signatory_name VARCHAR(255) NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE invoice_settings ADD COLUMN authorized_signatory_title VARCHAR(255) NULL`); } catch {}
 
       // Project Expenses Table
       await connection.query(`

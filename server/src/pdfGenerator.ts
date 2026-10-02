@@ -1,4 +1,8 @@
+import fs from 'fs';
+import path from 'path';
+import zlib from 'zlib';
 import QRCode from 'qrcode';
+import { PNG } from 'pngjs';
 
 export interface InvoicePdfData {
   invoice_number: string;
@@ -56,7 +60,15 @@ export interface InvoicePdfData {
     upi_id?: string;
     upi_display_name?: string;
     payment_instructions?: string;
+    seal_url?: string;
+    signature_url?: string;
+    authorized_signatory_name?: string;
+    authorized_signatory_title?: string;
   };
+  seal_url?: string;
+  signature_url?: string;
+  authorized_signatory_name?: string;
+  authorized_signatory_title?: string;
   terms_conditions?: string;
 }
 
@@ -75,7 +87,178 @@ function formatCurrency(val: number | undefined | null): string {
   return 'Rs. ' + num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+interface ImageResource {
+  alias: string;
+  objNum: number;
+  width: number;
+  height: number;
+  dictHeader: string;
+  streamData: Buffer;
+  maskObjNum?: number;
+  maskHeader?: string;
+  maskStreamData?: Buffer;
+}
+
+function getJpegDimensions(buf: Buffer): { width: number; height: number } | null {
+  if (buf.length < 4 || buf[0] !== 0xFF || buf[1] !== 0xD8) return null;
+  let offset = 2;
+  while (offset < buf.length - 8) {
+    if (buf[offset] !== 0xFF) {
+      offset++;
+      continue;
+    }
+    const marker = buf[offset + 1];
+    if (marker === 0xD8 || marker === 0xD9 || (marker >= 0xD0 && marker <= 0xD7)) {
+      offset += 2;
+      continue;
+    }
+    const len = buf.readUInt16BE(offset + 2);
+    if (marker === 0xC0 || marker === 0xC1 || marker === 0xC2) {
+      const height = buf.readUInt16BE(offset + 5);
+      const width = buf.readUInt16BE(offset + 7);
+      return { width, height };
+    }
+    offset += 2 + len;
+  }
+  return null;
+}
+
+function resolveImageFileBuffer(imagePathOrUrl?: string, defaultFilename?: string): Buffer | null {
+  try {
+    if (imagePathOrUrl && imagePathOrUrl.startsWith('data:image/')) {
+      const commaIdx = imagePathOrUrl.indexOf(',');
+      if (commaIdx !== -1) {
+        return Buffer.from(imagePathOrUrl.slice(commaIdx + 1), 'base64');
+      }
+    }
+
+    const candidatePaths: string[] = [];
+    if (imagePathOrUrl && !imagePathOrUrl.startsWith('data:') && !imagePathOrUrl.startsWith('http')) {
+      const clean = imagePathOrUrl.replace(/^\/+/, '');
+      candidatePaths.push(path.resolve(process.cwd(), clean));
+      candidatePaths.push(path.resolve(process.cwd(), 'public', clean));
+      candidatePaths.push(path.resolve(__dirname, '../../public', clean));
+      candidatePaths.push(path.resolve(__dirname, '../uploads', clean));
+    }
+    if (defaultFilename) {
+      candidatePaths.push(path.resolve(process.cwd(), 'public/images', defaultFilename));
+      candidatePaths.push(path.resolve(process.cwd(), 'server/uploads', defaultFilename));
+      candidatePaths.push(path.resolve(__dirname, '../../public/images', defaultFilename));
+      candidatePaths.push(path.resolve(__dirname, '../uploads', defaultFilename));
+    }
+
+    for (const p of candidatePaths) {
+      try {
+        if (fs.existsSync(p)) {
+          return fs.readFileSync(p);
+        }
+      } catch {}
+    }
+  } catch (err) {
+    console.warn('[PDF] Error resolving image file buffer:', err);
+  }
+  return null;
+}
+
+function createPdfImageResource(
+  alias: string,
+  imagePathOrUrl: string | undefined,
+  defaultFilename: string,
+  allocObjNum: () => number
+): ImageResource | null {
+  try {
+    const rawBuf = resolveImageFileBuffer(imagePathOrUrl, defaultFilename);
+    if (!rawBuf || rawBuf.length === 0) return null;
+
+    // 1. Is it a JPEG (or JFIF)?
+    if (rawBuf.length > 4 && rawBuf[0] === 0xFF && rawBuf[1] === 0xD8) {
+      const dims = getJpegDimensions(rawBuf);
+      if (dims && dims.width > 0 && dims.height > 0) {
+        const objNum = allocObjNum();
+        return {
+          alias,
+          objNum,
+          width: dims.width,
+          height: dims.height,
+          dictHeader: `<< /Type /XObject /Subtype /Image /Width ${dims.width} /Height ${dims.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${rawBuf.length} >>`,
+          streamData: rawBuf
+        };
+      }
+    }
+
+    // 2. Is it a PNG?
+    try {
+      const png = PNG.sync.read(rawBuf);
+      const pixelCount = png.width * png.height;
+      const rgb = Buffer.alloc(pixelCount * 3);
+      const alpha = Buffer.alloc(pixelCount);
+      let hasAlpha = false;
+
+      for (let i = 0, j = 0, k = 0; i < png.data.length; i += 4, j += 3, k += 1) {
+        rgb[j] = png.data[i];
+        rgb[j + 1] = png.data[i + 1];
+        rgb[j + 2] = png.data[i + 2];
+        const a = png.data[i + 3];
+        alpha[k] = a;
+        if (a < 255) hasAlpha = true;
+      }
+
+      const deflatedRgb = zlib.deflateSync(rgb);
+      if (hasAlpha) {
+        const deflatedAlpha = zlib.deflateSync(alpha);
+        const maskObjNum = allocObjNum();
+        const objNum = allocObjNum();
+        return {
+          alias,
+          objNum,
+          width: png.width,
+          height: png.height,
+          maskObjNum,
+          maskHeader: `<< /Type /XObject /Subtype /Image /Width ${png.width} /Height ${png.height} /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length ${deflatedAlpha.length} >>`,
+          maskStreamData: deflatedAlpha,
+          dictHeader: `<< /Type /XObject /Subtype /Image /Width ${png.width} /Height ${png.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /SMask ${maskObjNum} 0 R /Length ${deflatedRgb.length} >>`,
+          streamData: deflatedRgb
+        };
+      } else {
+        const objNum = allocObjNum();
+        return {
+          alias,
+          objNum,
+          width: png.width,
+          height: png.height,
+          dictHeader: `<< /Type /XObject /Subtype /Image /Width ${png.width} /Height ${png.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /Length ${deflatedRgb.length} >>`,
+          streamData: deflatedRgb
+        };
+      }
+    } catch {}
+  } catch (err) {
+    console.warn(`[PDF] Failed to create image resource for ${alias}:`, err);
+  }
+  return null;
+}
+
 export function generateInvoicePdfBuffer(data: InvoicePdfData): Buffer {
+  let nextObjId = 7;
+  const allocObjNum = () => nextObjId++;
+
+  const sealImg = createPdfImageResource(
+    'ImSeal',
+    data.seal_url || data.payment_details?.seal_url,
+    'seal.png',
+    allocObjNum
+  );
+
+  const sigImg = createPdfImageResource(
+    'ImSig',
+    data.signature_url || data.payment_details?.signature_url,
+    'signature.png',
+    allocObjNum
+  );
+
+  const imageResources: ImageResource[] = [];
+  if (sealImg) imageResources.push(sealImg);
+  if (sigImg) imageResources.push(sigImg);
+
   const streamLines: string[] = [];
 
   // Coordinate system: Origin (0,0) is bottom-left, Top-right is (595.28, 841.89) [A4 Page]
@@ -404,16 +587,58 @@ export function generateInvoicePdfBuffer(data: InvoicePdfData): Buffer {
   // Center-Right: Official Company Seal / Stamp
   const sealCenterX = 332;
   const sealCenterY = termsBoxY + 28;
-  drawSeal(sealCenterX, sealCenterY);
+  if (sealImg) {
+    const sealDrawSize = 62;
+    const sealDrawX = 296;
+    const sealDrawY = termsBoxY - 2;
+    streamLines.push(`q`);
+    streamLines.push(`${sealDrawSize.toFixed(2)} 0 0 ${sealDrawSize.toFixed(2)} ${sealDrawX.toFixed(2)} ${sealDrawY.toFixed(2)} cm`);
+    streamLines.push(`/${sealImg.alias} Do`);
+    streamLines.push(`Q`);
+  } else {
+    drawSeal(sealCenterX, sealCenterY);
+  }
 
   // Far-Right: Authorized Signatory & Signature
   const sigX = 405;
   const sigY = termsBoxY + 24;
-  addText('For DIGI8 SOLUTIONS PRIVATE LIMITED', sigX, sigY + 26, 7.5, 'F2', 0.1, 0.15, 0.25);
-  drawSignature(sigX, sigY + 6);
-  drawLine(sigX, sigY, pageWidth - 36, sigY, 0.3, 0.35, 0.45, 0.8);
-  addText('Authorized Signatory', sigX + 22, sigY - 11, 8, 'F2', 0.08, 0.18, 0.32);
-  addText('(Corporate Finance & Accounts)', sigX + 12, sigY - 20, 6.8, 'F1', 0.4, 0.45, 0.5);
+  addText('For DIGI8 SOLUTIONS PRIVATE LIMITED', sigX, termsBoxY + 54, 7.5, 'F2', 0.1, 0.15, 0.25);
+
+  if (sigImg) {
+    const sigTargetWidth = 120;
+    const aspect = sigImg.height / sigImg.width;
+    const sigTargetHeight = Math.min(48, Math.max(26, Math.round(sigTargetWidth * aspect)));
+    const sigDrawX = 412;
+    const sigDrawY = termsBoxY + 4;
+    streamLines.push(`q`);
+    streamLines.push(`${sigTargetWidth.toFixed(2)} 0 0 ${sigTargetHeight.toFixed(2)} ${sigDrawX.toFixed(2)} ${sigDrawY.toFixed(2)} cm`);
+    streamLines.push(`/${sigImg.alias} Do`);
+    streamLines.push(`Q`);
+  } else {
+    drawSignature(sigX, sigY + 6);
+  }
+
+  drawLine(sigX - 10, termsBoxY + 2, pageWidth - 36, termsBoxY + 2, 0.3, 0.35, 0.45, 0.8);
+  addText(
+    data.authorized_signatory_name || data.payment_details?.authorized_signatory_name || 'Authorized Signatory',
+    sigX + 16,
+    termsBoxY - 9,
+    8,
+    'F2',
+    0.08,
+    0.18,
+    0.32
+  );
+  addText(
+    data.authorized_signatory_title || data.payment_details?.authorized_signatory_title || 'Corporate Finance & Accounts Division',
+    sigX + 2,
+    termsBoxY - 18,
+    6.8,
+    'F1',
+    0.4,
+    0.45,
+    0.5
+  );
 
   // 9. Footer
   drawRect(0, 0, pageWidth, 24, 0.04, 0.08, 0.16);
@@ -423,38 +648,68 @@ export function generateInvoicePdfBuffer(data: InvoicePdfData): Buffer {
   const contentStream = streamLines.join('\n');
   const streamLength = Buffer.byteLength(contentStream, 'utf-8');
 
-  const objects: string[] = [];
+  const objects: Buffer[] = [];
 
   // Obj 1: Catalog
-  objects.push(`1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`);
+  objects.push(Buffer.from(`1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`, 'utf-8'));
 
   // Obj 2: Pages
-  objects.push(`2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n`);
+  objects.push(Buffer.from(`2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n`, 'utf-8'));
 
   // Obj 3: Page
+  let xobjectsDict = '';
+  if (imageResources.length > 0) {
+    xobjectsDict = '/XObject << ' + imageResources.map(img => `/${img.alias} ${img.objNum} 0 R`).join(' ') + ' >> ';
+  }
   objects.push(
-    `3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>\nendobj\n`
+    Buffer.from(
+      `3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> ${xobjectsDict}>> /Contents 6 0 R >>\nendobj\n`,
+      'utf-8'
+    )
   );
 
   // Obj 4: Helvetica Regular
-  objects.push(`4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n`);
+  objects.push(Buffer.from(`4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n`, 'utf-8'));
 
   // Obj 5: Helvetica Bold
-  objects.push(`5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n`);
+  objects.push(Buffer.from(`5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n`, 'utf-8'));
 
   // Obj 6: Content Stream
-  objects.push(`6 0 obj\n<< /Length ${streamLength} >>\nstream\n${contentStream}\nendstream\nendobj\n`);
+  objects.push(
+    Buffer.from(`6 0 obj\n<< /Length ${streamLength} >>\nstream\n${contentStream}\nendstream\nendobj\n`, 'utf-8')
+  );
 
-  // Header
-  let pdfContent = `%PDF-1.4\n%\xE2\xE3\xCF\xD3\n`;
-  const offsets: number[] = [0]; // 0 is dummy for 65535 'f'
-
-  for (let i = 0; i < objects.length; i++) {
-    offsets.push(Buffer.byteLength(pdfContent, 'utf-8'));
-    pdfContent += objects[i];
+  // Obj 7+: Image XObjects & Soft Masks
+  for (const img of imageResources) {
+    if (img.maskObjNum && img.maskHeader && img.maskStreamData) {
+      objects.push(
+        Buffer.concat([
+          Buffer.from(`${img.maskObjNum} 0 obj\n${img.maskHeader}\nstream\n`, 'utf-8'),
+          img.maskStreamData,
+          Buffer.from(`\nendstream\nendobj\n`, 'utf-8')
+        ])
+      );
+    }
+    objects.push(
+      Buffer.concat([
+        Buffer.from(`${img.objNum} 0 obj\n${img.dictHeader}\nstream\n`, 'utf-8'),
+        img.streamData,
+        Buffer.from(`\nendstream\nendobj\n`, 'utf-8')
+      ])
+    );
   }
 
-  const startxref = Buffer.byteLength(pdfContent, 'utf-8');
+  // Header
+  const headerBuf = Buffer.from('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n', 'binary');
+  let currentOffset = headerBuf.length;
+  const offsets: number[] = [0];
+
+  for (let i = 0; i < objects.length; i++) {
+    offsets.push(currentOffset);
+    currentOffset += objects[i].length;
+  }
+
+  const startxref = currentOffset;
 
   // Cross-reference table
   let xref = `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
@@ -465,7 +720,8 @@ export function generateInvoicePdfBuffer(data: InvoicePdfData): Buffer {
   // Trailer
   const trailer = `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${startxref}\n%%EOF\n`;
 
-  pdfContent += xref + trailer;
+  const xrefBuf = Buffer.from(xref, 'utf-8');
+  const trailerBuf = Buffer.from(trailer, 'utf-8');
 
-  return Buffer.from(pdfContent, 'utf-8');
+  return Buffer.concat([headerBuf, ...objects, xrefBuf, trailerBuf]);
 }

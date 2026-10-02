@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { X, Settings, Save, CheckCircle2, AlertCircle, Building2, CreditCard } from 'lucide-react';
-import { BillingSettings, getBillingSettings, updateBillingSettings } from '../../../lib/billingApi';
+import { useState, useEffect, useRef } from 'react';
+import { X, Settings, Save, CheckCircle2, AlertCircle, Building2, CreditCard, Upload, Stamp, PenTool, Image as ImageIcon } from 'lucide-react';
+import { BillingSettings, getBillingSettings, updateBillingSettings, uploadBillingAsset } from '../../../lib/billingApi';
 
 interface BillingSettingsModalProps {
   isOpen: boolean;
@@ -49,6 +49,17 @@ export default function BillingSettingsModal({
   const [showBankDetails, setShowBankDetails] = useState<boolean>(true);
   const [paymentInstructions, setPaymentInstructions] = useState('Scan the UPI QR code using any UPI App (GPay/PhonePe/Paytm) or transfer directly to our current bank account using NEFT/RTGS/IMPS.');
 
+  // Official Seal Stamp & Authorized Signature
+  const [sealUrl, setSealUrl] = useState('/images/seal.png');
+  const [signatureUrl, setSignatureUrl] = useState('/images/signature.png');
+  const [authorizedSignatoryName, setAuthorizedSignatoryName] = useState('Authorized Signatory');
+  const [authorizedSignatoryTitle, setAuthorizedSignatoryTitle] = useState('Corporate Finance & Accounts Division');
+  const [uploadingSeal, setUploadingSeal] = useState(false);
+  const [uploadingSig, setUploadingSig] = useState(false);
+
+  const sealFileInputRef = useRef<HTMLInputElement>(null);
+  const sigFileInputRef = useRef<HTMLInputElement>(null);
+
   // Terms
   const [terms, setTerms] = useState(
     '1. Payment is strictly due within 15 days of invoice generation.\n2. Goods once sold are covered under respective manufacturer warranty.\n3. Custom software deliveries are governed by the Master Service Agreement (MSA).\n4. All disputes are subject to Mumbai jurisdiction only.'
@@ -94,10 +105,69 @@ export default function BillingSettingsModal({
         if (d.show_bank_details !== undefined) setShowBankDetails(!!d.show_bank_details);
         if (d.payment_instructions) setPaymentInstructions(d.payment_instructions);
 
+        if (d.seal_url) setSealUrl(d.seal_url);
+        if (d.signature_url) setSignatureUrl(d.signature_url);
+        if (d.authorized_signatory_name) setAuthorizedSignatoryName(d.authorized_signatory_name);
+        if (d.authorized_signatory_title) setAuthorizedSignatoryTitle(d.authorized_signatory_title);
+
         if (d.terms_conditions) setTerms(d.terms_conditions);
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSealFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingSeal(true);
+    setErrorMessage('');
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64Data = reader.result as string;
+        setSealUrl(base64Data);
+        const uploadRes = await uploadBillingAsset('seal', base64Data);
+        if (uploadRes.success && uploadRes.url) {
+          setSealUrl(uploadRes.url);
+          setSuccessMessage('Official Company Seal stamp uploaded successfully!');
+          setTimeout(() => setSuccessMessage(''), 3000);
+        } else if (!uploadRes.success) {
+          setErrorMessage(uploadRes.error || 'Failed to upload seal image.');
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Error processing seal image.');
+    } finally {
+      setUploadingSeal(false);
+    }
+  };
+
+  const handleSignatureFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingSig(true);
+    setErrorMessage('');
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64Data = reader.result as string;
+        setSignatureUrl(base64Data);
+        const uploadRes = await uploadBillingAsset('signature', base64Data);
+        if (uploadRes.success && uploadRes.url) {
+          setSignatureUrl(uploadRes.url);
+          setSuccessMessage('Authorized Signature image uploaded successfully!');
+          setTimeout(() => setSuccessMessage(''), 3000);
+        } else if (!uploadRes.success) {
+          setErrorMessage(uploadRes.error || 'Failed to upload signature image.');
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Error processing signature image.');
+    } finally {
+      setUploadingSig(false);
     }
   };
 
@@ -134,12 +204,16 @@ export default function BillingSettingsModal({
         upi_display_name: upiDisplayName,
         show_upi_qr: showUpiQr,
         show_bank_details: showBankDetails,
-        payment_instructions: paymentInstructions
+        payment_instructions: paymentInstructions,
+        seal_url: sealUrl,
+        signature_url: signatureUrl,
+        authorized_signatory_name: authorizedSignatoryName,
+        authorized_signatory_title: authorizedSignatoryTitle
       };
 
       const res = await updateBillingSettings(payload);
       if (res.success) {
-        setSuccessMessage('Billing & Invoice numbering settings updated successfully.');
+        setSuccessMessage('Billing, Seal Stamp & Authorized Signature settings updated successfully.');
         if (onSettingsSaved) onSettingsSaved();
         setTimeout(() => setSuccessMessage(''), 3000);
       } else {
@@ -464,7 +538,148 @@ export default function BillingSettingsModal({
             </div>
           </div>
 
-          {/* Section 4: Default Terms and Conditions */}
+          {/* Section 4: Official Company Seal Stamp & Authorized Signature */}
+          <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-4">
+            <div>
+              <h4 className="font-bold text-sm text-brand-cyan uppercase tracking-wider flex items-center gap-2">
+                <Stamp size={16} /> Official Company Seal & Authorized Signature
+              </h4>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Upload your official corporate seal stamp and calligraphic signature PNGs. These will be rendered dynamically on commercial tax invoices, browser prints, and downloaded/emailed PDF documents.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-1">
+              {/* Company Seal Card */}
+              <div className="p-3.5 rounded-xl bg-black/30 border border-white/10 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                    <Stamp size={14} className="text-blue-400" /> Company Seal Stamp (PNG)
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">200x200 / 400x400</span>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="w-24 h-24 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-center p-1 relative overflow-hidden shrink-0">
+                    <img
+                      src={sealUrl || '/images/seal.png'}
+                      alt="Company Seal"
+                      className="w-full h-full object-contain filter drop-shadow-md"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+
+                  <div className="space-y-2 flex-1">
+                    <input
+                      type="file"
+                      ref={sealFileInputRef}
+                      onChange={handleSealFileChange}
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => sealFileInputRef.current?.click()}
+                      disabled={uploadingSeal}
+                      className="w-full py-1.5 px-3 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+                    >
+                      <Upload size={13} />
+                      {uploadingSeal ? 'Uploading Seal...' : 'Upload Seal PNG'}
+                    </button>
+                    <input
+                      type="text"
+                      value={sealUrl}
+                      onChange={e => setSealUrl(e.target.value)}
+                      placeholder="/images/seal.png"
+                      className="w-full bg-[#070b13] border border-white/10 rounded-lg px-2.5 py-1.5 text-[11px] text-white font-mono focus:outline-none"
+                    />
+                    <p className="text-[10px] text-slate-500">
+                      Supports high-res circular transparent PNG or crisp JPEG stamps.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Authorized Signature Card */}
+              <div className="p-3.5 rounded-xl bg-black/30 border border-white/10 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                    <PenTool size={14} className="text-cyan-400" /> Authorized Signature (PNG)
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">300x120 / transparent</span>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="w-24 h-24 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-center p-2 relative overflow-hidden shrink-0">
+                    <img
+                      src={signatureUrl || '/images/signature.png'}
+                      alt="Authorized Signature"
+                      className="w-full h-full object-contain filter contrast-125"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+
+                  <div className="space-y-2 flex-1">
+                    <input
+                      type="file"
+                      ref={sigFileInputRef}
+                      onChange={handleSignatureFileChange}
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => sigFileInputRef.current?.click()}
+                      disabled={uploadingSig}
+                      className="w-full py-1.5 px-3 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-brand-cyan/30 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+                    >
+                      <Upload size={13} />
+                      {uploadingSig ? 'Uploading Signature...' : 'Upload Signature PNG'}
+                    </button>
+                    <input
+                      type="text"
+                      value={signatureUrl}
+                      onChange={e => setSignatureUrl(e.target.value)}
+                      placeholder="/images/signature.png"
+                      className="w-full bg-[#070b13] border border-white/10 rounded-lg px-2.5 py-1.5 text-[11px] text-white font-mono focus:outline-none"
+                    />
+                    <p className="text-[10px] text-slate-500">
+                      Supports transparent calligraphy pen signature PNGs.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Signatory Name & Designation */}
+              <div className="space-y-1">
+                <label className="text-[11px] text-slate-300 block font-medium">Authorized Signatory Name</label>
+                <input
+                  type="text"
+                  value={authorizedSignatoryName}
+                  onChange={e => setAuthorizedSignatoryName(e.target.value)}
+                  placeholder="Julian Thorne / Authorized Signatory"
+                  className="w-full bg-[#070b13] border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] text-slate-300 block font-medium">Signatory Title / Department</label>
+                <input
+                  type="text"
+                  value={authorizedSignatoryTitle}
+                  onChange={e => setAuthorizedSignatoryTitle(e.target.value)}
+                  placeholder="Corporate Finance & Accounts Division"
+                  className="w-full bg-[#070b13] border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 5: Default Terms and Conditions */}
           <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-2">
             <h4 className="font-bold text-sm text-white uppercase tracking-wider">Default Terms & Conditions</h4>
             <textarea

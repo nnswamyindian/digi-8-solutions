@@ -44,33 +44,42 @@ export default function InvoiceDetailsModal({
   const [selectedPaymentForReversal, setSelectedPaymentForReversal] = useState<PaymentRecord | null>(null);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [showSendEmailModal, setShowSendEmailModal] = useState(false);
+  const [sealImgFailed, setSealImgFailed] = useState(false);
+  const [sigImgFailed, setSigImgFailed] = useState(false);
 
   const printAreaRef = useRef<HTMLDivElement>(null);
 
   // Parse payment details snapshot if available
   const snapshot: PaymentDetailsSnapshot = (() => {
+    const defaults: PaymentDetailsSnapshot = {
+      bank_name: 'HDFC Bank Ltd',
+      bank_account_holder: 'Digi8 Solutions Private Limited',
+      bank_account_number: '50200098765432',
+      bank_ifsc: 'HDFC0000123',
+      bank_branch: 'Mindspace Branch, Mumbai',
+      upi_id: 'digi8solutions@hdfcbank',
+      upi_display_name: 'Digi8 Solutions Pvt Ltd',
+      show_upi_qr: true,
+      show_bank_details: true,
+      payment_instructions: 'Scan the UPI QR code using any UPI App (GPay, PhonePe, Paytm, BHIM) to pay instantly. For direct NEFT/RTGS/IMPS, transfer to our HDFC corporate account above and mention the Invoice number in the transaction description.',
+      seal_url: '/images/seal.png',
+      signature_url: '/images/signature.png',
+      authorized_signatory_name: 'Authorized Signatory',
+      authorized_signatory_title: 'Corporate Finance & Accounts Division'
+    };
+
     if (!invoice?.payment_details_snapshot) {
-      return {
-        bank_name: 'HDFC Bank Ltd',
-        bank_account_holder: 'Digi8 Solutions Private Limited',
-        bank_account_number: '50200098765432',
-        bank_ifsc: 'HDFC0000123',
-        bank_branch: 'Mindspace Branch, Mumbai',
-        upi_id: 'digi8solutions@hdfcbank',
-        upi_display_name: 'Digi8 Solutions Pvt Ltd',
-        show_upi_qr: true,
-        show_bank_details: true,
-        payment_instructions: 'Scan the UPI QR code using any UPI App (GPay, PhonePe, Paytm, BHIM) to pay instantly. For direct NEFT/RTGS/IMPS, transfer to our HDFC corporate account above and mention the Invoice number in the transaction description.'
-      };
+      return defaults;
     }
     if (typeof invoice.payment_details_snapshot === 'string') {
       try {
-        return JSON.parse(invoice.payment_details_snapshot);
+        const parsed = JSON.parse(invoice.payment_details_snapshot);
+        return { ...defaults, ...parsed };
       } catch {
-        return {};
+        return defaults;
       }
     }
-    return invoice.payment_details_snapshot;
+    return { ...defaults, ...invoice.payment_details_snapshot };
   })();
 
   const balanceToPay = Math.max(0, Number(invoice?.balance_amount) || 0);
@@ -227,7 +236,7 @@ export default function InvoiceDetailsModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md overflow-y-auto animate-fade-in print:p-0 print:bg-white">
       <div className="bg-[#0b101b] border border-white/10 rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto print:border-none print:shadow-none print:max-h-none print:w-full print:bg-white print:text-black">
         
-        {/* Exact Print Styles for QR Code, Vector Ink & Badges */}
+        {/* Exact Print Styles for QR Code, Seal Stamp, Signature & Vector Ink */}
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             body {
@@ -239,7 +248,9 @@ export default function InvoiceDetailsModal({
               print-color-adjust: exact !important;
               color-adjust: exact !important;
             }
-            .print-exact-qr, .print-exact-qr svg, .print-exact-qr img {
+            .print-exact-qr, .print-exact-qr svg, .print-exact-qr img,
+            .print-exact-seal, .print-exact-seal img,
+            .print-exact-sig, .print-exact-sig img {
               display: block !important;
               visibility: visible !important;
               opacity: 1 !important;
@@ -755,47 +766,74 @@ export default function InvoiceDetailsModal({
               </div>
             </div>
 
-            {/* Official Company Seal (Stamp) */}
-            <div className="flex items-center justify-center">
-              <div className="relative w-28 h-28 rounded-full border-2 border-dashed border-blue-500/70 print:border-blue-900 flex items-center justify-center text-center p-1.5 shadow-[0_0_15px_rgba(59,130,246,0.15)] print:shadow-none -rotate-6 transition-transform hover:rotate-0">
-                <div className="w-full h-full rounded-full border border-blue-400 print:border-blue-900 flex flex-col items-center justify-center text-blue-400 print:text-blue-900 bg-blue-500/[0.04] print:bg-transparent">
-                  <span className="text-[6.5px] font-black uppercase tracking-wider">DIGI8 SOLUTIONS</span>
-                  <span className="text-[5.5px] font-bold text-cyan-400 print:text-blue-800">★ PVT. LTD. ★</span>
-                  <div className="my-0.5 px-2 py-0.5 bg-blue-500/20 print:bg-blue-100 rounded text-[7px] font-black tracking-widest text-white print:text-blue-900">
-                    SEAL
+            {/* Official Company Seal (Stamp) PNG */}
+            <div className="flex flex-col items-center justify-center print-exact-seal">
+              <div className="relative w-28 h-28 flex items-center justify-center">
+                {!sealImgFailed ? (
+                  <img
+                    src={snapshot.seal_url || '/images/seal.png'}
+                    alt="Official Company Seal"
+                    className="w-28 h-28 object-contain filter drop-shadow-md print:shadow-none -rotate-6 transition-transform hover:rotate-0 print:block"
+                    onError={() => setSealImgFailed(true)}
+                  />
+                ) : (
+                  <div className="relative w-28 h-28 rounded-full border-2 border-dashed border-blue-500/70 print:border-blue-900 flex items-center justify-center text-center p-1.5 shadow-[0_0_15px_rgba(59,130,246,0.15)] print:shadow-none -rotate-6">
+                    <div className="w-full h-full rounded-full border border-blue-400 print:border-blue-900 flex flex-col items-center justify-center text-blue-400 print:text-blue-900 bg-blue-500/[0.04] print:bg-transparent">
+                      <span className="text-[6.5px] font-black uppercase tracking-wider">DIGI8 SOLUTIONS</span>
+                      <span className="text-[5.5px] font-bold text-cyan-400 print:text-blue-800">★ PVT. LTD. ★</span>
+                      <div className="my-0.5 px-2 py-0.5 bg-blue-500/20 print:bg-blue-100 rounded text-[7px] font-black tracking-widest text-white print:text-blue-900">
+                        SEAL
+                      </div>
+                      <span className="text-[5.5px] font-bold text-slate-300 print:text-gray-700">VERIFIED</span>
+                      <span className="text-[5px] font-semibold text-slate-400 print:text-gray-600">HYDERABAD • MUMBAI</span>
+                    </div>
                   </div>
-                  <span className="text-[5.5px] font-bold text-slate-300 print:text-gray-700">VERIFIED</span>
-                  <span className="text-[5px] font-semibold text-slate-400 print:text-gray-600">BANGALORE • MUMBAI</span>
-                </div>
+                )}
               </div>
+              <span className="text-[9px] font-semibold text-slate-400 print:text-gray-600 mt-1 uppercase tracking-wider">
+                Official Seal Stamp
+              </span>
             </div>
 
-            {/* Authorized Signatory & Signature */}
-            <div className="text-center sm:text-right space-y-1">
+            {/* Authorized Signatory & Signature PNG */}
+            <div className="text-center sm:text-right space-y-1 print-exact-sig">
               <div className="text-[11px] font-semibold text-slate-400 print:text-gray-700">
                 For <span className="font-bold text-white print:text-black">Digi8 Solutions Private Limited</span>
               </div>
               
-              {/* Calligraphic Signature SVG */}
-              <div className="h-12 flex items-center justify-center sm:justify-end py-1">
-                <svg className="w-36 h-10 text-cyan-400 print:text-blue-900" viewBox="0 0 160 50" fill="none" stroke="currentColor">
-                  <path
-                    d="M 10 35 C 25 15, 30 45, 45 20 C 55 10, 60 30, 75 22 C 85 16, 95 35, 110 18 C 120 12, 130 28, 145 20"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+              {/* Calligraphic Signature PNG */}
+              <div className="h-14 flex items-center justify-center sm:justify-end py-1">
+                {!sigImgFailed ? (
+                  <img
+                    src={snapshot.signature_url || '/images/signature.png'}
+                    alt="Authorized Signature"
+                    className="h-12 w-auto max-w-[175px] object-contain filter contrast-125 print:block"
+                    onError={() => setSigImgFailed(true)}
                   />
-                  <path
-                    d="M 25 40 C 65 42, 115 39, 150 35"
-                    strokeWidth="1.4"
-                    strokeLinecap="round"
-                  />
-                </svg>
+                ) : (
+                  <svg className="w-36 h-10 text-cyan-400 print:text-blue-900" viewBox="0 0 160 50" fill="none" stroke="currentColor">
+                    <path
+                      d="M 10 35 C 25 15, 30 45, 45 20 C 55 10, 60 30, 75 22 C 85 16, 95 35, 110 18 C 120 12, 130 28, 145 20"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M 25 40 C 65 42, 115 39, 150 35"
+                      strokeWidth="1.4"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                )}
               </div>
 
               <div className="w-44 border-b border-white/20 print:border-black mx-auto sm:ml-auto sm:mr-0 mb-1"></div>
-              <div className="text-xs font-bold text-slate-200 print:text-black">Authorized Signatory</div>
-              <div className="text-[10px] text-slate-400 print:text-gray-600">Corporate Finance & Accounts Division</div>
+              <div className="text-xs font-bold text-slate-200 print:text-black">
+                {snapshot.authorized_signatory_name || 'Authorized Signatory'}
+              </div>
+              <div className="text-[10px] text-slate-400 print:text-gray-600">
+                {snapshot.authorized_signatory_title || 'Corporate Finance & Accounts Division'}
+              </div>
             </div>
           </div>
 
