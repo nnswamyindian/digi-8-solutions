@@ -907,12 +907,14 @@ router.post('/invoices/:id/send-email', async (req, res) => {
       savePersistentStore(store);
     }
 
-    broadcastAdminNotification({
-      type: 'INVOICE_SENT',
-      title: 'Invoice Sent via Email',
-      message: `Invoice #${invoice.invoice_number} sent to ${recipientEmail} with PDF attached.`,
-      timestamp: new Date().toISOString()
-    });
+    broadcastAdminNotification(
+      'INVOICE_SENT',
+      'Invoice Sent via Email',
+      `Invoice #${invoice.invoice_number} sent to ${recipientEmail} with PDF attached.`,
+      {
+        timestamp: new Date().toISOString()
+      }
+    );
 
     res.json({
       success: true,
