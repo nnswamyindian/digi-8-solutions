@@ -1,7 +1,11 @@
-﻿import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import AdminLayout from "./AdminLayout";
 import { supabase } from "../../lib/api";
-import { RefreshCw, Eye, X, User, Mail, Phone, Building2, Globe, DollarSign, Tag, MessageSquare, Calendar, UserCheck, ChevronDown } from "lucide-react";
+import { 
+  RefreshCw, Eye, X, User, Mail, Phone, Building2, Globe, DollarSign, 
+  Tag, MessageSquare, Calendar, UserCheck, ChevronDown, Receipt, CheckCircle, ExternalLink 
+} from "lucide-react";
 
 type Lead = {
   id: string;
@@ -37,18 +41,94 @@ const TEAM_MEMBERS = [
   { id: "subadmin_1", name: "Sneha (Sub Admin)" },
 ];
 
-function DetailModal({ lead, onClose, onStatusChange, onAssign }: { lead: Lead; onClose: () => void; onStatusChange: (id: string, status: string) => void; onAssign: (id: string, assignee: string) => void }) {
+function DetailModal({ 
+  lead, 
+  onClose, 
+  onStatusChange, 
+  onAssign 
+}: { 
+  lead: Lead; 
+  onClose: () => void; 
+  onStatusChange: (id: string, status: string) => void; 
+  onAssign: (id: string, assignee: string) => void;
+}) {
+  const navigate = useNavigate();
+  const [relatedInvoices, setRelatedInvoices] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Check for related invoices generated for this lead/contact
+    if (lead?.email || lead?.id) {
+      fetch(`/api/invoices?search=${encodeURIComponent(lead.email || lead.name)}`)
+        .then(r => r.json())
+        .then(d => {
+          if (d.success && Array.isArray(d.data)) {
+            setRelatedInvoices(d.data);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [lead]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
       <div className="bg-[#0a0f1a] border border-white/10 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
+        <div className="flex items-center justify-between p-6 border-b border-white/10 bg-slate-900/60">
           <div>
-            <h2 className="font-outfit font-bold text-xl text-white">{lead.name}</h2>
-            <p className="text-slate-400 text-sm">{lead.email}</p>
+            <div className="flex items-center gap-2">
+              <h2 className="font-outfit font-bold text-xl text-white">{lead.name}</h2>
+              <span className="text-xs font-mono text-brand-cyan bg-brand-cyan/10 px-2 py-0.5 rounded-full border border-brand-cyan/20">
+                #LEAD-{lead.id}
+              </span>
+            </div>
+            <p className="text-slate-400 text-sm mt-0.5">{lead.email}</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl text-slate-400 hover:text-white transition-colors"><X size={20} /></button>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                onClose();
+                navigate('/admin/invoices', { state: { leadToConvert: lead } });
+              }}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-brand-cyan to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-bold text-xs flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(0,229,255,0.3)]"
+            >
+              <Receipt size={14} /> Create Invoice
+            </button>
+            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl text-slate-400 hover:text-white transition-colors">
+              <X size={20} />
+            </button>
+          </div>
         </div>
+
         <div className="p-6 space-y-6">
+          {/* Related Invoices Banner */}
+          <div className="p-4 rounded-xl bg-gradient-to-r from-brand-cyan/10 to-blue-900/20 border border-brand-cyan/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div>
+              <div className="text-xs font-bold text-brand-cyan flex items-center gap-1.5">
+                <Receipt size={14} /> Commercial Invoices Linked: {relatedInvoices.length}
+              </div>
+              <div className="text-[11px] text-slate-300 mt-0.5">
+                {relatedInvoices.length > 0 
+                  ? `${relatedInvoices.length} active invoices generated for this client profile.`
+                  : 'No invoices created yet. You can immediately generate one from this lead.'}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {relatedInvoices.slice(0, 2).map((inv: any) => (
+                <button
+                  key={inv.id}
+                  onClick={() => {
+                    onClose();
+                    navigate('/admin/invoices');
+                  }}
+                  className="px-2 py-1 rounded bg-black/40 border border-brand-cyan/40 text-[10px] text-brand-cyan font-mono hover:bg-black/60 flex items-center gap-1"
+                >
+                  <span>{inv.invoice_number}</span>
+                  <ExternalLink size={10} />
+                </button>
+              ))}
+            </div>
+          </div>
           {/* Status & Assign Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -139,6 +219,7 @@ function InfoRow({ icon: Icon, label, value, href }: { icon: any; label: string;
 }
 
 export default function AdminLeads() {
+  const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -234,9 +315,16 @@ export default function AdminLeads() {
                       </td>
                       <td className="px-4 py-3 text-slate-500 text-xs">{lead.created_at ? new Date(lead.created_at).toLocaleDateString() : "-"}</td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => setSelectedLead(lead)} className="px-2 py-1 rounded-lg bg-brand-cyan/10 hover:bg-brand-cyan/20 text-brand-cyan text-xs font-semibold flex items-center gap-1 transition-colors border border-brand-cyan/20">
+                        <div className="flex items-center gap-1.5">
+                          <button onClick={() => setSelectedLead(lead)} className="px-2 py-1 rounded-lg bg-brand-cyan/10 hover:bg-brand-cyan/20 text-brand-cyan text-xs font-semibold flex items-center gap-1 transition-colors border border-brand-cyan/20" title="View Lead Details">
                             <Eye size={12} /> View
+                          </button>
+                          <button 
+                            onClick={() => navigate('/admin/invoices', { state: { leadToConvert: lead } })} 
+                            className="px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-semibold flex items-center gap-1 transition-colors border border-emerald-500/20"
+                            title="Generate Commercial Invoice for Lead"
+                          >
+                            <Receipt size={12} /> Invoice
                           </button>
                           <button onClick={() => deleteLead(lead.id)} className="text-red-400 hover:text-red-300 px-2 py-1 bg-red-500/10 hover:bg-red-500/20 rounded-lg text-xs transition-colors">Del</button>
                         </div>

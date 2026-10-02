@@ -50,6 +50,7 @@ import AdminAtsAnalytics from './pages/admin/AdminAtsAnalytics';
 import AdminJobEditor from './pages/admin/AdminJobEditor';
 import CandidateStatusTracker from './pages/CandidateStatusTracker';
 import AdminTickets from './pages/admin/AdminTickets';
+import AdminInvoices from './pages/admin/AdminInvoices';
 import AdminLeads from './pages/admin/AdminLeads';
 import AdminTestimonials from './pages/admin/AdminTestimonials';
 import AdminQuotes from './pages/admin/AdminQuotes';
@@ -115,6 +116,7 @@ function AppShell() {
         <Route path="/admin/careers/jobs/new" element={<RequireAuth><AdminJobEditor /></RequireAuth>} />
         <Route path="/admin/careers/jobs/:id/edit" element={<RequireAuth><AdminJobEditor /></RequireAuth>} />
         <Route path="/admin/tickets" element={<RequireAuth><AdminTickets /></RequireAuth>} />
+        <Route path="/admin/invoices" element={<RequireAuth><AdminInvoices /></RequireAuth>} />
         <Route path="/admin/leads" element={<RequireAuth><AdminLeads /></RequireAuth>} />
         <Route path="/admin/quotes" element={<RequireAuth><AdminQuotes /></RequireAuth>} />
         <Route path="/admin/projects" element={<RequireAuth><AdminProjects /></RequireAuth>} />

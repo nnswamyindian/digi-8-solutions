@@ -47,6 +47,7 @@ export interface SystemModule {
 
 export const SYSTEM_MODULES: SystemModule[] = [
   { id: 'dashboard', name: 'Dashboard Overview', category: 'Core', path: '/admin/dashboard', description: 'Metrics, system telemetry, and quick actions' },
+  { id: 'invoices', name: 'Billing & Commercial Invoices', category: 'Business & CRM', path: '/admin/invoices', description: 'Create, search, track, print invoices and payments' },
   { id: 'careers_overview', name: 'Careers Overview', category: 'Careers & ATS', path: '/admin/careers', description: 'Job openings, status toggle, and ATS portal' },
   { id: 'careers_pipeline', name: 'ATS Kanban Pipeline', category: 'Careers & ATS', path: '/admin/careers/pipeline', description: 'Drag-and-drop applicant pipeline stages' },
   { id: 'careers_candidates', name: 'Candidate CRM', category: 'Careers & ATS', path: '/admin/careers/candidates', description: 'Candidate profiles, resumes, and ratings' },
@@ -68,10 +69,16 @@ export const SYSTEM_MODULES: SystemModule[] = [
 export const DEFAULT_ROLE_MODULES: Record<AdminRole, string[]> = {
   'Super Admin': SYSTEM_MODULES.map(m => m.path),
   'Sub Admin': [
-    '/admin/dashboard', '/admin/careers', '/admin/careers/pipeline', '/admin/careers/candidates',
+    '/admin/dashboard', '/admin/invoices', '/admin/careers', '/admin/careers/pipeline', '/admin/careers/candidates',
     '/admin/careers/interviews', '/admin/careers/automations', '/admin/careers/analytics',
     '/admin/tickets', '/admin/leads', '/admin/quotes', '/admin/projects', '/admin/contacts',
     '/admin/testimonials', '/admin/blog', '/admin/pricing', '/admin/analytics'
+  ],
+  'Sales Manager': [
+    '/admin/dashboard', '/admin/invoices', '/admin/leads', '/admin/quotes', '/admin/contacts', '/admin/pricing'
+  ],
+  'Sales Executive': [
+    '/admin/dashboard', '/admin/invoices', '/admin/leads', '/admin/quotes'
   ],
   'HR Admin': [
     '/admin/dashboard', '/admin/careers', '/admin/careers/pipeline', '/admin/careers/candidates',
@@ -103,6 +110,20 @@ const ROLE_PERMISSIONS: Record<AdminRole, { title: string; color: string; bg: st
     bg: 'bg-cyan-500/10',
     border: 'border-cyan-500/30',
     icon: Shield
+  },
+  'Sales Manager': {
+    title: 'Sales Manager',
+    color: 'text-indigo-400',
+    bg: 'bg-indigo-500/10',
+    border: 'border-indigo-500/30',
+    icon: TrendingUp
+  },
+  'Sales Executive': {
+    title: 'Sales Executive',
+    color: 'text-emerald-400',
+    bg: 'bg-emerald-500/10',
+    border: 'border-emerald-500/30',
+    icon: Briefcase
   },
   'HR Admin': {
     title: 'HR Admin',
@@ -136,6 +157,8 @@ const ROLE_PERMISSIONS: Record<AdminRole, { title: string; color: string; bg: st
 
 const ALL_ROLES: AdminRole[] = [
   'Sub Admin',
+  'Sales Manager',
+  'Sales Executive',
   'HR Admin',
   'Developer',
   'Marketing Executive',

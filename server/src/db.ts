@@ -17,8 +17,460 @@ export interface PersistentDbStore {
   quotes: any[];
   career_jobs: any[];
   career_applications: any[];
+  customers: any[];
+  products: any[];
+  invoices: any[];
+  invoice_items: any[];
+  payments: any[];
+  projects: any[];
+  project_expenses: any[];
+  invoice_sequences: any[];
+  invoice_settings: any[];
+  invoice_audit_logs: any[];
   [key: string]: any[];
 }
+
+export const DEFAULT_BILLING_PRODUCTS = [
+  {
+    id: 1,
+    name: 'Digi8 Kirana Software',
+    code: 'DIGI8-SW-KIRANA',
+    category: 'Software',
+    description: 'Complete Kirana, Supermarket & Retail Billing with Barcode Scanner & Inventory sync',
+    market_price: 25000,
+    default_selling_price: 20000,
+    tax_percentage: 18,
+    hsn_sac: '997331',
+    unit: 'license',
+    is_active: true,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 2,
+    name: 'Custom Software Development',
+    code: 'DIGI8-SW-CUSTOM',
+    category: 'Software',
+    description: 'Bespoke enterprise web and mobile software tailored to specific workflows',
+    market_price: 85000,
+    default_selling_price: 65000,
+    tax_percentage: 18,
+    hsn_sac: '998314',
+    unit: 'project',
+    is_active: true,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 3,
+    name: 'SaaS Subscription (Annual)',
+    code: 'DIGI8-SW-SAAS',
+    category: 'Software',
+    description: 'Enterprise Cloud SaaS subscription including automated daily backups & SLAs',
+    market_price: 36000,
+    default_selling_price: 28000,
+    tax_percentage: 18,
+    hsn_sac: '997331',
+    unit: 'year',
+    is_active: true,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 4,
+    name: 'Website & E-Commerce Development',
+    code: 'DIGI8-SW-WEB',
+    category: 'Software',
+    description: 'High-speed headless e-commerce store with integrated payment gateways and CMS',
+    market_price: 45000,
+    default_selling_price: 35000,
+    tax_percentage: 18,
+    hsn_sac: '998314',
+    unit: 'website',
+    is_active: true,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 5,
+    name: 'Mobile Application (iOS & Android)',
+    code: 'DIGI8-SW-APP',
+    category: 'Software',
+    description: 'Cross-platform Flutter / React Native mobile app with push notifications',
+    market_price: 90000,
+    default_selling_price: 75000,
+    tax_percentage: 18,
+    hsn_sac: '998314',
+    unit: 'app',
+    is_active: true,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 6,
+    name: 'Digi8 CRM Suite',
+    code: 'DIGI8-SW-CRM',
+    category: 'Software',
+    description: 'Lead management, omnichannel WhatsApp bot, pipeline forecasting and analytics',
+    market_price: 30000,
+    default_selling_price: 24000,
+    tax_percentage: 18,
+    hsn_sac: '997331',
+    unit: 'license',
+    is_active: true,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 7,
+    name: 'Digi8 Enterprise ERP',
+    code: 'DIGI8-SW-ERP',
+    category: 'Software',
+    description: 'End-to-end ERP for procurement, multi-warehouse stock, GST e-invoicing & accounts',
+    market_price: 150000,
+    default_selling_price: 120000,
+    tax_percentage: 18,
+    hsn_sac: '998314',
+    unit: 'deployment',
+    is_active: true,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 8,
+    name: 'Omnidirectional 2D Barcode Scanner',
+    code: 'DIGI8-HW-SCAN2D',
+    category: 'Hardware',
+    description: 'High-speed hands-free omnidirectional 1D/2D desktop QR & barcode scanner',
+    market_price: 4000,
+    default_selling_price: 3500,
+    tax_percentage: 18,
+    hsn_sac: '847160',
+    unit: 'pcs',
+    is_active: true,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 9,
+    name: 'High Speed 80mm Bill Thermal Printer',
+    code: 'DIGI8-HW-PRN80',
+    category: 'Hardware',
+    description: 'Heavy-duty 80mm USB/LAN/Bluetooth thermal receipt printer with auto-cutter',
+    market_price: 8000,
+    default_selling_price: 6500,
+    tax_percentage: 18,
+    hsn_sac: '844332',
+    unit: 'pcs',
+    is_active: true,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 10,
+    name: 'All-in-One Touch POS Terminal',
+    code: 'DIGI8-HW-POSTERM',
+    category: 'Hardware',
+    description: 'Capacitive touch 15.6 inch POS terminal with Intel processor, 8GB RAM, 128GB SSD',
+    market_price: 38000,
+    default_selling_price: 32000,
+    tax_percentage: 18,
+    hsn_sac: '847141',
+    unit: 'pcs',
+    is_active: true,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 11,
+    name: 'Heavy Duty Electronic Cash Drawer',
+    code: 'DIGI8-HW-DRAWER',
+    category: 'Hardware',
+    description: '5-bill 8-coin RJ11 auto-trigger steel cash drawer',
+    market_price: 4500,
+    default_selling_price: 3800,
+    tax_percentage: 18,
+    hsn_sac: '830300',
+    unit: 'pcs',
+    is_active: true,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 12,
+    name: 'Onsite Installation & Setup',
+    code: 'DIGI8-SRV-INST',
+    category: 'Services',
+    description: 'Onsite hardware configuration, network cabling, driver setup, and printer calibration',
+    market_price: 2000,
+    default_selling_price: 1500,
+    tax_percentage: 18,
+    hsn_sac: '998713',
+    unit: 'visit',
+    is_active: true,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 13,
+    name: 'Staff Training & Workflow Onboarding',
+    code: 'DIGI8-SRV-TRAIN',
+    category: 'Services',
+    description: 'Comprehensive staff training session, manual handover, and operational drill',
+    market_price: 3500,
+    default_selling_price: 2500,
+    tax_percentage: 18,
+    hsn_sac: '999293',
+    unit: 'session',
+    is_active: true,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 14,
+    name: 'Annual Maintenance Contract (AMC)',
+    code: 'DIGI8-SRV-AMC',
+    category: 'Services',
+    description: '12-month priority hardware & software support, quarterly preventive visits',
+    market_price: 12000,
+    default_selling_price: 9500,
+    tax_percentage: 18,
+    hsn_sac: '998713',
+    unit: 'year',
+    is_active: true,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 15,
+    name: 'Custom API & Gateway Integration',
+    code: 'DIGI8-SRV-API',
+    category: 'Services',
+    description: 'Payment gateway, SMS, WhatsApp API, and third-party accounting integration',
+    market_price: 15000,
+    default_selling_price: 10000,
+    tax_percentage: 18,
+    hsn_sac: '998314',
+    unit: 'integration',
+    is_active: true,
+    created_at: new Date().toISOString()
+  }
+];
+
+export const DEFAULT_BILLING_SETTINGS = {
+  id: 1,
+  company_name: 'Digi8 Solutions Private Limited',
+  company_address: 'Level 5, Infinity Tower, Mindspace Tech Park, Malad West',
+  company_city: 'Mumbai',
+  company_state: 'Maharashtra',
+  company_state_code: '27',
+  company_pincode: '400064',
+  company_phone: '+91 98200 88888',
+  company_email: 'billing@digi8solutions.com',
+  company_website: 'https://digi8solutions.com',
+  company_gstin: '27AABCD1234F1Z5',
+  company_pan: 'AABCD1234F',
+  invoice_prefix: 'D8/INV',
+  financial_year: '2026-27',
+  starting_number: 1,
+  next_number: 5,
+  number_padding: 6,
+  terms_conditions: '1. Payment is strictly due within 15 days of invoice generation.\n2. Goods once sold are covered under respective manufacturer warranty.\n3. Custom software deliveries are governed by the Master Service Agreement (MSA).\n4. All disputes are subject to Mumbai jurisdiction only.',
+  bank_name: 'HDFC Bank Ltd',
+  bank_account_holder: 'Digi8 Solutions Private Limited',
+  bank_account_number: '50200098765432',
+  bank_ifsc: 'HDFC0000123',
+  bank_branch: 'Mindspace Branch, Mumbai',
+  upi_id: 'digi8solutions@hdfcbank',
+  upi_display_name: 'Digi8 Solutions Pvt Ltd',
+  show_upi_qr: true,
+  show_bank_details: true,
+  payment_instructions: 'Scan the UPI QR code using any UPI App (GPay, PhonePe, Paytm, BHIM) to pay instantly. For direct NEFT/RTGS/IMPS, transfer to our HDFC corporate account above and mention the Invoice number in the transaction description.'
+};
+
+export const DEFAULT_PROJECTS = [
+  {
+    id: 1,
+    project_code: 'PROJ-2026-001',
+    title: 'AuraMed Cloud — Telehealth & Hospital EHR Portal',
+    client: 'Aura Healthcare Global',
+    category: 'Technology & Digital Infrastructure',
+    description: 'Architected an HL7/FHIR compliant hospital management system and patient portal handling 150,000+ digital health records, automated doctor slot booking, and end-to-end encrypted WebRTC video consultations.',
+    project_value: 850000,
+    status: 'active',
+    thumbnail_url: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&q=80',
+    live_url: 'https://auramed-health.example.com',
+    tech_stack: ['Next.js 14', 'Node.js', 'PostgreSQL', 'WebRTC', 'AWS ECS', 'TailwindCSS'],
+    results: { 'Active Patients': '150K+', 'API Latency': '< 450ms', 'Uptime SLA': '99.99%' },
+    featured: true,
+    year: '2026',
+    created_at: new Date(Date.now() - 30 * 86400000).toISOString()
+  },
+  {
+    id: 2,
+    project_code: 'PROJ-2026-002',
+    title: 'SwiftLogistics Fleet Mobile App & Dispatch Hub',
+    client: 'Swift Logistics India Ltd',
+    category: 'Technology & Digital Infrastructure',
+    description: 'Engineered a real-time cross-platform Flutter mobile app for 2,500+ commercial fleet drivers featuring turn-by-turn route optimization, offline QR barcode package scanning, and biometric digital proof of delivery.',
+    project_value: 650000,
+    status: 'active',
+    thumbnail_url: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=800&q=80',
+    live_url: 'https://swiftlogistics.example.com',
+    tech_stack: ['Flutter', 'Dart', 'Google Maps API', 'Firebase Realtime', 'Node.js', 'PostgreSQL'],
+    results: { 'Fleet Drivers': '2,500+', 'Fuel Savings': '22%', 'Trip Efficiency': '+38%' },
+    featured: true,
+    year: '2026',
+    created_at: new Date(Date.now() - 25 * 86400000).toISOString()
+  },
+  {
+    id: 3,
+    project_code: 'PROJ-2026-003',
+    title: 'ShieldFortress — FinTech VAPT Audit & Zero-Trust Cloud',
+    client: 'Fortis Capital & Payments',
+    category: 'Cyber Security & Cloud Infrastructure',
+    description: 'Conducted comprehensive grey-box & black-box Vulnerability Assessment and Penetration Testing (VAPT) across cloud banking microservices, remediating critical attack vectors and securing SOC 2 Type II & ISO 27001 readiness.',
+    project_value: 450000,
+    status: 'completed',
+    thumbnail_url: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80',
+    live_url: 'https://shieldfortress.example.com',
+    tech_stack: ['OWASP Top 10', 'Burp Suite Pro', 'AWS Security Hub', 'Wazuh SIEM', 'Docker', 'Kubernetes'],
+    results: { 'Vulnerabilities Fixed': '100%', 'Breach Incidents': 'Zero', 'Certification': 'ISO 27001 / SOC 2' },
+    featured: true,
+    year: '2025',
+    created_at: new Date(Date.now() - 40 * 86400000).toISOString()
+  },
+  {
+    id: 4,
+    project_code: 'PROJ-2026-004',
+    title: 'Nexura Automation — 3D Corporate Brand Identity',
+    client: 'Nexura Robotics Pvt Ltd',
+    category: 'Branding & Business Identity Solutions',
+    description: 'Developed a futuristic brand identity for an industrial robotics pioneer, including dynamic 3D geometric logo, typographic design system, investor pitch deck, premium corporate stationery, and full brand guideline book.',
+    project_value: 320000,
+    status: 'active',
+    thumbnail_url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
+    live_url: 'https://nexura-robotics.example.com',
+    tech_stack: ['Figma', 'Cinema 4D', 'Adobe Illustrator', 'Brand Manual', 'Print Systems'],
+    results: { 'Seed Round Raised': '$3.2M', 'Brand Recall': '+85%', 'Guidelines': '72 Pages' },
+    featured: true,
+    year: '2026',
+    created_at: new Date(Date.now() - 20 * 86400000).toISOString()
+  },
+  {
+    id: 5,
+    project_code: 'PROJ-2026-005',
+    title: 'Kalyan Luxury Retail — 4.8x ROAS B2B & D2C Growth Engine',
+    client: 'Kalyan Luxury Retail',
+    category: 'Digital Marketing & Business Growth',
+    description: 'Executed a multi-channel digital performance marketing strategy combining high-intent Google Search & Shopping ads, Meta Lookalike audience targeting, and technical e-commerce SEO, achieving a record 4.8x Return on Ad Spend.',
+    project_value: 380000,
+    status: 'active',
+    thumbnail_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80',
+    live_url: 'https://kalyanluxury.example.com',
+    tech_stack: ['Google Ads', 'Meta Ads Manager', 'GA4', 'Meta CAPI', 'Technical SEO', 'Klaviyo'],
+    results: { 'ROAS Achieved': '4.8x', 'Organic Traffic': '+210%', 'Monthly Leads': '3,400+' },
+    featured: true,
+    year: '2025',
+    created_at: new Date(Date.now() - 45 * 86400000).toISOString()
+  },
+  {
+    id: 6,
+    project_code: 'PROJ-2026-006',
+    title: 'FinVenture Capital — Turnkey MCA Formation & Legal Shield',
+    client: 'FinVenture Capital Advisors',
+    category: 'Business Registration & Legal Compliance',
+    description: 'Completed end-to-end statutory company formation, Spice+ MCA filing, DPIIT Startup India certification, multi-class registered trademark (Classes 35 & 36), and corporate governance bylaws within 12 business days.',
+    project_value: 180000,
+    status: 'completed',
+    thumbnail_url: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=800&q=80',
+    live_url: 'https://finventure.example.com',
+    tech_stack: ['MCA Spice+ Portal', 'DPIIT Startup India', 'IP India Trademarks', 'GST Portal', 'ROC Compliance'],
+    results: { 'Turnaround Time': '12 Days', 'Tax Exemption': '3 Years', 'Trademark Granted': 'Classes 35 & 36' },
+    featured: false,
+    year: '2026',
+    created_at: new Date(Date.now() - 15 * 86400000).toISOString()
+  },
+  {
+    id: 7,
+    project_code: 'PROJ-2026-007',
+    title: 'CogniFlow — Enterprise GenAI Workshops & RAG Bot',
+    client: 'CogniFlow Financial Services',
+    category: 'AI, Corporate Training & Transformation',
+    description: 'Conducted a 4-week executive and engineering corporate training program on Generative AI, prompt engineering, and built an internal RAG knowledge-retrieval AI assistant that reduced support resolution time by 82%.',
+    project_value: 520000,
+    status: 'active',
+    thumbnail_url: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=800&q=80',
+    live_url: 'https://cogniflow-ai.example.com',
+    tech_stack: ['LangChain', 'OpenAI GPT-4', 'Python FastAPI', 'pgvector', 'Next.js', 'Docker'],
+    results: { 'Staff Trained': '320+', 'Support Speedup': '82%', 'Automated Answers': '94%' },
+    featured: true,
+    year: '2026',
+    created_at: new Date(Date.now() - 10 * 86400000).toISOString()
+  },
+  {
+    id: 8,
+    project_code: 'PROJ-2026-008',
+    title: 'Veritas Global — Bespoke VIP Onboarding & Swag Boxes',
+    client: 'Veritas Global Technologies',
+    category: 'Customized & Corporate Gifting',
+    description: 'Designed and produced 1,200 curated luxury employee onboarding gift hampers powered by Anuragini, featuring laser-engraved vacuum flasks, vegan leather bound journals, wireless charging pads, and smart digital NFC business cards.',
+    project_value: 420000,
+    status: 'active',
+    thumbnail_url: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=800&q=80',
+    live_url: 'https://veritas-gifting.example.com',
+    tech_stack: ['Laser Engraving', 'Rigid Box Fabrication', 'UV Printing', 'NFC Encoding', 'Apparel Screenprint'],
+    results: { 'Kits Delivered': '1,200 Units', 'Retention Rate': '+40%', 'Quality Rating': '99.4%' },
+    featured: false,
+    year: '2025',
+    created_at: new Date(Date.now() - 50 * 86400000).toISOString()
+  },
+  {
+    id: 9,
+    project_code: 'PROJ-2026-009',
+    title: 'Apex Digital — Dedicated Full-Stack & DevOps Pod',
+    client: 'Apex Global Systems',
+    category: 'Workforce & Business Support',
+    description: 'Deployed a dedicated agile engineering pod consisting of 6 senior React/Node engineers, 1 QA automation engineer, and 1 AWS DevOps specialist, accelerating time-to-market for a mission-critical B2B SaaS platform.',
+    project_value: 950000,
+    status: 'active',
+    thumbnail_url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80',
+    live_url: 'https://apexdigital.example.com',
+    tech_stack: ['React', 'TypeScript', 'Node.js', 'AWS', 'Terraform', 'PostgreSQL'],
+    results: { 'Engineers Deployed': '8 Specialists', 'Sprint Velocity': '+65%', 'Deployment Time': '< 15 mins' },
+    featured: true,
+    year: '2026',
+    created_at: new Date(Date.now() - 35 * 86400000).toISOString()
+  }
+];
+
+export const DEFAULT_PROJECT_EXPENSES = [
+  {
+    id: 1,
+    project_id: 1,
+    title: 'AWS HIPAA-Compliant ECS Cluster & RDS Hosting',
+    category: 'Cloud Infrastructure',
+    amount: 45000.00,
+    expense_date: new Date(Date.now() - 20 * 86400000).toISOString().split('T')[0],
+    vendor: 'Amazon Web Services India',
+    receipt_ref: 'AWS-INV-9921',
+    notes: 'Secure cloud container hosting cluster',
+    created_by: 'DevOps Lead',
+    created_at: new Date(Date.now() - 20 * 86400000).toISOString()
+  },
+  {
+    id: 2,
+    project_id: 1,
+    title: 'WebRTC Signaling & Video Stream Gateway License',
+    category: 'Software Licenses',
+    amount: 30000.00,
+    expense_date: new Date(Date.now() - 15 * 86400000).toISOString().split('T')[0],
+    vendor: 'Agora IO',
+    receipt_ref: 'AG-9182',
+    notes: 'Annual developer license for high-res telehealth calls',
+    created_by: 'DevOps Lead',
+    created_at: new Date(Date.now() - 15 * 86400000).toISOString()
+  },
+  {
+    id: 3,
+    project_id: 2,
+    title: 'Google Maps Geocoding & Fleet Route API Enterprise Quota',
+    category: 'APIs & Services',
+    amount: 38000.00,
+    expense_date: new Date(Date.now() - 18 * 86400000).toISOString().split('T')[0],
+    vendor: 'Google Cloud Platform',
+    receipt_ref: 'GCP-88129',
+    notes: 'Fleet dispatch live matrix calculation quota',
+    created_by: 'Engineering VP',
+    created_at: new Date(Date.now() - 18 * 86400000).toISOString()
+  }
+];
 
 let memoryStore: PersistentDbStore | null = null;
 
@@ -44,8 +496,502 @@ export const loadPersistentStore = (): PersistentDbStore => {
       contacts: [],
       quotes: [],
       career_jobs: [],
-      career_applications: []
+      career_applications: [],
+      customers: [],
+      products: [],
+      invoices: [],
+      invoice_items: [],
+      payments: [],
+      projects: [...DEFAULT_PROJECTS],
+      project_expenses: [...DEFAULT_PROJECT_EXPENSES],
+      invoice_sequences: [],
+      invoice_settings: [],
+      invoice_audit_logs: []
     };
+  }
+
+  // Ensure arrays exist
+  if (!Array.isArray(memoryStore.customers)) memoryStore.customers = [];
+  if (!Array.isArray(memoryStore.products) || memoryStore.products.length === 0) memoryStore.products = [...DEFAULT_BILLING_PRODUCTS];
+  if (!Array.isArray(memoryStore.projects) || memoryStore.projects.length === 0) memoryStore.projects = [...DEFAULT_PROJECTS];
+  if (!Array.isArray(memoryStore.project_expenses) || memoryStore.project_expenses.length === 0) memoryStore.project_expenses = [...DEFAULT_PROJECT_EXPENSES];
+  if (!Array.isArray(memoryStore.invoices)) memoryStore.invoices = [];
+  if (!Array.isArray(memoryStore.invoice_items)) memoryStore.invoice_items = [];
+  if (!Array.isArray(memoryStore.payments)) memoryStore.payments = [];
+  if (!Array.isArray(memoryStore.invoice_sequences)) memoryStore.invoice_sequences = [];
+  if (!Array.isArray(memoryStore.invoice_settings) || memoryStore.invoice_settings.length === 0) {
+    memoryStore.invoice_settings = [{ ...DEFAULT_BILLING_SETTINGS }];
+  } else {
+    memoryStore.invoice_settings[0] = { ...DEFAULT_BILLING_SETTINGS, ...memoryStore.invoice_settings[0] };
+  }
+  if (!Array.isArray(memoryStore.invoice_audit_logs)) memoryStore.invoice_audit_logs = [];
+
+  // Seed default customers if empty
+  if (memoryStore.customers.length === 0) {
+    memoryStore.customers = [
+      {
+        id: 1,
+        name: 'Rajesh Sharma',
+        company_name: 'Apex Supermarket & Kirana',
+        mobile: '+91 98201 11222',
+        email: 'rajesh@apexkirana.com',
+        billing_address: 'Shop 12-14, Green Valley Heights, Andheri West',
+        shipping_address: 'Shop 12-14, Green Valley Heights, Andheri West',
+        city: 'Mumbai',
+        state: 'Maharashtra',
+        pincode: '400053',
+        gstin: '27AABCA1234A1Z1',
+        pan: 'AABCA1234A',
+        customer_type: 'Retail',
+        created_at: new Date(Date.now() - 15 * 86400000).toISOString()
+      },
+      {
+        id: 2,
+        name: 'Vikramaditya Roy',
+        company_name: 'Nexus Cloud Logistics Ltd',
+        mobile: '+91 98302 33445',
+        email: 'v.roy@nexuslogistics.in',
+        billing_address: 'Plot 45, Sector 18, Electronics Zone',
+        shipping_address: 'Warehouse Hub 3, Bhiwandi Road',
+        city: 'Thane',
+        state: 'Maharashtra',
+        pincode: '421302',
+        gstin: '27AABCN5678B1Z9',
+        pan: 'AABCN5678B',
+        customer_type: 'Enterprise',
+        created_at: new Date(Date.now() - 25 * 86400000).toISOString()
+      },
+      {
+        id: 3,
+        name: 'Ananya Deshmukh',
+        company_name: 'Aarav Fashion & Lifestyle',
+        mobile: '+91 97654 44556',
+        email: 'ananya@aaravfashions.com',
+        billing_address: 'MG Road, Camp Area',
+        shipping_address: 'MG Road, Camp Area',
+        city: 'Pune',
+        state: 'Maharashtra',
+        pincode: '411001',
+        gstin: '27AABCD9012C1Z4',
+        pan: 'AABCD9012C',
+        customer_type: 'Retail',
+        created_at: new Date(Date.now() - 5 * 86400000).toISOString()
+      },
+      {
+        id: 4,
+        name: 'Suresh Patel',
+        company_name: 'Patel Electronics & Gadgets',
+        mobile: '+91 98250 99887',
+        email: 'suresh@patelelectronics.com',
+        billing_address: 'Near Clock Tower, Navrangpura',
+        shipping_address: 'Near Clock Tower, Navrangpura',
+        city: 'Ahmedabad',
+        state: 'Gujarat',
+        pincode: '380009',
+        gstin: '24AABCP3456D1Z2',
+        pan: 'AABCP3456D',
+        customer_type: 'B2B',
+        created_at: new Date(Date.now() - 2 * 86400000).toISOString()
+      }
+    ];
+  }
+
+  // Seed sample invoices if empty
+  if (memoryStore.invoices.length === 0) {
+    const inv1Date = new Date(Date.now() - 10 * 86400000).toISOString().split('T')[0];
+    const inv2Date = new Date(Date.now() - 4 * 86400000).toISOString().split('T')[0];
+    const inv3Date = new Date(Date.now() - 1 * 86400000).toISOString().split('T')[0];
+
+    // Invoice 1: Apex Kirana (Paid)
+    // Kirana Software (25k market, 20k selling) + Scanner (4k market, 3.5k selling) + Printer (8k market, 6.5k selling) + Installation (2k market, 1.5k selling)
+    // Market: 39000. Selling: 31500. Discount: 7500. GST 18%: 5670. Total: 37170. Paid: 37170.
+    memoryStore.invoices.push({
+      id: 1,
+      invoice_number: 'D8/INV/2026-27/000001',
+      invoice_date: inv1Date,
+      due_date: new Date(Date.now() + 5 * 86400000).toISOString().split('T')[0],
+      financial_year: '2026-27',
+      lead_id: null,
+      customer_id: 1,
+      customer_name: 'Rajesh Sharma',
+      customer_company: 'Apex Supermarket & Kirana',
+      customer_mobile: '+91 98201 11222',
+      customer_email: 'rajesh@apexkirana.com',
+      customer_address: 'Shop 12-14, Green Valley Heights, Andheri West, Mumbai, Maharashtra 400053',
+      customer_city: 'Mumbai',
+      customer_state: 'Maharashtra',
+      customer_pincode: '400053',
+      customer_gstin: '27AABCA1234A1Z1',
+      sales_user_id: 4,
+      sales_person_name: 'Arjun Verma',
+      market_total: 39000.00,
+      discount_total: 7500.00,
+      extra_discount_type: 'fixed',
+      extra_discount_value: 0.00,
+      extra_discount_amount: 0.00,
+      taxable_amount: 31500.00,
+      tax_type: 'intra_state',
+      cgst_amount: 2835.00,
+      sgst_amount: 2835.00,
+      igst_amount: 0.00,
+      tax_total: 5670.00,
+      round_off: 0.00,
+      grand_total: 37170.00,
+      amount_paid: 37170.00,
+      balance_amount: 0.00,
+      payment_status: 'paid',
+      invoice_status: 'generated',
+      notes: 'Hardware delivered and installed on site. Complete retail setup handed over.',
+      terms_conditions: DEFAULT_BILLING_SETTINGS.terms_conditions,
+      created_by: 'Arjun Verma',
+      created_at: new Date(Date.now() - 10 * 86400000).toISOString(),
+      updated_at: new Date(Date.now() - 10 * 86400000).toISOString()
+    });
+
+    memoryStore.invoice_items.push(
+      {
+        id: 1,
+        invoice_id: 1,
+        product_id: 1,
+        item_type: 'software',
+        item_name: 'Digi8 Kirana Software',
+        description: 'Retail & Supermarket Billing Suite (Single Terminal Lifetime License)',
+        sku: 'DIGI8-SW-KIRANA',
+        quantity: 1,
+        unit: 'license',
+        market_price: 25000.00,
+        selling_price: 20000.00,
+        discount_type: 'fixed',
+        discount_value: 5000.00,
+        discount_amount: 5000.00,
+        tax_percentage: 18.00,
+        tax_amount: 3600.00,
+        line_total: 23600.00,
+        created_at: new Date(Date.now() - 10 * 86400000).toISOString()
+      },
+      {
+        id: 2,
+        invoice_id: 1,
+        product_id: 8,
+        item_type: 'hardware',
+        item_name: 'Omnidirectional 2D Barcode Scanner',
+        description: 'Hands-free desktop 1D/2D QR scanner',
+        sku: 'DIGI8-HW-SCAN2D',
+        quantity: 1,
+        unit: 'pcs',
+        market_price: 4000.00,
+        selling_price: 3500.00,
+        discount_type: 'fixed',
+        discount_value: 500.00,
+        discount_amount: 500.00,
+        tax_percentage: 18.00,
+        tax_amount: 630.00,
+        line_total: 4130.00,
+        created_at: new Date(Date.now() - 10 * 86400000).toISOString()
+      },
+      {
+        id: 3,
+        invoice_id: 1,
+        product_id: 9,
+        item_type: 'hardware',
+        item_name: 'High Speed 80mm Bill Thermal Printer',
+        description: 'Thermal receipt printer with auto-cutter',
+        sku: 'DIGI8-HW-PRN80',
+        quantity: 1,
+        unit: 'pcs',
+        market_price: 8000.00,
+        selling_price: 6500.00,
+        discount_type: 'fixed',
+        discount_value: 1500.00,
+        discount_amount: 1500.00,
+        tax_percentage: 18.00,
+        tax_amount: 1170.00,
+        line_total: 7670.00,
+        created_at: new Date(Date.now() - 10 * 86400000).toISOString()
+      },
+      {
+        id: 4,
+        invoice_id: 1,
+        product_id: 12,
+        item_type: 'services',
+        item_name: 'Onsite Installation & Setup',
+        description: 'Hardware configuration & printer testing',
+        sku: 'DIGI8-SRV-INST',
+        quantity: 1,
+        unit: 'visit',
+        market_price: 2000.00,
+        selling_price: 1500.00,
+        discount_type: 'fixed',
+        discount_value: 500.00,
+        discount_amount: 500.00,
+        tax_percentage: 18.00,
+        tax_amount: 270.00,
+        line_total: 1770.00,
+        created_at: new Date(Date.now() - 10 * 86400000).toISOString()
+      }
+    );
+
+    memoryStore.payments.push({
+      id: 1,
+      invoice_id: 1,
+      payment_number: 'PAY-2026-0001',
+      amount: 37170.00,
+      payment_method: 'UPI',
+      transaction_reference: 'UPI/98201/9928198291',
+      payment_date: inv1Date,
+      notes: 'Full payment received via PhonePe QR code.',
+      created_by: 'Arjun Verma',
+      created_at: new Date(Date.now() - 10 * 86400000).toISOString()
+    });
+
+    // Invoice 2: Nexus Cloud Logistics (Partially Paid)
+    // Custom Software + ERP modules (Market: 1,50,000, Selling: 1,20,000) + Custom API Integration (Market: 15k, Selling: 10k)
+    // Total Market: 165000. Selling: 130000. Discount: 35000. Taxable: 130000. GST 18%: 23400. Grand: 153400. Paid: 80000. Bal: 73400.
+    memoryStore.invoices.push({
+      id: 2,
+      invoice_number: 'D8/INV/2026-27/000002',
+      invoice_date: inv2Date,
+      due_date: new Date(Date.now() + 11 * 86400000).toISOString().split('T')[0],
+      financial_year: '2026-27',
+      lead_id: null,
+      customer_id: 2,
+      customer_name: 'Vikramaditya Roy',
+      customer_company: 'Nexus Cloud Logistics Ltd',
+      customer_mobile: '+91 98302 33445',
+      customer_email: 'v.roy@nexuslogistics.in',
+      customer_address: 'Plot 45, Sector 18, Electronics Zone, Thane, Maharashtra 421302',
+      customer_city: 'Thane',
+      customer_state: 'Maharashtra',
+      customer_pincode: '421302',
+      customer_gstin: '27AABCN5678B1Z9',
+      sales_user_id: 5,
+      sales_person_name: 'Priya Sharma',
+      market_total: 165000.00,
+      discount_total: 35000.00,
+      extra_discount_type: 'fixed',
+      extra_discount_value: 0.00,
+      extra_discount_amount: 0.00,
+      taxable_amount: 130000.00,
+      tax_type: 'intra_state',
+      cgst_amount: 11700.00,
+      sgst_amount: 11700.00,
+      igst_amount: 0.00,
+      tax_total: 23400.00,
+      round_off: 0.00,
+      grand_total: 153400.00,
+      amount_paid: 80000.00,
+      balance_amount: 73400.00,
+      payment_status: 'partially_paid',
+      invoice_status: 'generated',
+      notes: 'Phase 1 advance paid (₹80,000). Balance due on milestone acceptance.',
+      terms_conditions: DEFAULT_BILLING_SETTINGS.terms_conditions,
+      created_by: 'Priya Sharma',
+      created_at: new Date(Date.now() - 4 * 86400000).toISOString(),
+      updated_at: new Date(Date.now() - 4 * 86400000).toISOString()
+    });
+
+    memoryStore.invoice_items.push(
+      {
+        id: 5,
+        invoice_id: 2,
+        product_id: 7,
+        item_type: 'software',
+        item_name: 'Digi8 Enterprise ERP',
+        description: 'Multi-warehouse fleet & consignment dispatch ERP',
+        sku: 'DIGI8-SW-ERP',
+        quantity: 1,
+        unit: 'deployment',
+        market_price: 150000.00,
+        selling_price: 120000.00,
+        discount_type: 'fixed',
+        discount_value: 30000.00,
+        discount_amount: 30000.00,
+        tax_percentage: 18.00,
+        tax_amount: 21600.00,
+        line_total: 141600.00,
+        created_at: new Date(Date.now() - 4 * 86400000).toISOString()
+      },
+      {
+        id: 6,
+        invoice_id: 2,
+        product_id: 15,
+        item_type: 'custom',
+        item_name: 'Custom Fleet GPS Gateway Integration',
+        description: 'Real-time telemetry and FASTag automatic toll deduction API sync',
+        sku: 'CUSTOM-GPS-API',
+        quantity: 1,
+        unit: 'integration',
+        market_price: 15000.00,
+        selling_price: 10000.00,
+        discount_type: 'fixed',
+        discount_value: 5000.00,
+        discount_amount: 5000.00,
+        tax_percentage: 18.00,
+        tax_amount: 1800.00,
+        line_total: 11800.00,
+        created_at: new Date(Date.now() - 4 * 86400000).toISOString()
+      }
+    );
+
+    memoryStore.payments.push({
+      id: 2,
+      invoice_id: 2,
+      payment_number: 'PAY-2026-0002',
+      amount: 80000.00,
+      payment_method: 'Bank Transfer',
+      transaction_reference: 'NEFT/HDFC/N29381029381',
+      payment_date: inv2Date,
+      notes: 'Initial mobilization advance payment.',
+      created_by: 'Priya Sharma',
+      created_at: new Date(Date.now() - 4 * 86400000).toISOString()
+    });
+
+    // Invoice 3: Patel Electronics (Inter-state Gujarat: IGST, Unpaid)
+    // POS Terminal (38k market, 32k selling) + Printer (8k market, 6.5k selling)
+    // Market: 46000. Selling: 38500. Discount: 7500. IGST 18%: 6930. Grand: 45430. Paid: 0. Balance: 45430.
+    memoryStore.invoices.push({
+      id: 3,
+      invoice_number: 'D8/INV/2026-27/000003',
+      invoice_date: inv3Date,
+      due_date: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+      financial_year: '2026-27',
+      lead_id: null,
+      customer_id: 4,
+      customer_name: 'Suresh Patel',
+      customer_company: 'Patel Electronics & Gadgets',
+      customer_mobile: '+91 98250 99887',
+      customer_email: 'suresh@patelelectronics.com',
+      customer_address: 'Near Clock Tower, Navrangpura, Ahmedabad, Gujarat 380009',
+      customer_city: 'Ahmedabad',
+      customer_state: 'Gujarat',
+      customer_pincode: '380009',
+      customer_gstin: '24AABCP3456D1Z2',
+      sales_user_id: 4,
+      sales_person_name: 'Arjun Verma',
+      market_total: 46000.00,
+      discount_total: 7500.00,
+      extra_discount_type: 'fixed',
+      extra_discount_value: 0.00,
+      extra_discount_amount: 0.00,
+      taxable_amount: 38500.00,
+      tax_type: 'inter_state',
+      cgst_amount: 0.00,
+      sgst_amount: 0.00,
+      igst_amount: 6930.00,
+      tax_total: 6930.00,
+      round_off: 0.00,
+      grand_total: 45430.00,
+      amount_paid: 0.00,
+      balance_amount: 45430.00,
+      payment_status: 'unpaid',
+      invoice_status: 'generated',
+      notes: 'Hardware dispatched via BlueDart Express (Waybill #BD8892182). Due in 14 days.',
+      terms_conditions: DEFAULT_BILLING_SETTINGS.terms_conditions,
+      created_by: 'Arjun Verma',
+      created_at: new Date(Date.now() - 1 * 86400000).toISOString(),
+      updated_at: new Date(Date.now() - 1 * 86400000).toISOString()
+    });
+
+    memoryStore.invoice_items.push(
+      {
+        id: 7,
+        invoice_id: 3,
+        product_id: 10,
+        item_type: 'hardware',
+        item_name: 'All-in-One Touch POS Terminal',
+        description: 'Capacitive touch 15.6 inch POS terminal (Intel / 8GB / 128GB SSD)',
+        sku: 'DIGI8-HW-POSTERM',
+        quantity: 1,
+        unit: 'pcs',
+        market_price: 38000.00,
+        selling_price: 32000.00,
+        discount_type: 'fixed',
+        discount_value: 6000.00,
+        discount_amount: 6000.00,
+        tax_percentage: 18.00,
+        tax_amount: 5760.00,
+        line_total: 37760.00,
+        created_at: new Date(Date.now() - 1 * 86400000).toISOString()
+      },
+      {
+        id: 8,
+        invoice_id: 3,
+        product_id: 9,
+        item_type: 'hardware',
+        item_name: 'High Speed 80mm Bill Thermal Printer',
+        description: 'Heavy duty USB/LAN thermal printer with cutter',
+        sku: 'DIGI8-HW-PRN80',
+        quantity: 1,
+        unit: 'pcs',
+        market_price: 8000.00,
+        selling_price: 6500.00,
+        discount_type: 'fixed',
+        discount_value: 1500.00,
+        discount_amount: 1500.00,
+        tax_percentage: 18.00,
+        tax_amount: 1170.00,
+        line_total: 7670.00,
+        created_at: new Date(Date.now() - 1 * 86400000).toISOString()
+      }
+    );
+
+    memoryStore.invoice_audit_logs.push(
+      {
+        id: 1,
+        invoice_id: 1,
+        invoice_number: 'D8/INV/2026-27/000001',
+        action: 'GENERATED',
+        old_value: 'Draft',
+        new_value: 'Generated (₹37,170.00)',
+        performed_by: 'Arjun Verma',
+        ip_address: '127.0.0.1',
+        created_at: new Date(Date.now() - 10 * 86400000).toISOString()
+      },
+      {
+        id: 2,
+        invoice_id: 1,
+        invoice_number: 'D8/INV/2026-27/000001',
+        action: 'PAYMENT_ADDED',
+        old_value: 'Balance ₹37,170.00',
+        new_value: 'Paid ₹37,170.00 (UPI)',
+        performed_by: 'Arjun Verma',
+        ip_address: '127.0.0.1',
+        created_at: new Date(Date.now() - 10 * 86400000).toISOString()
+      },
+      {
+        id: 3,
+        invoice_id: 2,
+        invoice_number: 'D8/INV/2026-27/000002',
+        action: 'GENERATED',
+        old_value: 'Draft',
+        new_value: 'Generated (₹1,53,400.00)',
+        performed_by: 'Priya Sharma',
+        ip_address: '127.0.0.1',
+        created_at: new Date(Date.now() - 4 * 86400000).toISOString()
+      },
+      {
+        id: 4,
+        invoice_id: 2,
+        invoice_number: 'D8/INV/2026-27/000002',
+        action: 'PAYMENT_ADDED',
+        old_value: 'Balance ₹1,53,400.00',
+        new_value: 'Paid ₹80,000.00 (Bank Transfer)',
+        performed_by: 'Priya Sharma',
+        ip_address: '127.0.0.1',
+        created_at: new Date(Date.now() - 4 * 86400000).toISOString()
+      },
+      {
+        id: 5,
+        invoice_id: 3,
+        invoice_number: 'D8/INV/2026-27/000003',
+        action: 'GENERATED',
+        old_value: 'Draft',
+        new_value: 'Generated (₹45,430.00)',
+        performed_by: 'Arjun Verma',
+        ip_address: '127.0.0.1',
+        created_at: new Date(Date.now() - 1 * 86400000).toISOString()
+      }
+    );
   }
 
   // Ensure default seed users exist in persistent store
@@ -55,10 +1001,11 @@ export const loadPersistentStore = (): PersistentDbStore => {
       id: 1,
       name: 'Digi-8 Super Admin',
       email: superAdminEmail,
-      password_hash: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // bcrypt hash
+      password_hash: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // bcrypt hash for AdminDigi8Password2026!
       role: 'Super Admin',
       status: 'active',
       auth_provider: 'local',
+      allowed_modules: ['*'],
       created_at: new Date().toISOString()
     });
   }
@@ -73,6 +1020,39 @@ export const loadPersistentStore = (): PersistentDbStore => {
       role: 'Super Admin',
       status: 'active',
       auth_provider: 'google',
+      allowed_modules: ['*'],
+      created_at: new Date().toISOString()
+    });
+  }
+
+  // Seed Sales Executive
+  const salesEmail = 'sales@digi8solutions.com';
+  if (!memoryStore.admin_users.some(u => u.email.toLowerCase() === salesEmail)) {
+    memoryStore.admin_users.push({
+      id: 4,
+      name: 'Arjun Verma (Sales)',
+      email: salesEmail,
+      password_hash: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+      role: 'Sales Executive',
+      status: 'active',
+      auth_provider: 'local',
+      allowed_modules: ['dashboard', 'invoices', 'customers', 'leads'],
+      created_at: new Date().toISOString()
+    });
+  }
+
+  // Seed Sales Manager
+  const managerEmail = 'manager@digi8solutions.com';
+  if (!memoryStore.admin_users.some(u => u.email.toLowerCase() === managerEmail)) {
+    memoryStore.admin_users.push({
+      id: 5,
+      name: 'Priya Sharma (Sales Manager)',
+      email: managerEmail,
+      password_hash: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+      role: 'Sales Manager',
+      status: 'active',
+      auth_provider: 'local',
+      allowed_modules: ['dashboard', 'invoices', 'customers', 'leads', 'analytics'],
       created_at: new Date().toISOString()
     });
   }
@@ -864,6 +1844,288 @@ export const initDb = async () => {
           details TEXT
         )
       `);
+
+      // ──────────────────────────────────────────────
+      // 12. INVOICE & BILLING MANAGEMENT MODULE TABLES
+      // ──────────────────────────────────────────────
+
+      // Customers Table
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS customers (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          company_name VARCHAR(255),
+          mobile VARCHAR(50) NOT NULL,
+          email VARCHAR(255),
+          billing_address TEXT,
+          shipping_address TEXT,
+          city VARCHAR(100),
+          state VARCHAR(100),
+          pincode VARCHAR(20),
+          gstin VARCHAR(50),
+          pan VARCHAR(50),
+          customer_type VARCHAR(50) DEFAULT 'B2B',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+      `);
+
+      // Products & Services Catalogue
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS products (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          code VARCHAR(100) UNIQUE NOT NULL,
+          category VARCHAR(100) NOT NULL,
+          description TEXT,
+          market_price DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          default_selling_price DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          tax_percentage DECIMAL(5,2) NOT NULL DEFAULT 18.00,
+          hsn_sac VARCHAR(50),
+          unit VARCHAR(50) DEFAULT 'pcs',
+          is_active BOOLEAN DEFAULT TRUE,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+      `);
+
+      // Invoice Settings & Branding
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS invoice_settings (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          company_name VARCHAR(255) DEFAULT 'Digi8 Solutions Private Limited',
+          company_address TEXT,
+          company_city VARCHAR(100) DEFAULT 'Mumbai',
+          company_state VARCHAR(100) DEFAULT 'Maharashtra',
+          company_state_code VARCHAR(10) DEFAULT '27',
+          company_pincode VARCHAR(20) DEFAULT '400064',
+          company_phone VARCHAR(50) DEFAULT '+91 98200 88888',
+          company_email VARCHAR(255) DEFAULT 'billing@digi8solutions.com',
+          company_website VARCHAR(255) DEFAULT 'https://digi8solutions.com',
+          company_gstin VARCHAR(50) DEFAULT '27AABCD1234F1Z5',
+          company_pan VARCHAR(50) DEFAULT 'AABCD1234F',
+          invoice_prefix VARCHAR(50) DEFAULT 'D8/INV',
+          financial_year VARCHAR(50) DEFAULT '2026-27',
+          starting_number INT DEFAULT 1,
+          next_number INT DEFAULT 1,
+          number_padding INT DEFAULT 6,
+          terms_conditions TEXT,
+          bank_name VARCHAR(150) DEFAULT 'HDFC Bank Ltd',
+          bank_account_number VARCHAR(100) DEFAULT '50200098765432',
+          bank_ifsc VARCHAR(50) DEFAULT 'HDFC0000123',
+          bank_branch VARCHAR(150) DEFAULT 'Mindspace Branch, Mumbai',
+          upi_id VARCHAR(100) DEFAULT 'digi8solutions@hdfcbank',
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+      `);
+
+      // Invoice Sequences (Concurrency-safe sequence tracking)
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS invoice_sequences (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          financial_year VARCHAR(50) UNIQUE NOT NULL,
+          prefix VARCHAR(50) NOT NULL DEFAULT 'D8/INV',
+          last_number INT NOT NULL DEFAULT 0,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+      `);
+
+      // Invoices Main Table
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS invoices (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          invoice_number VARCHAR(100) UNIQUE NOT NULL,
+          invoice_date DATE NOT NULL,
+          due_date DATE NULL,
+          financial_year VARCHAR(50) NOT NULL,
+          lead_id INT NULL,
+          customer_id INT NOT NULL,
+          customer_name VARCHAR(255) NOT NULL,
+          customer_company VARCHAR(255),
+          customer_mobile VARCHAR(50),
+          customer_email VARCHAR(255),
+          customer_address TEXT,
+          customer_city VARCHAR(100),
+          customer_state VARCHAR(100),
+          customer_pincode VARCHAR(20),
+          customer_gstin VARCHAR(50),
+          sales_user_id INT NULL,
+          sales_person_name VARCHAR(255) NOT NULL,
+          market_total DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          discount_total DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          extra_discount_type VARCHAR(20) DEFAULT 'fixed',
+          extra_discount_value DECIMAL(12,2) DEFAULT 0.00,
+          extra_discount_amount DECIMAL(12,2) DEFAULT 0.00,
+          taxable_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          tax_type VARCHAR(50) DEFAULT 'intra_state',
+          cgst_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          sgst_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          igst_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          tax_total DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          round_off DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          grand_total DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          amount_paid DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          balance_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          payment_status VARCHAR(50) NOT NULL DEFAULT 'unpaid',
+          invoice_status VARCHAR(50) NOT NULL DEFAULT 'draft',
+          cancelled_reason TEXT NULL,
+          cancelled_at TIMESTAMP NULL,
+          notes TEXT,
+          terms_conditions TEXT,
+          created_by VARCHAR(255),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_invoice_num (invoice_number),
+          INDEX idx_customer (customer_id),
+          INDEX idx_sales_user (sales_user_id),
+          INDEX idx_status (invoice_status),
+          INDEX idx_payment (payment_status)
+        )
+      `);
+
+      // Invoice Items Table
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS invoice_items (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          invoice_id INT NOT NULL,
+          product_id INT NULL,
+          item_type VARCHAR(50) NOT NULL DEFAULT 'software',
+          item_name VARCHAR(255) NOT NULL,
+          description TEXT,
+          sku VARCHAR(100),
+          quantity DECIMAL(10,2) NOT NULL DEFAULT 1.00,
+          unit VARCHAR(50) DEFAULT 'pcs',
+          market_price DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          selling_price DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          discount_type VARCHAR(20) DEFAULT 'fixed',
+          discount_value DECIMAL(12,2) DEFAULT 0.00,
+          discount_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          tax_percentage DECIMAL(5,2) NOT NULL DEFAULT 18.00,
+          tax_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          line_total DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_invoice_id (invoice_id)
+        )
+      `);
+
+      // Payments Table
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS payments (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          invoice_id INT NOT NULL,
+          payment_number VARCHAR(100) UNIQUE NOT NULL,
+          amount DECIMAL(12,2) NOT NULL,
+          payment_method VARCHAR(50) NOT NULL,
+          transaction_reference VARCHAR(255),
+          payment_date DATE NOT NULL,
+          notes TEXT,
+          created_by VARCHAR(255),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_payment_invoice (invoice_id)
+        )
+      `);
+
+      // Invoice Audit Logs
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS invoice_audit_logs (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          invoice_id INT NOT NULL,
+          invoice_number VARCHAR(100),
+          action VARCHAR(100) NOT NULL,
+          old_value TEXT,
+          new_value TEXT,
+          performed_by VARCHAR(255) NOT NULL,
+          ip_address VARCHAR(100),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_audit_invoice (invoice_id)
+        )
+      `);
+
+      // Safe migrations for financial workflow enhancements
+      try { await connection.query(`ALTER TABLE invoices ADD COLUMN project_id INT NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE invoices ADD COLUMN project_name VARCHAR(255) NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE invoices ADD COLUMN payment_details_snapshot JSON NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE invoices ADD COLUMN tax_calculation_mode VARCHAR(20) DEFAULT 'exclusive'`); } catch {}
+      try { await connection.query(`ALTER TABLE invoices ADD COLUMN revision_number INT DEFAULT 1`); } catch {}
+
+      try { await connection.query(`ALTER TABLE payments ADD COLUMN project_id INT NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE payments ADD COLUMN status VARCHAR(50) DEFAULT 'success'`); } catch {}
+      try { await connection.query(`ALTER TABLE payments ADD COLUMN reversed_at TIMESTAMP NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE payments ADD COLUMN reversed_by VARCHAR(255) NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE payments ADD COLUMN reversal_reason TEXT NULL`); } catch {}
+
+      try { await connection.query(`ALTER TABLE invoice_settings ADD COLUMN upi_display_name VARCHAR(255) NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE invoice_settings ADD COLUMN bank_account_holder VARCHAR(255) NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE invoice_settings ADD COLUMN show_upi_qr BOOLEAN DEFAULT TRUE`); } catch {}
+      try { await connection.query(`ALTER TABLE invoice_settings ADD COLUMN show_bank_details BOOLEAN DEFAULT TRUE`); } catch {}
+      try { await connection.query(`ALTER TABLE invoice_settings ADD COLUMN payment_instructions TEXT NULL`); } catch {}
+
+      // Project Expenses Table
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS project_expenses (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          project_id INT NOT NULL,
+          title VARCHAR(255) NOT NULL,
+          category VARCHAR(100) NOT NULL,
+          amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          expense_date DATE NOT NULL,
+          vendor VARCHAR(255),
+          receipt_ref VARCHAR(100),
+          notes TEXT,
+          created_by VARCHAR(255),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_expense_project (project_id)
+        )
+      `);
+
+      // Seed default products if empty in MySQL
+      const [prodRows]: any = await connection.query('SELECT COUNT(*) as cnt FROM products');
+      if (prodRows[0]?.cnt === 0) {
+        for (const p of DEFAULT_BILLING_PRODUCTS) {
+          await connection.query(
+            `INSERT INTO products (name, code, category, description, market_price, default_selling_price, tax_percentage, hsn_sac, unit, is_active)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [p.name, p.code, p.category, p.description, p.market_price, p.default_selling_price, p.tax_percentage, p.hsn_sac, p.unit, p.is_active]
+          );
+        }
+        console.log('[DB INFO] Seeded default billing products in MySQL.');
+      }
+
+      // Seed default invoice settings if empty in MySQL
+      const [settingsRows]: any = await connection.query('SELECT COUNT(*) as cnt FROM invoice_settings');
+      if (settingsRows[0]?.cnt === 0) {
+        await connection.query(
+          `INSERT INTO invoice_settings (company_name, company_address, company_city, company_state, company_state_code, company_pincode, company_phone, company_email, company_website, company_gstin, company_pan, invoice_prefix, financial_year, starting_number, next_number, number_padding, terms_conditions, bank_name, bank_account_number, bank_ifsc, bank_branch, upi_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            DEFAULT_BILLING_SETTINGS.company_name, DEFAULT_BILLING_SETTINGS.company_address, DEFAULT_BILLING_SETTINGS.company_city,
+            DEFAULT_BILLING_SETTINGS.company_state, DEFAULT_BILLING_SETTINGS.company_state_code, DEFAULT_BILLING_SETTINGS.company_pincode,
+            DEFAULT_BILLING_SETTINGS.company_phone, DEFAULT_BILLING_SETTINGS.company_email, DEFAULT_BILLING_SETTINGS.company_website,
+            DEFAULT_BILLING_SETTINGS.company_gstin, DEFAULT_BILLING_SETTINGS.company_pan, DEFAULT_BILLING_SETTINGS.invoice_prefix,
+            DEFAULT_BILLING_SETTINGS.financial_year, DEFAULT_BILLING_SETTINGS.starting_number, 4,
+            DEFAULT_BILLING_SETTINGS.number_padding, DEFAULT_BILLING_SETTINGS.terms_conditions, DEFAULT_BILLING_SETTINGS.bank_name,
+            DEFAULT_BILLING_SETTINGS.bank_account_number, DEFAULT_BILLING_SETTINGS.bank_ifsc, DEFAULT_BILLING_SETTINGS.bank_branch,
+            DEFAULT_BILLING_SETTINGS.upi_id
+          ]
+        );
+        console.log('[DB INFO] Seeded default invoice settings in MySQL.');
+      }
+
+      // Seed sales users in MySQL
+      const defaultSalesUsers = [
+        { name: 'Arjun Verma (Sales)', email: 'sales@digi8solutions.com', role: 'Sales Executive', modules: JSON.stringify(['dashboard', 'invoices', 'customers', 'leads']) },
+        { name: 'Priya Sharma (Sales Manager)', email: 'manager@digi8solutions.com', role: 'Sales Manager', modules: JSON.stringify(['dashboard', 'invoices', 'customers', 'leads', 'analytics']) }
+      ];
+      const salesPassHash = await bcrypt.hash('AdminDigi8Password2026!', 10);
+      for (const su of defaultSalesUsers) {
+        const [suRows]: any = await connection.query('SELECT id FROM admin_users WHERE email = ?', [su.email]);
+        if (suRows.length === 0) {
+          await connection.query(
+            'INSERT INTO admin_users (name, email, password_hash, role, auth_provider, allowed_modules) VALUES (?, ?, ?, ?, ?, ?)',
+            [su.name, su.email, salesPassHash, su.role, 'local', su.modules]
+          );
+        }
+      }
 
       console.log('Database initialized successfully.');
     } finally {

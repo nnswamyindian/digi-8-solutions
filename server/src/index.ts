@@ -21,6 +21,7 @@ import {
   verifySmtpConnection,
   getAdminEmail
 } from './emailService.js';
+import billingRouter from './billingRoutes.js';
 
 dotenv.config();
 
@@ -29,6 +30,9 @@ const port = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
+
+// Mount Billing & Invoices Management Module
+app.use('/api', billingRouter);
 
 // Initialize DB
 initDb().catch(console.error);

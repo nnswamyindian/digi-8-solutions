@@ -3,7 +3,8 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, FileText, Briefcase, MessageSquare, Settings,
   LogOut, Menu, X, BarChart2, Tag, BookOpen, Bell, DollarSign, Shield, Ticket,
-  UserCheck, Calendar, Mail, Search, ArrowLeft, ChevronRight, Code2, TrendingUp
+  UserCheck, Calendar, Mail, Search, ArrowLeft, ChevronRight, Code2, TrendingUp,
+  Receipt
 } from "lucide-react";
 import { buildApiUrl, logoutAdmin } from "../../lib/api";
 import CommandPalette from "../../components/admin/ats/CommandPalette";
@@ -17,7 +18,9 @@ export type AdminRole =
   | "HR Admin"
   | "Developer"
   | "Marketing Executive"
-  | "Database Admin";
+  | "Database Admin"
+  | "Sales Executive"
+  | "Sales Manager";
 
 // Each nav item has a set of roles that can see it
 interface NavItem {
@@ -27,11 +30,16 @@ interface NavItem {
   roles: AdminRole[]; // empty = all roles
 }
 
-const ALL_ROLES: AdminRole[] = ["Super Admin", "Sub Admin", "HR Admin", "Developer", "Marketing Executive", "Database Admin"];
+const ALL_ROLES: AdminRole[] = [
+  "Super Admin", "Sub Admin", "HR Admin", "Developer", 
+  "Marketing Executive", "Database Admin", "Sales Executive", "Sales Manager"
+];
 const SUPER_AND_SUB: AdminRole[] = ["Super Admin", "Sub Admin"];
 
 const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard",             href: "/admin/dashboard",               roles: ALL_ROLES },
+  // ── Billing & Invoices ──
+  { icon: Receipt,         label: "Billing & Invoices",    href: "/admin/invoices",                roles: ["Super Admin", "Sub Admin", "Sales Executive", "Sales Manager"] },
   // ── ATS / Careers ──
   { icon: UserCheck,       label: "Careers Overview",      href: "/admin/careers",                 roles: ["Super Admin", "Sub Admin", "HR Admin"] },
   { icon: Users,           label: "ATS Pipeline",          href: "/admin/careers/pipeline",         roles: ["Super Admin", "Sub Admin", "HR Admin"] },
@@ -41,7 +49,7 @@ const navItems: NavItem[] = [
   { icon: BarChart2,       label: "Recruitment Funnel",    href: "/admin/careers/analytics",        roles: ["Super Admin", "Sub Admin", "HR Admin"] },
   // ── Business ──
   { icon: Ticket,          label: "Support Tickets",       href: "/admin/tickets",                  roles: ["Super Admin", "Sub Admin", "Developer"] },
-  { icon: Users,           label: "Leads",                 href: "/admin/leads",                    roles: ["Super Admin", "Sub Admin", "Marketing Executive"] },
+  { icon: Users,           label: "Leads",                 href: "/admin/leads",                    roles: ["Super Admin", "Sub Admin", "Marketing Executive", "Sales Executive", "Sales Manager"] },
   { icon: FileText,        label: "Quotes",                href: "/admin/quotes",                   roles: ["Super Admin", "Sub Admin", "Marketing Executive"] },
   { icon: Briefcase,       label: "Projects",              href: "/admin/projects",                 roles: ["Super Admin", "Sub Admin", "Developer"] },
   { icon: MessageSquare,   label: "Contacts",              href: "/admin/contacts",                 roles: ["Super Admin", "Sub Admin", "Marketing Executive"] },
@@ -51,7 +59,7 @@ const navItems: NavItem[] = [
   // ── Developer ──
   { icon: Code2,           label: "Developer Tools",       href: "/admin/settings",                 roles: ["Super Admin", "Developer"] },
   // ── Admin only ──
-  { icon: TrendingUp,      label: "Analytics",             href: "/admin/analytics",                roles: SUPER_AND_SUB },
+  { icon: TrendingUp,      label: "Analytics",             href: "/admin/analytics",                roles: ["Super Admin", "Sub Admin", "Sales Manager"] },
   { icon: Shield,          label: "User Management",       href: "/admin/users",                    roles: ["Super Admin"] },
   { icon: Settings,        label: "Settings",              href: "/admin/settings",                 roles: ["Super Admin"] },
 ];
@@ -59,7 +67,9 @@ const navItems: NavItem[] = [
 // Allowed paths per role (for redirect guard)
 const roleAllowedPrefixes: Record<AdminRole, string[]> = {
   "Super Admin":           ["/admin"],
-  "Sub Admin":             ["/admin/dashboard", "/admin/careers", "/admin/tickets", "/admin/leads", "/admin/quotes", "/admin/projects", "/admin/contacts", "/admin/testimonials", "/admin/blog", "/admin/pricing", "/admin/analytics"],
+  "Sub Admin":             ["/admin/dashboard", "/admin/invoices", "/admin/careers", "/admin/tickets", "/admin/leads", "/admin/quotes", "/admin/projects", "/admin/contacts", "/admin/testimonials", "/admin/blog", "/admin/pricing", "/admin/analytics"],
+  "Sales Executive":       ["/admin/dashboard", "/admin/invoices", "/admin/leads"],
+  "Sales Manager":         ["/admin/dashboard", "/admin/invoices", "/admin/leads", "/admin/analytics"],
   "HR Admin":              ["/admin/dashboard", "/admin/careers"],
   "Developer":             ["/admin/dashboard", "/admin/tickets", "/admin/projects", "/admin/settings"],
   "Marketing Executive":   ["/admin/dashboard", "/admin/leads", "/admin/quotes", "/admin/contacts", "/admin/testimonials", "/admin/blog"],
@@ -69,6 +79,8 @@ const roleAllowedPrefixes: Record<AdminRole, string[]> = {
 const roleColors: Record<AdminRole, string> = {
   "Super Admin":           "from-purple-500 to-indigo-700",
   "Sub Admin":             "from-cyan-500 to-blue-600",
+  "Sales Executive":       "from-cyan-500 to-emerald-600",
+  "Sales Manager":         "from-blue-600 to-indigo-800",
   "HR Admin":              "from-emerald-500 to-teal-700",
   "Developer":             "from-amber-500 to-orange-600",
   "Marketing Executive":   "from-rose-500 to-pink-600",
@@ -78,6 +90,8 @@ const roleColors: Record<AdminRole, string> = {
 const roleBadgeColors: Record<AdminRole, string> = {
   "Super Admin":           "text-purple-400",
   "Sub Admin":             "text-cyan-400",
+  "Sales Executive":       "text-emerald-400",
+  "Sales Manager":         "text-indigo-400",
   "HR Admin":              "text-emerald-400",
   "Developer":             "text-amber-400",
   "Marketing Executive":   "text-rose-400",
