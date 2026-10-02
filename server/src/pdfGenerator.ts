@@ -1,8 +1,12 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import zlib from 'zlib';
 import QRCode from 'qrcode';
 import { PNG } from 'pngjs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export interface InvoicePdfData {
   invoice_number: string;
@@ -87,6 +91,47 @@ function formatCurrency(val: number | undefined | null): string {
   return 'Rs. ' + num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function formatPdfDate(dateStr?: string | Date | null): string {
+  if (!dateStr) return 'N/A';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return String(dateStr).slice(0, 15);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = months[d.getMonth()];
+    const year = d.getFullYear();
+    return `${day} ${month} ${year}`;
+  } catch {
+    return String(dateStr).slice(0, 15);
+  }
+}
+
+function wrapText(text: string | undefined | null, maxCharsPerLine = 55): string[] {
+  if (!text) return [];
+  const lines: string[] = [];
+  const rawParagraphs = String(text).split(/\r?\n/);
+  for (const para of rawParagraphs) {
+    const trimmed = para.trim();
+    if (!trimmed) continue;
+    const words = trimmed.split(/\s+/);
+    let currentLine = '';
+    for (const word of words) {
+      if (!currentLine) {
+        currentLine = word;
+      } else if ((currentLine + ' ' + word).length <= maxCharsPerLine) {
+        currentLine += ' ' + word;
+      } else {
+        lines.push(currentLine);
+        currentLine = word;
+      }
+    }
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+  }
+  return lines;
+}
+
 interface ImageResource {
   alias: string;
   objNum: number;
@@ -133,24 +178,48 @@ function resolveImageFileBuffer(imagePathOrUrl?: string, defaultFilename?: strin
     }
 
     const candidatePaths: string[] = [];
+    const addPath = (p: string) => {
+      try {
+        if (p && !candidatePaths.includes(p)) candidatePaths.push(p);
+      } catch {}
+    };
+
     if (imagePathOrUrl && !imagePathOrUrl.startsWith('data:') && !imagePathOrUrl.startsWith('http')) {
       const clean = imagePathOrUrl.replace(/^\/+/, '');
-      candidatePaths.push(path.resolve(process.cwd(), clean));
-      candidatePaths.push(path.resolve(process.cwd(), 'public', clean));
-      candidatePaths.push(path.resolve(__dirname, '../../public', clean));
-      candidatePaths.push(path.resolve(__dirname, '../uploads', clean));
+      const base = path.basename(clean);
+      addPath(path.resolve(process.cwd(), clean));
+      addPath(path.resolve(process.cwd(), 'public', clean));
+      addPath(path.resolve(process.cwd(), '../public', clean));
+      addPath(path.resolve(process.cwd(), 'public/images', base));
+      addPath(path.resolve(process.cwd(), '../public/images', base));
+      addPath(path.resolve(process.cwd(), 'server/uploads', clean));
+      addPath(path.resolve(process.cwd(), 'server/uploads', base));
+      addPath(path.resolve(process.cwd(), 'uploads', clean));
+      addPath(path.resolve(process.cwd(), 'uploads', base));
+      addPath(path.resolve(process.cwd(), '../uploads', base));
+      addPath(path.resolve(__dirname, '../../public', clean));
+      addPath(path.resolve(__dirname, '../../public/images', base));
+      addPath(path.resolve(__dirname, '../uploads', clean));
+      addPath(path.resolve(__dirname, '../uploads', base));
     }
+
     if (defaultFilename) {
-      candidatePaths.push(path.resolve(process.cwd(), 'public/images', defaultFilename));
-      candidatePaths.push(path.resolve(process.cwd(), 'server/uploads', defaultFilename));
-      candidatePaths.push(path.resolve(__dirname, '../../public/images', defaultFilename));
-      candidatePaths.push(path.resolve(__dirname, '../uploads', defaultFilename));
+      addPath(path.resolve(process.cwd(), 'public/images', defaultFilename));
+      addPath(path.resolve(process.cwd(), '../public/images', defaultFilename));
+      addPath(path.resolve(process.cwd(), 'server/uploads', defaultFilename));
+      addPath(path.resolve(process.cwd(), 'uploads', defaultFilename));
+      addPath(path.resolve(process.cwd(), '../uploads', defaultFilename));
+      addPath(path.resolve(__dirname, '../../public/images', defaultFilename));
+      addPath(path.resolve(__dirname, '../uploads', defaultFilename));
     }
 
     for (const p of candidatePaths) {
       try {
         if (fs.existsSync(p)) {
-          return fs.readFileSync(p);
+          const buf = fs.readFileSync(p);
+          if (buf && buf.length > 0) {
+            return buf;
+          }
         }
       } catch {}
     }
@@ -357,13 +426,51 @@ export function generateInvoicePdfBuffer(data: InvoicePdfData): Buffer {
   // Left column: Company info
   addText(data.company_name || 'Digi8 Solutions Private Limited', 36, currentY, 10, 'F2', 0.1, 0.15, 0.2);
   currentY -= 13;
-  addText(data.company_address || 'Level 5, Mindspace Tech Park, Malad West', 36, currentY, 8, 'F1', 0.35, 0.4, 0.45);
-  currentY -= 11;
-  addText(`${data.company_city || 'Mumbai'}, ${data.company_state || 'Maharashtra'} - ${data.company_pincode || '400064'}`, 36, currentY, 8, 'F1', 0.35, 0.4, 0.45);
-  currentY -= 11;
-  addText(`GSTIN: ${data.company_gstin || '27AABCD1234F1Z5'}  |  PAN: ${data.company_pan || 'AABCD1234F'}`, 36, currentY, 8, 'F1', 0.35, 0.4, 0.45);
-  currentY -= 11;
-  addText(`Email: ${data.company_email || 'billing@digi8solutions.com'}  |  Phone: ${data.company_phone || '+91 98200 88888'}`, 36, currentY, 8, 'F1', 0.35, 0.4, 0.45);
+
+  const rawAddress = (data.company_address || 'Level 5, Mindspace Tech Park, Malad West').trim();
+  const rawCity = (data.company_city || '').trim();
+  const rawState = (data.company_state || '').trim();
+  const rawPin = (data.company_pincode || '').trim();
+
+  const addrLower = rawAddress.toLowerCase();
+  const hasCity = rawCity && addrLower.includes(rawCity.toLowerCase());
+  const hasPin = rawPin && addrLower.includes(rawPin);
+
+  if (hasCity || hasPin) {
+    // Address already contains city or pincode: wrap neatly without duplicate second line
+    const addrLines = wrapText(rawAddress, 48);
+    for (const al of addrLines.slice(0, 2)) {
+      addText(al, 36, currentY, 8, 'F1', 0.35, 0.4, 0.45);
+      currentY -= 11;
+    }
+  } else {
+    // Street address on line 1, City, State - Pincode on line 2
+    addText(rawAddress, 36, currentY, 8, 'F1', 0.35, 0.4, 0.45);
+    currentY -= 11;
+    const locParts = [rawCity, rawState].filter(Boolean).join(', ') + (rawPin ? ` - ${rawPin}` : '');
+    if (locParts) {
+      addText(locParts, 36, currentY, 8, 'F1', 0.35, 0.4, 0.45);
+      currentY -= 11;
+    }
+  }
+
+  // GSTIN & PAN
+  const taxParts: string[] = [];
+  if (data.company_gstin && data.company_gstin.trim()) taxParts.push(`GSTIN: ${data.company_gstin.trim()}`);
+  if (data.company_pan && data.company_pan.trim()) taxParts.push(`PAN: ${data.company_pan.trim()}`);
+  if (taxParts.length > 0) {
+    addText(taxParts.join('  |  '), 36, currentY, 8, 'F1', 0.35, 0.4, 0.45);
+    currentY -= 11;
+  }
+
+  // Email & Phone
+  const contactParts: string[] = [];
+  if (data.company_email && data.company_email.trim()) contactParts.push(`Email: ${data.company_email.trim()}`);
+  if (data.company_phone && data.company_phone.trim()) contactParts.push(`Phone: ${data.company_phone.trim()}`);
+  if (contactParts.length > 0) {
+    addText(contactParts.join('  |  '), 36, currentY, 8, 'F1', 0.35, 0.4, 0.45);
+    currentY -= 11;
+  }
 
   // Right column: Invoice Number & Dates box
   const boxX = pageWidth - 210;
@@ -372,11 +479,11 @@ export function generateInvoicePdfBuffer(data: InvoicePdfData): Buffer {
   drawRect(boxX, boxY, 174, 52, 0.85, 0.9, 0.95, false);
 
   addText(`Invoice No: ${data.invoice_number}`, boxX + 8, boxY + 38, 9, 'F2', 0.05, 0.1, 0.2);
-  addText(`Invoice Date: ${data.invoice_date || 'N/A'}`, boxX + 8, boxY + 25, 8, 'F1', 0.3, 0.35, 0.4);
-  addText(`Due Date: ${data.due_date || 'Due on Receipt'}`, boxX + 8, boxY + 12, 8, 'F1', 0.3, 0.35, 0.4);
+  addText(`Invoice Date: ${formatPdfDate(data.invoice_date)}`, boxX + 8, boxY + 25, 8, 'F1', 0.3, 0.35, 0.4);
+  addText(`Due Date: ${formatPdfDate(data.due_date) || 'Due on Receipt'}`, boxX + 8, boxY + 12, 8, 'F1', 0.3, 0.35, 0.4);
 
-  // 3. Horizontal Separator
-  currentY -= 12;
+  // 3. Horizontal Separator (clears both columns)
+  currentY = Math.min(currentY - 2, boxY - 12);
   drawLine(36, currentY, pageWidth - 36, currentY, 0.85, 0.88, 0.92);
 
   // 4. Bill To & Project Section
@@ -446,7 +553,10 @@ export function generateInvoicePdfBuffer(data: InvoicePdfData): Buffer {
     addText(formatCurrency(item.unit_selling_price), 320, currentY + 3, 8, 'F2', 0.1, 0.15, 0.2);
     addText(String(item.quantity || 1), 415, currentY + 3, 8, 'F1', 0.2, 0.2, 0.2);
     addText(`${item.tax_percentage !== undefined ? item.tax_percentage : 18}%`, 450, currentY + 3, 8, 'F1', 0.3, 0.35, 0.4);
-    addText(formatCurrency(item.total_amount), 488, currentY + 3, 8, 'F2', 0.05, 0.1, 0.2);
+    const itemTotal = (item.total_amount && Number(item.total_amount) > 0)
+      ? Number(item.total_amount)
+      : (Number(item.unit_selling_price || 0) * (Number(item.quantity) || 1));
+    addText(formatCurrency(itemTotal), 488, currentY + 3, 8, 'F2', 0.05, 0.1, 0.2);
 
     if (item.description) {
       currentY -= 12;
@@ -539,7 +649,10 @@ export function generateInvoicePdfBuffer(data: InvoicePdfData): Buffer {
     sY -= 13;
   };
 
-  addSummaryRow('Market Value / Subtotal:', formatCurrency(data.subtotal));
+  const computedSubtotal = (data.subtotal && data.subtotal > 0)
+    ? data.subtotal
+    : ((data.taxable_amount || 0) + (data.discount_total || 0) || data.grand_total || 0);
+  addSummaryRow('Market Value / Subtotal:', formatCurrency(computedSubtotal));
   if (data.discount_total > 0) {
     addSummaryRow('Discount Concession:', `- ${formatCurrency(data.discount_total)}`);
   }
@@ -572,17 +685,17 @@ export function generateInvoicePdfBuffer(data: InvoicePdfData): Buffer {
   drawRect(36, termsBoxY, termsBoxWidth, termsBoxHeight, 0.97, 0.98, 0.99);
   drawRect(36, termsBoxY, termsBoxWidth, termsBoxHeight, 0.88, 0.9, 0.93, false);
   addText('TERMS & STATUTORY DECLARATION:', 44, termsBoxY + termsBoxHeight - 11, 7.5, 'F2', 0.1, 0.2, 0.35);
-  addText(
-    data.terms_conditions || '1. Payment due within 15 days of invoice date. 2. Custom software deliverables governed by MSA. 3. Subject to Mumbai jurisdiction.',
-    44,
-    termsBoxY + termsBoxHeight - 23,
-    6.8,
-    'F1',
-    0.35,
-    0.4,
-    0.45
+
+  const termLines = wrapText(
+    data.terms_conditions || '1. Payment due within 15 days of invoice date. 2. Custom software deliverables governed by MSA. 3. Subject to jurisdiction.',
+    50
   );
-  addText('This is a computer generated official invoice authorized by Digi8 Solutions Pvt Ltd.', 44, termsBoxY + termsBoxHeight - 45, 6.5, 'F1', 0.45, 0.5, 0.55);
+  let termY = termsBoxY + termsBoxHeight - 21;
+  for (let i = 0; i < Math.min(3, termLines.length); i++) {
+    addText(termLines[i], 44, termY, 6.2, 'F1', 0.35, 0.4, 0.45);
+    termY -= 8;
+  }
+  addText(`This is a computer generated official invoice authorized by ${data.company_name || 'Digi8 Solutions Pvt Ltd'}.`, 44, termsBoxY + 5, 5.8, 'F1', 0.45, 0.5, 0.55);
 
   // Center-Right: Official Company Seal / Stamp
   const sealCenterX = 332;
@@ -602,7 +715,8 @@ export function generateInvoicePdfBuffer(data: InvoicePdfData): Buffer {
   // Far-Right: Authorized Signatory & Signature
   const sigX = 405;
   const sigY = termsBoxY + 24;
-  addText('For DIGI8 SOLUTIONS PRIVATE LIMITED', sigX, termsBoxY + 54, 7.5, 'F2', 0.1, 0.15, 0.25);
+  const legalCompanyHeader = `For ${(data.company_name || 'DIGI8 SOLUTIONS PRIVATE LIMITED').toUpperCase()}`;
+  addText(legalCompanyHeader, sigX, termsBoxY + 54, 7.2, 'F2', 0.1, 0.15, 0.25);
 
   if (sigImg) {
     const sigTargetWidth = 120;
@@ -642,7 +756,7 @@ export function generateInvoicePdfBuffer(data: InvoicePdfData): Buffer {
 
   // 9. Footer
   drawRect(0, 0, pageWidth, 24, 0.04, 0.08, 0.16);
-  addText('Digi8 Solutions Private Limited  |  https://digi8solutions.com  |  Support: billing@digi8solutions.com', 120, 8, 7.5, 'F1', 0.7, 0.8, 0.9);
+  addText(`${data.company_name || 'Digi8 Solutions Private Limited'}  |  https://digi8solutions.com  |  Support: ${data.company_email || 'hello@digi8solutions.com'}`, 120, 8, 7.5, 'F1', 0.7, 0.8, 0.9);
 
   // Construct standard PDF objects
   const contentStream = streamLines.join('\n');

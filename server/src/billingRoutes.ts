@@ -2,10 +2,14 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import pool, { loadPersistentStore, savePersistentStore } from './db.js';
 import { broadcastAdminNotification } from './index.js';
 import { generateInvoicePdfBuffer, InvoicePdfData } from './pdfGenerator.js';
 import { sendMailWithFallbacks, getSmtpUser } from './emailService.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-digi8';
@@ -617,6 +621,14 @@ async function fetchCompleteInvoiceData(id: string | number) {
     }
   }
 
+  // Ensure settings are available even if MySQL didn't have row
+  if (!settings) {
+    try {
+      const store = loadPersistentStore();
+      settings = store.invoice_settings?.[0] || store.billing_settings;
+    } catch {}
+  }
+
   return { invoice, items, customer, settings };
 }
 
@@ -634,6 +646,9 @@ router.get('/invoices/:id/pdf', async (req, res) => {
       ? JSON.parse(invoice.payment_details_snapshot)
       : (invoice.payment_details_snapshot || settings || {});
 
+    const sealUrl = snapshot?.seal_url || settings?.seal_url || '/images/seal.png';
+    const sigUrl = snapshot?.signature_url || settings?.signature_url || '/images/signature.png';
+
     const pdfData: InvoicePdfData = {
       invoice_number: invoice.invoice_number,
       invoice_date: invoice.invoice_date,
@@ -641,25 +656,25 @@ router.get('/invoices/:id/pdf', async (req, res) => {
       invoice_status: invoice.invoice_status,
       payment_status: invoice.payment_status,
       company_name: settings?.company_name || 'Digi8 Solutions Private Limited',
-      company_address: settings?.company_address || 'Level 5, Mindspace Tech Park, Malad West',
-      company_city: settings?.company_city || 'Mumbai',
-      company_state: settings?.company_state || 'Maharashtra',
-      company_pincode: settings?.company_pincode || '400064',
-      company_phone: settings?.company_phone || '+91 98200 88888',
-      company_email: settings?.company_email || 'billing@digi8solutions.com',
-      company_gstin: settings?.company_gstin || '27AABCD1234F1Z5',
-      company_pan: settings?.company_pan || 'AABCD1234F',
-      customer_name: customer?.name || invoice.customer_name || 'Customer',
+      company_address: settings?.company_address || 'T-Hub, Inorbit Mall Rd, Vittal Rao Nagar, Madhapur',
+      company_city: settings?.company_city || 'Hyderabad',
+      company_state: settings?.company_state || 'Telangana',
+      company_pincode: settings?.company_pincode || '500032',
+      company_phone: settings?.company_phone || '+91 90002 07739',
+      company_email: settings?.company_email || 'hello@digi8solutions.com',
+      company_gstin: settings?.company_gstin || '',
+      company_pan: settings?.company_pan || '',
+      customer_name: customer?.name || invoice.customer_name || 'Valued Client',
       customer_company: customer?.company_name || invoice.customer_company,
       customer_mobile: customer?.mobile || invoice.customer_mobile,
       customer_email: customer?.email || invoice.customer_email,
       customer_address: customer?.billing_address || invoice.customer_address,
-      customer_city: customer?.city,
-      customer_state: customer?.state,
-      customer_gstin: customer?.gstin,
+      customer_city: customer?.city || invoice.customer_city,
+      customer_state: customer?.state || invoice.customer_state,
+      customer_gstin: customer?.gstin || invoice.customer_gstin,
       project_name: invoice.project_name,
       project_code: invoice.project_code,
-      subtotal: Number(invoice.subtotal) || 0,
+      subtotal: Number(invoice.market_total ?? invoice.subtotal) || Number(invoice.taxable_amount) || 0,
       discount_total: Number(invoice.discount_total) || 0,
       taxable_amount: Number(invoice.taxable_amount) || 0,
       cgst_amount: Number(invoice.cgst_amount) || 0,
@@ -671,32 +686,38 @@ router.get('/invoices/:id/pdf', async (req, res) => {
       grand_total: Number(invoice.grand_total) || 0,
       amount_paid: Number(invoice.amount_paid) || 0,
       balance_amount: Number(invoice.balance_amount) || 0,
-      items: items.map(it => ({
-        item_name: it.item_name || it.name,
-        description: it.description,
-        quantity: Number(it.quantity) || 1,
-        unit_market_price: Number(it.unit_market_price) || Number(it.market_price) || Number(it.unit_selling_price),
-        unit_selling_price: Number(it.unit_selling_price) || Number(it.selling_price) || 0,
-        discount_amount: Number(it.discount_amount) || 0,
-        tax_percentage: it.tax_percentage !== undefined ? Number(it.tax_percentage) : 18,
-        total_amount: Number(it.total_amount) || 0
-      })),
+      items: items.map(it => {
+        const qty = Number(it.quantity) || 1;
+        const selling = Number(it.unit_selling_price ?? it.selling_price) || 0;
+        const market = Number(it.unit_market_price ?? it.market_price) || selling;
+        const lineTotal = Number(it.line_total ?? it.total_amount) || (selling * qty);
+        return {
+          item_name: it.item_name || it.name || 'Deliverable',
+          description: it.description,
+          quantity: qty,
+          unit_market_price: market,
+          unit_selling_price: selling,
+          discount_amount: Number(it.discount_amount) || 0,
+          tax_percentage: it.tax_percentage !== undefined ? Number(it.tax_percentage) : 18,
+          total_amount: lineTotal
+        };
+      }),
       payment_details: {
-        bank_name: snapshot?.bank_name || 'HDFC Bank Ltd',
-        bank_account_holder: snapshot?.bank_account_holder || 'Digi8 Solutions Private Limited',
-        bank_account_number: snapshot?.bank_account_number || '50200098765432',
-        bank_ifsc: snapshot?.bank_ifsc || 'HDFC0000123',
-        bank_branch: snapshot?.bank_branch || 'Mindspace Branch, Mumbai',
-        upi_id: snapshot?.upi_id || 'digi8solutions@hdfcbank',
-        upi_display_name: snapshot?.upi_display_name || 'Digi8 Solutions Pvt Ltd',
-        payment_instructions: snapshot?.payment_instructions,
-        seal_url: snapshot?.seal_url || settings?.seal_url || '/images/seal.png',
-        signature_url: snapshot?.signature_url || settings?.signature_url || '/images/signature.png',
+        bank_name: snapshot?.bank_name || settings?.bank_name || 'State Bank of India',
+        bank_account_holder: snapshot?.bank_account_holder || settings?.bank_account_holder || 'N Narayana Swamy',
+        bank_account_number: snapshot?.bank_account_number || settings?.bank_account_number || '43307998455',
+        bank_ifsc: snapshot?.bank_ifsc || settings?.bank_ifsc || 'SBIN0004189',
+        bank_branch: snapshot?.bank_branch || settings?.bank_branch || 'TADIPATRI BAZAR',
+        upi_id: snapshot?.upi_id || settings?.upi_id || '9666252024@sbi',
+        upi_display_name: snapshot?.upi_display_name || settings?.upi_display_name || '9666252024@sbi',
+        payment_instructions: snapshot?.payment_instructions || settings?.payment_instructions,
+        seal_url: sealUrl,
+        signature_url: sigUrl,
         authorized_signatory_name: snapshot?.authorized_signatory_name || settings?.authorized_signatory_name || 'Authorized Signatory',
         authorized_signatory_title: snapshot?.authorized_signatory_title || settings?.authorized_signatory_title || 'Corporate Finance & Accounts Division'
       },
-      seal_url: snapshot?.seal_url || settings?.seal_url || '/images/seal.png',
-      signature_url: snapshot?.signature_url || settings?.signature_url || '/images/signature.png',
+      seal_url: sealUrl,
+      signature_url: sigUrl,
       authorized_signatory_name: snapshot?.authorized_signatory_name || settings?.authorized_signatory_name || 'Authorized Signatory',
       authorized_signatory_title: snapshot?.authorized_signatory_title || settings?.authorized_signatory_title || 'Corporate Finance & Accounts Division',
       terms_conditions: invoice.terms_conditions || settings?.terms_conditions
@@ -737,6 +758,9 @@ router.post('/invoices/:id/send-email', async (req, res) => {
       ? JSON.parse(invoice.payment_details_snapshot)
       : (invoice.payment_details_snapshot || settings || {});
 
+    const sealUrl = snapshot?.seal_url || settings?.seal_url || '/images/seal.png';
+    const sigUrl = snapshot?.signature_url || settings?.signature_url || '/images/signature.png';
+
     const pdfData: InvoicePdfData = {
       invoice_number: invoice.invoice_number,
       invoice_date: invoice.invoice_date,
@@ -744,25 +768,25 @@ router.post('/invoices/:id/send-email', async (req, res) => {
       invoice_status: invoice.invoice_status,
       payment_status: invoice.payment_status,
       company_name: settings?.company_name || 'Digi8 Solutions Private Limited',
-      company_address: settings?.company_address || 'Level 5, Mindspace Tech Park, Malad West',
-      company_city: settings?.company_city || 'Mumbai',
-      company_state: settings?.company_state || 'Maharashtra',
-      company_pincode: settings?.company_pincode || '400064',
-      company_phone: settings?.company_phone || '+91 98200 88888',
-      company_email: settings?.company_email || 'billing@digi8solutions.com',
-      company_gstin: settings?.company_gstin || '27AABCD1234F1Z5',
-      company_pan: settings?.company_pan || 'AABCD1234F',
-      customer_name: customer?.name || invoice.customer_name || 'Customer',
+      company_address: settings?.company_address || 'T-Hub, Inorbit Mall Rd, Vittal Rao Nagar, Madhapur',
+      company_city: settings?.company_city || 'Hyderabad',
+      company_state: settings?.company_state || 'Telangana',
+      company_pincode: settings?.company_pincode || '500032',
+      company_phone: settings?.company_phone || '+91 90002 07739',
+      company_email: settings?.company_email || 'hello@digi8solutions.com',
+      company_gstin: settings?.company_gstin || '',
+      company_pan: settings?.company_pan || '',
+      customer_name: customer?.name || invoice.customer_name || 'Valued Client',
       customer_company: customer?.company_name || invoice.customer_company,
       customer_mobile: customer?.mobile || invoice.customer_mobile,
       customer_email: recipientEmail,
       customer_address: customer?.billing_address || invoice.customer_address,
-      customer_city: customer?.city,
-      customer_state: customer?.state,
-      customer_gstin: customer?.gstin,
+      customer_city: customer?.city || invoice.customer_city,
+      customer_state: customer?.state || invoice.customer_state,
+      customer_gstin: customer?.gstin || invoice.customer_gstin,
       project_name: invoice.project_name,
       project_code: invoice.project_code,
-      subtotal: Number(invoice.subtotal) || 0,
+      subtotal: Number(invoice.market_total ?? invoice.subtotal) || Number(invoice.taxable_amount) || 0,
       discount_total: Number(invoice.discount_total) || 0,
       taxable_amount: Number(invoice.taxable_amount) || 0,
       cgst_amount: Number(invoice.cgst_amount) || 0,
@@ -774,32 +798,38 @@ router.post('/invoices/:id/send-email', async (req, res) => {
       grand_total: Number(invoice.grand_total) || 0,
       amount_paid: Number(invoice.amount_paid) || 0,
       balance_amount: Number(invoice.balance_amount) || 0,
-      items: items.map(it => ({
-        item_name: it.item_name || it.name,
-        description: it.description,
-        quantity: Number(it.quantity) || 1,
-        unit_market_price: Number(it.unit_market_price) || Number(it.market_price) || Number(it.unit_selling_price),
-        unit_selling_price: Number(it.unit_selling_price) || Number(it.selling_price) || 0,
-        discount_amount: Number(it.discount_amount) || 0,
-        tax_percentage: it.tax_percentage !== undefined ? Number(it.tax_percentage) : 18,
-        total_amount: Number(it.total_amount) || 0
-      })),
+      items: items.map(it => {
+        const qty = Number(it.quantity) || 1;
+        const selling = Number(it.unit_selling_price ?? it.selling_price) || 0;
+        const market = Number(it.unit_market_price ?? it.market_price) || selling;
+        const lineTotal = Number(it.line_total ?? it.total_amount) || (selling * qty);
+        return {
+          item_name: it.item_name || it.name || 'Deliverable',
+          description: it.description,
+          quantity: qty,
+          unit_market_price: market,
+          unit_selling_price: selling,
+          discount_amount: Number(it.discount_amount) || 0,
+          tax_percentage: it.tax_percentage !== undefined ? Number(it.tax_percentage) : 18,
+          total_amount: lineTotal
+        };
+      }),
       payment_details: {
-        bank_name: snapshot?.bank_name || 'HDFC Bank Ltd',
-        bank_account_holder: snapshot?.bank_account_holder || 'Digi8 Solutions Private Limited',
-        bank_account_number: snapshot?.bank_account_number || '50200098765432',
-        bank_ifsc: snapshot?.bank_ifsc || 'HDFC0000123',
-        bank_branch: snapshot?.bank_branch || 'Mindspace Branch, Mumbai',
-        upi_id: snapshot?.upi_id || 'digi8solutions@hdfcbank',
-        upi_display_name: snapshot?.upi_display_name || 'Digi8 Solutions Pvt Ltd',
-        payment_instructions: snapshot?.payment_instructions,
-        seal_url: snapshot?.seal_url || settings?.seal_url || '/images/seal.png',
-        signature_url: snapshot?.signature_url || settings?.signature_url || '/images/signature.png',
+        bank_name: snapshot?.bank_name || settings?.bank_name || 'State Bank of India',
+        bank_account_holder: snapshot?.bank_account_holder || settings?.bank_account_holder || 'N Narayana Swamy',
+        bank_account_number: snapshot?.bank_account_number || settings?.bank_account_number || '43307998455',
+        bank_ifsc: snapshot?.bank_ifsc || settings?.bank_ifsc || 'SBIN0004189',
+        bank_branch: snapshot?.bank_branch || settings?.bank_branch || 'TADIPATRI BAZAR',
+        upi_id: snapshot?.upi_id || settings?.upi_id || '9666252024@sbi',
+        upi_display_name: snapshot?.upi_display_name || settings?.upi_display_name || '9666252024@sbi',
+        payment_instructions: snapshot?.payment_instructions || settings?.payment_instructions,
+        seal_url: sealUrl,
+        signature_url: sigUrl,
         authorized_signatory_name: snapshot?.authorized_signatory_name || settings?.authorized_signatory_name || 'Authorized Signatory',
         authorized_signatory_title: snapshot?.authorized_signatory_title || settings?.authorized_signatory_title || 'Corporate Finance & Accounts Division'
       },
-      seal_url: snapshot?.seal_url || settings?.seal_url || '/images/seal.png',
-      signature_url: snapshot?.signature_url || settings?.signature_url || '/images/signature.png',
+      seal_url: sealUrl,
+      signature_url: sigUrl,
       authorized_signatory_name: snapshot?.authorized_signatory_name || settings?.authorized_signatory_name || 'Authorized Signatory',
       authorized_signatory_title: snapshot?.authorized_signatory_title || settings?.authorized_signatory_title || 'Corporate Finance & Accounts Division',
       terms_conditions: invoice.terms_conditions || settings?.terms_conditions
@@ -2945,18 +2975,23 @@ router.post('/billing/upload-asset', async (req, res) => {
     }
     const buffer = Buffer.from(base64Payload, 'base64');
 
-    // Save to public/images/<type>.png and server/uploads/<type>.png
-    const publicDir = path.resolve(process.cwd(), 'public/images');
-    const uploadsDir = path.resolve(process.cwd(), 'server/uploads');
-
-    if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir, { recursive: true });
-    if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-
+    // Save to public/images/<type>.png and server/uploads/<type>.png across client & server roots
     const fileName = `${type}.png`;
-    fs.writeFileSync(path.join(publicDir, fileName), buffer);
-    try {
-      fs.writeFileSync(path.join(uploadsDir, fileName), buffer);
-    } catch {}
+    const targetDirs = [
+      path.resolve(process.cwd(), 'public/images'),
+      path.resolve(process.cwd(), '../public/images'),
+      path.resolve(process.cwd(), 'server/uploads'),
+      path.resolve(process.cwd(), 'uploads'),
+      path.resolve(__dirname, '../../public/images'),
+      path.resolve(__dirname, '../uploads')
+    ];
+
+    for (const dir of targetDirs) {
+      try {
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(path.join(dir, fileName), buffer);
+      } catch {}
+    }
 
     const assetUrl = `/images/${fileName}`;
 

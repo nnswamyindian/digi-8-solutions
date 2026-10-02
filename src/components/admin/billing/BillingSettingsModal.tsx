@@ -378,6 +378,18 @@ export default function BillingSettingsModal({
                   type="text"
                   value={companyAddress}
                   onChange={e => setCompanyAddress(e.target.value)}
+                  placeholder="T-Hub, Inorbit Mall Rd, Madhapur"
+                  className="w-full bg-[#070b13] border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] text-slate-300 block mb-1">City</label>
+                <input
+                  type="text"
+                  value={companyCity}
+                  onChange={e => setCompanyCity(e.target.value)}
+                  placeholder="Hyderabad"
                   className="w-full bg-[#070b13] border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none"
                 />
               </div>
@@ -388,7 +400,19 @@ export default function BillingSettingsModal({
                   type="text"
                   value={companyState}
                   onChange={e => setCompanyState(e.target.value)}
+                  placeholder="Telangana"
                   className="w-full bg-[#070b13] border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] text-slate-300 block mb-1">Pincode</label>
+                <input
+                  type="text"
+                  value={companyPincode}
+                  onChange={e => setCompanyPincode(e.target.value)}
+                  placeholder="500032"
+                  className="w-full bg-[#070b13] border border-white/10 rounded-lg px-3 py-2 text-white font-mono focus:outline-none"
                 />
               </div>
 

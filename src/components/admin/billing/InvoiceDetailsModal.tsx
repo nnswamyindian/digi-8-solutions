@@ -6,7 +6,7 @@ import {
   Phone, Mail, Globe, MapPin, QrCode, FileText, ArrowLeft,
   Copy, ExternalLink, Edit3, ShieldAlert, Check, RefreshCw
 } from 'lucide-react';
-import { Invoice, PaymentRecord, InvoiceAuditLog, PaymentDetailsSnapshot, reversePayment, downloadInvoicePdf } from '../../../lib/billingApi';
+import { Invoice, PaymentRecord, InvoiceAuditLog, PaymentDetailsSnapshot, BillingSettings, getBillingSettings, reversePayment, downloadInvoicePdf } from '../../../lib/billingApi';
 import SendInvoiceEmailModal from './SendInvoiceEmailModal';
 
 interface InvoiceDetailsModalProps {
@@ -46,8 +46,21 @@ export default function InvoiceDetailsModal({
   const [showSendEmailModal, setShowSendEmailModal] = useState(false);
   const [sealImgFailed, setSealImgFailed] = useState(false);
   const [sigImgFailed, setSigImgFailed] = useState(false);
+  const [billingSettings, setBillingSettings] = useState<BillingSettings | null>(null);
 
   const printAreaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      getBillingSettings()
+        .then(res => {
+          if (res.success && res.data) {
+            setBillingSettings(res.data);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen]);
 
   // Parse payment details snapshot if available
   const snapshot: PaymentDetailsSnapshot = (() => {
@@ -382,12 +395,18 @@ export default function InvoiceDetailsModal({
               </div>
 
               <div className="mt-3 text-slate-400 space-y-0.5 text-[11px] print:text-gray-700">
-                <p>Level 5, Infinity Tower, Mindspace Tech Park</p>
-                <p>Malad West, Mumbai, Maharashtra — 400064</p>
-                <p>Email: billing@digi8solutions.com • Phone: +91 98200 88888</p>
-                <p className="font-mono text-slate-300 print:text-black">
-                  <strong>GSTIN:</strong> 27AABCD1234F1Z5 • <strong>PAN:</strong> AABCD1234F
+                <p>{billingSettings?.company_address || 'T-Hub, Inorbit Mall Rd, Madhapur'}</p>
+                <p>
+                  {[billingSettings?.company_city || 'Hyderabad', billingSettings?.company_state || 'Telangana'].filter(Boolean).join(', ')}
+                  {billingSettings?.company_pincode ? ` — ${billingSettings.company_pincode}` : ' — 500032'}
                 </p>
+                <p>Email: {billingSettings?.company_email || 'hello@digi8solutions.com'} • Phone: {billingSettings?.company_phone || '+91 90002 07739'}</p>
+                {(billingSettings?.company_gstin || billingSettings?.company_pan) && (
+                  <p className="font-mono text-slate-300 print:text-black">
+                    {billingSettings?.company_gstin && <span><strong>GSTIN:</strong> {billingSettings.company_gstin} </span>}
+                    {billingSettings?.company_pan && <span>• <strong>PAN:</strong> {billingSettings.company_pan}</span>}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -760,7 +779,7 @@ export default function InvoiceDetailsModal({
             <div className="text-[10px] text-slate-500 print:text-gray-600 space-y-1 text-center sm:text-left">
               <div className="font-semibold text-slate-400 print:text-gray-700">Tax Invoice & Statutory Declaration:</div>
               <div>This is a computer-generated official commercial tax invoice.</div>
-              <div>Certified and authorized by Digi8 Solutions Private Limited.</div>
+              <div>Certified and authorized by {billingSettings?.company_name || 'Digi8 Solutions Private Limited'}.</div>
               <div className="text-[9px] text-slate-600 print:text-gray-500 pt-0.5">
                 Issued in accordance with GST Rules & Information Technology Act.
               </div>
@@ -771,7 +790,7 @@ export default function InvoiceDetailsModal({
               <div className="relative w-28 h-28 flex items-center justify-center">
                 {!sealImgFailed ? (
                   <img
-                    src={snapshot.seal_url || '/images/seal.png'}
+                    src={snapshot.seal_url || billingSettings?.seal_url || '/images/seal.png'}
                     alt="Official Company Seal"
                     className="w-28 h-28 object-contain filter drop-shadow-md print:shadow-none -rotate-6 transition-transform hover:rotate-0 print:block"
                     onError={() => setSealImgFailed(true)}
@@ -798,14 +817,14 @@ export default function InvoiceDetailsModal({
             {/* Authorized Signatory & Signature PNG */}
             <div className="text-center sm:text-right space-y-1 print-exact-sig">
               <div className="text-[11px] font-semibold text-slate-400 print:text-gray-700">
-                For <span className="font-bold text-white print:text-black">Digi8 Solutions Private Limited</span>
+                For <span className="font-bold text-white print:text-black">{billingSettings?.company_name || 'Digi8 Solutions Private Limited'}</span>
               </div>
               
               {/* Calligraphic Signature PNG */}
               <div className="h-14 flex items-center justify-center sm:justify-end py-1">
                 {!sigImgFailed ? (
                   <img
-                    src={snapshot.signature_url || '/images/signature.png'}
+                    src={snapshot.signature_url || billingSettings?.signature_url || '/images/signature.png'}
                     alt="Authorized Signature"
                     className="h-12 w-auto max-w-[175px] object-contain filter contrast-125 print:block"
                     onError={() => setSigImgFailed(true)}
