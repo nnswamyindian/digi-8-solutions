@@ -36,6 +36,7 @@ export default function InvoiceDetailsModal({
   const [copiedUpi, setCopiedUpi] = useState(false);
   const [copiedAcc, setCopiedAcc] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [qrSvg, setQrSvg] = useState<string>('');
   const [reversalLoading, setReversalLoading] = useState(false);
   const [reversingPaymentId, setReversingPaymentId] = useState<number | null>(null);
   const [reversalReason, setReversalReason] = useState('');
@@ -75,7 +76,7 @@ export default function InvoiceDetailsModal({
   const balanceToPay = Math.max(0, Number(invoice?.balance_amount) || 0);
   const isPaid = Number(invoice?.balance_amount) <= 0 || invoice?.payment_status === 'paid';
 
-  // Generate real UPI QR Code
+  // Generate real UPI QR Code (Both SVG for perfect print vector and DataURL fallback)
   useEffect(() => {
     if (!invoice || !isOpen) return;
 
@@ -88,8 +89,21 @@ export default function InvoiceDetailsModal({
     // UPI Intent URL RFC specification
     const upiPayIntent = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amountToRequest}&cu=INR&tn=${encodeURIComponent(note)}`;
 
+    // Vector SVG generation (Highest quality for printer output)
+    QRCode.toString(upiPayIntent, {
+      type: 'svg',
+      width: 140,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#ffffff'
+      }
+    })
+      .then(svg => setQrSvg(svg))
+      .catch(err => console.warn('QR Code SVG generation failed:', err));
+
     QRCode.toDataURL(upiPayIntent, {
-      width: 160,
+      width: 200,
       margin: 1,
       color: {
         dark: '#000000',
@@ -102,7 +116,11 @@ export default function InvoiceDetailsModal({
 
   if (!isOpen || !invoice) return null;
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
+    if (!qrSvg && !qrDataUrl) {
+      // Ensure QR generation completes before printing
+      await new Promise(r => setTimeout(r, 250));
+    }
     window.print();
   };
 
@@ -209,6 +227,26 @@ export default function InvoiceDetailsModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md overflow-y-auto animate-fade-in print:p-0 print:bg-white">
       <div className="bg-[#0b101b] border border-white/10 rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto print:border-none print:shadow-none print:max-h-none print:w-full print:bg-white print:text-black">
         
+        {/* Exact Print Styles for QR Code, Vector Ink & Badges */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media print {
+            body {
+              background: #ffffff !important;
+              color: #000000 !important;
+            }
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
+            }
+            .print-exact-qr, .print-exact-qr svg, .print-exact-qr img {
+              display: block !important;
+              visibility: visible !important;
+              opacity: 1 !important;
+            }
+          }
+        ` }} />
+
         {/* Modal Controls Bar (Hidden during print) */}
         <div className="px-6 py-3.5 border-b border-white/10 bg-slate-900/80 flex flex-wrap items-center justify-between gap-3 shrink-0 print:hidden">
           <div className="flex items-center gap-2">
@@ -474,20 +512,28 @@ export default function InvoiceDetailsModal({
                 <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start">
                   {/* Dynamic Scannable UPI QR Code */}
                   {snapshot.show_upi_qr !== false && (
-                    <div className="shrink-0 text-center bg-white p-2 rounded-xl shadow-lg border border-white/20 print:border-gray-400">
-                      {qrDataUrl ? (
+                    <div className="shrink-0 text-center bg-white p-2.5 rounded-xl shadow-lg border border-white/20 print:border-gray-400 print:bg-white print:block print:p-2 print-exact-qr">
+                      {qrSvg ? (
+                        <div 
+                          className="w-32 h-32 flex items-center justify-center mx-auto print:block print:w-32 print:h-32 [&>svg]:w-full [&>svg]:h-full"
+                          dangerouslySetInnerHTML={{ __html: qrSvg }}
+                        />
+                      ) : qrDataUrl ? (
                         <img 
                           src={qrDataUrl} 
                           alt="UPI Payment QR Code" 
-                          className="w-32 h-32 object-contain mx-auto" 
+                          className="w-32 h-32 object-contain mx-auto print:block" 
                         />
                       ) : (
-                        <div className="w-32 h-32 flex items-center justify-center text-slate-400 text-[10px]">
+                        <div className="w-32 h-32 flex items-center justify-center text-slate-500 text-[10px] font-mono">
                           Generating QR...
                         </div>
                       )}
-                      <div className="text-[9px] text-slate-800 font-bold mt-1 tracking-tight">
+                      <div className="text-[9px] text-slate-900 font-bold mt-1.5 tracking-tight print:text-black">
                         Scan to Pay ₹{balanceToPay > 0 ? balanceToPay.toLocaleString('en-IN') : Number(invoice.grand_total).toLocaleString('en-IN')}
+                      </div>
+                      <div className="text-[8px] text-slate-600 font-medium print:text-gray-600">
+                        BHIM / GPay / PhonePe / Paytm
                       </div>
                     </div>
                   )}
@@ -698,17 +744,58 @@ export default function InvoiceDetailsModal({
             </div>
           )}
 
-          {/* Authorized Signature Stamp */}
-          <div className="flex justify-between items-end pt-12 border-t border-white/5 print:border-gray-300 print:pt-8">
-            <div className="text-[10px] text-slate-500 print:text-gray-500">
-              <div>This is a computer-generated commercial tax invoice.</div>
-              <div>Authorized by Digi8 Solutions Private Limited.</div>
+          {/* Authorized Signature & Official Seal Stamp */}
+          <div className="flex flex-col sm:flex-row justify-between items-center sm:items-end pt-10 border-t border-white/10 print:border-gray-300 print:pt-6 gap-6">
+            <div className="text-[10px] text-slate-500 print:text-gray-600 space-y-1 text-center sm:text-left">
+              <div className="font-semibold text-slate-400 print:text-gray-700">Tax Invoice & Statutory Declaration:</div>
+              <div>This is a computer-generated official commercial tax invoice.</div>
+              <div>Certified and authorized by Digi8 Solutions Private Limited.</div>
+              <div className="text-[9px] text-slate-600 print:text-gray-500 pt-0.5">
+                Issued in accordance with GST Rules & Information Technology Act.
+              </div>
             </div>
 
-            <div className="text-center space-y-1">
-              <div className="w-40 border-b border-white/20 print:border-black mx-auto mb-1"></div>
-              <div className="text-xs font-bold text-slate-300 print:text-black">Authorized Signatory</div>
-              <div className="text-[10px] text-slate-500 print:text-gray-500">Digi8 Solutions Finance Division</div>
+            {/* Official Company Seal (Stamp) */}
+            <div className="flex items-center justify-center">
+              <div className="relative w-28 h-28 rounded-full border-2 border-dashed border-blue-500/70 print:border-blue-900 flex items-center justify-center text-center p-1.5 shadow-[0_0_15px_rgba(59,130,246,0.15)] print:shadow-none -rotate-6 transition-transform hover:rotate-0">
+                <div className="w-full h-full rounded-full border border-blue-400 print:border-blue-900 flex flex-col items-center justify-center text-blue-400 print:text-blue-900 bg-blue-500/[0.04] print:bg-transparent">
+                  <span className="text-[6.5px] font-black uppercase tracking-wider">DIGI8 SOLUTIONS</span>
+                  <span className="text-[5.5px] font-bold text-cyan-400 print:text-blue-800">★ PVT. LTD. ★</span>
+                  <div className="my-0.5 px-2 py-0.5 bg-blue-500/20 print:bg-blue-100 rounded text-[7px] font-black tracking-widest text-white print:text-blue-900">
+                    SEAL
+                  </div>
+                  <span className="text-[5.5px] font-bold text-slate-300 print:text-gray-700">VERIFIED</span>
+                  <span className="text-[5px] font-semibold text-slate-400 print:text-gray-600">BANGALORE • MUMBAI</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Authorized Signatory & Signature */}
+            <div className="text-center sm:text-right space-y-1">
+              <div className="text-[11px] font-semibold text-slate-400 print:text-gray-700">
+                For <span className="font-bold text-white print:text-black">Digi8 Solutions Private Limited</span>
+              </div>
+              
+              {/* Calligraphic Signature SVG */}
+              <div className="h-12 flex items-center justify-center sm:justify-end py-1">
+                <svg className="w-36 h-10 text-cyan-400 print:text-blue-900" viewBox="0 0 160 50" fill="none" stroke="currentColor">
+                  <path
+                    d="M 10 35 C 25 15, 30 45, 45 20 C 55 10, 60 30, 75 22 C 85 16, 95 35, 110 18 C 120 12, 130 28, 145 20"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M 25 40 C 65 42, 115 39, 150 35"
+                    strokeWidth="1.4"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </div>
+
+              <div className="w-44 border-b border-white/20 print:border-black mx-auto sm:ml-auto sm:mr-0 mb-1"></div>
+              <div className="text-xs font-bold text-slate-200 print:text-black">Authorized Signatory</div>
+              <div className="text-[10px] text-slate-400 print:text-gray-600">Corporate Finance & Accounts Division</div>
             </div>
           </div>
 

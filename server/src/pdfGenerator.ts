@@ -1,8 +1,4 @@
-/**
- * Standalone PDF Generator for Digi8 Solutions Invoices
- * Generates standards-compliant ISO 32000-1 (PDF-1.4) binary document
- * with zero external dependencies for maximum speed and portability.
- */
+import QRCode from 'qrcode';
 
 export interface InvoicePdfData {
   invoice_number: string;
@@ -96,6 +92,50 @@ export function generateInvoicePdfBuffer(data: InvoicePdfData): Buffer {
     streamLines.push(`${r} ${g} ${b} RG`);
     streamLines.push(`${lineWidth} w`);
     streamLines.push(`${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`);
+  };
+
+  const drawCircle = (cx: number, cy: number, r: number, red: number, green: number, blue: number, lineWidth = 1) => {
+    const k = r * 0.55228475;
+    streamLines.push(`${red} ${green} ${blue} RG`);
+    streamLines.push(`${lineWidth} w`);
+    streamLines.push(`${(cx + r).toFixed(2)} ${cy.toFixed(2)} m`);
+    streamLines.push(`${(cx + r).toFixed(2)} ${(cy + k).toFixed(2)} ${(cx + k).toFixed(2)} ${(cy + r).toFixed(2)} ${cx.toFixed(2)} ${(cy + r).toFixed(2)} c`);
+    streamLines.push(`${(cx - k).toFixed(2)} ${(cy + r).toFixed(2)} ${(cx - r).toFixed(2)} ${(cy + k).toFixed(2)} ${(cx - r).toFixed(2)} ${cy.toFixed(2)} c`);
+    streamLines.push(`${(cx - r).toFixed(2)} ${(cy - k).toFixed(2)} ${(cx - k).toFixed(2)} ${(cy - r).toFixed(2)} ${cx.toFixed(2)} ${(cy - r).toFixed(2)} c`);
+    streamLines.push(`${(cx + k).toFixed(2)} ${(cy - r).toFixed(2)} ${(cx + r).toFixed(2)} ${(cy - k).toFixed(2)} ${(cx + r).toFixed(2)} ${cy.toFixed(2)} c`);
+    streamLines.push(`S`);
+  };
+
+  const drawSignature = (startX: number, startY: number) => {
+    // Rich royal blue calligraphic fountain pen stroke
+    streamLines.push(`0.06 0.22 0.62 RG`);
+    streamLines.push(`1.3 w`);
+    streamLines.push(`${startX.toFixed(2)} ${startY.toFixed(2)} m`);
+    streamLines.push(`${(startX + 10).toFixed(2)} ${(startY + 13).toFixed(2)} ${(startX + 16).toFixed(2)} ${(startY - 5).toFixed(2)} ${(startX + 24).toFixed(2)} ${(startY + 9).toFixed(2)} c`);
+    streamLines.push(`${(startX + 30).toFixed(2)} ${(startY + 18).toFixed(2)} ${(startX + 35).toFixed(2)} ${(startY + 2).toFixed(2)} ${(startX + 42).toFixed(2)} ${(startY + 5).toFixed(2)} c`);
+    streamLines.push(`${(startX + 48).toFixed(2)} ${(startY + 9).toFixed(2)} ${(startX + 54).toFixed(2)} ${(startY - 4).toFixed(2)} ${(startX + 62).toFixed(2)} ${(startY + 11).toFixed(2)} c`);
+    streamLines.push(`${(startX + 70).toFixed(2)} ${(startY + 16).toFixed(2)} ${(startX + 78).toFixed(2)} ${(startY + 3).toFixed(2)} ${(startX + 88).toFixed(2)} ${(startY + 7).toFixed(2)} c`);
+    streamLines.push(`${(startX + 95).toFixed(2)} ${(startY + 11).toFixed(2)} ${(startX + 104).toFixed(2)} ${(startY - 2).toFixed(2)} ${(startX + 114).toFixed(2)} ${(startY + 2).toFixed(2)} c`);
+    streamLines.push(`S`);
+
+    // Under-signature calligraphic flourish
+    streamLines.push(`0.8 w`);
+    streamLines.push(`${(startX + 8).toFixed(2)} ${(startY - 3).toFixed(2)} m`);
+    streamLines.push(`${(startX + 45).toFixed(2)} ${(startY - 7).toFixed(2)} ${(startX + 85).toFixed(2)} ${(startY - 5).toFixed(2)} ${(startX + 120).toFixed(2)} ${(startY - 1).toFixed(2)} c`);
+    streamLines.push(`S`);
+  };
+
+  const drawSeal = (cx: number, cy: number) => {
+    // Official Corporate Circular Stamp in Indigo/Blue Ink
+    drawCircle(cx, cy, 30, 0.08, 0.25, 0.62, 1.8);
+    drawCircle(cx, cy, 26, 0.08, 0.25, 0.62, 0.7);
+    drawCircle(cx, cy, 14, 0.08, 0.25, 0.62, 0.4);
+
+    addText('DIGI8 SOLUTIONS', cx - 27, cy + 18, 5.5, 'F2', 0.08, 0.25, 0.62);
+    addText('* PVT. LTD. *', cx - 18, cy + 9, 5.5, 'F2', 0.08, 0.25, 0.62);
+    addText('OFFICIAL', cx - 13, cy - 1, 6, 'F2', 0.08, 0.25, 0.62);
+    addText('SEAL', cx - 7, cy - 8, 6, 'F2', 0.08, 0.25, 0.62);
+    addText('VERIFIED', cx - 13, cy - 18, 5.5, 'F2', 0.08, 0.25, 0.62);
   };
 
   const addText = (
@@ -237,22 +277,70 @@ export function generateInvoicePdfBuffer(data: InvoicePdfData): Buffer {
   const summaryBoxX = pageWidth - 36 - summaryBoxWidth;
   const summaryTopY = currentY;
 
-  // Left Side: Payment Details (Bank & UPI)
+  // Left Side: Payment Details (Bank & UPI) + Scannable QR Code
   let payY = summaryTopY;
   const p = data.payment_details || {};
   addText('PAYMENT INSTRUCTIONS & BANK DETAILS', 36, payY, 8, 'F2', 0.0, 0.6, 0.7);
+
+  // Generate Scannable UPI QR Code
+  const upiId = p.upi_id || 'digi8solutions@hdfcbank';
+  const payeeName = p.upi_display_name || p.bank_account_holder || data.company_name || 'Digi8 Solutions Pvt Ltd';
+  const amountToPay = (data.balance_amount > 0 ? data.balance_amount : data.grand_total).toFixed(2);
+  const invoiceRef = data.invoice_number || 'INV';
+  const upiPayIntent = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amountToPay}&cu=INR&tn=${encodeURIComponent('Invoice ' + invoiceRef)}`;
+
+  let qrModules: any = null;
+  try {
+    const createFn = (QRCode as any).create || (QRCode as any).default?.create;
+    if (typeof createFn === 'function') {
+      const qrSymbol = createFn(upiPayIntent, { errorCorrectionLevel: 'M' });
+      if (qrSymbol && qrSymbol.modules) {
+        qrModules = qrSymbol.modules;
+      }
+    }
+  } catch (err) {
+    console.warn('PDF QR symbol notice:', err);
+  }
+
+  // Draw QR code on left if available
+  const bankX = qrModules ? 116 : 36;
+  if (qrModules) {
+    const qrSize = qrModules.size;
+    const qrWidth = 64;
+    const qrCellSize = qrWidth / qrSize;
+    const qrX = 36;
+    const qrY = payY - 74;
+
+    // QR Box background and border
+    drawRect(qrX - 3, qrY - 3, qrWidth + 6, qrWidth + 6, 1, 1, 1, true);
+    drawRect(qrX - 3, qrY - 3, qrWidth + 6, qrWidth + 6, 0.82, 0.85, 0.9, false);
+
+    // Draw QR modules
+    for (let r = 0; r < qrSize; r++) {
+      for (let c = 0; c < qrSize; c++) {
+        if (qrModules.get(r, c)) {
+          const cy = qrY + (qrSize - 1 - r) * qrCellSize;
+          const cx = qrX + c * qrCellSize;
+          drawRect(cx, cy, qrCellSize + 0.1, qrCellSize + 0.1, 0, 0, 0, true);
+        }
+      }
+    }
+
+    addText('SCAN TO PAY (UPI)', qrX + 2, qrY - 10, 6.5, 'F2', 0.0, 0.5, 0.7);
+  }
+
   payY -= 13;
-  addText(`Bank Name: ${p.bank_name || 'HDFC Bank Ltd'}`, 36, payY, 8, 'F1', 0.2, 0.25, 0.3);
+  addText(`Bank Name: ${p.bank_name || 'HDFC Bank Ltd'}`, bankX, payY, 8, 'F1', 0.2, 0.25, 0.3);
   payY -= 11;
-  addText(`Account Holder: ${p.bank_account_holder || data.company_name || 'Digi8 Solutions Pvt Ltd'}`, 36, payY, 8, 'F1', 0.2, 0.25, 0.3);
+  addText(`Account Holder: ${p.bank_account_holder || data.company_name || 'Digi8 Solutions Pvt Ltd'}`, bankX, payY, 8, 'F1', 0.2, 0.25, 0.3);
   payY -= 11;
-  addText(`Account Number: ${p.bank_account_number || '50200098765432'}  |  IFSC: ${p.bank_ifsc || 'HDFC0000123'}`, 36, payY, 8, 'F2', 0.1, 0.15, 0.2);
+  addText(`Account Number: ${p.bank_account_number || '50200098765432'}`, bankX, payY, 8, 'F2', 0.1, 0.15, 0.2);
   payY -= 11;
-  addText(`Branch: ${p.bank_branch || 'Mindspace Branch, Mumbai'}`, 36, payY, 8, 'F1', 0.3, 0.35, 0.4);
+  addText(`IFSC: ${p.bank_ifsc || 'HDFC0000123'}  |  Branch: ${p.bank_branch || 'Mindspace Branch'}`, bankX, payY, 7.5, 'F1', 0.3, 0.35, 0.4);
   payY -= 11;
-  addText(`UPI ID (VPA): ${p.upi_id || 'digi8solutions@hdfcbank'}`, 36, payY, 8, 'F2', 0.0, 0.5, 0.8);
+  addText(`UPI ID: ${p.upi_id || 'digi8solutions@hdfcbank'}`, bankX, payY, 8, 'F2', 0.0, 0.5, 0.8);
   payY -= 12;
-  addText('Scan UPI QR code or transfer directly via NEFT/RTGS/IMPS.', 36, payY, 7.5, 'F1', 0.4, 0.45, 0.5);
+  addText('Scan UPI QR or transfer via NEFT/RTGS.', bankX, payY, 7, 'F1', 0.4, 0.45, 0.5);
 
   // Right Side: Grand Total & Taxes Box
   let sY = summaryTopY;
@@ -291,22 +379,41 @@ export function generateInvoicePdfBuffer(data: InvoicePdfData): Buffer {
   addSummaryRow('Amount Paid:', formatCurrency(data.amount_paid), true);
   addSummaryRow('Balance Due:', formatCurrency(data.balance_amount), true);
 
-  // 8. Terms & Conditions Box
-  const termsY = Math.min(payY, sY) - 15;
-  drawRect(36, termsY - 32, pageWidth - 72, 38, 0.97, 0.98, 0.99);
-  drawRect(36, termsY - 32, pageWidth - 72, 38, 0.88, 0.9, 0.93, false);
-  addText('TERMS & STATUTORY DECLARATION:', 44, termsY - 5, 7.5, 'F2', 0.2, 0.25, 0.3);
+  // 8. Terms, Official Seal & Authorized Signatory Section
+  const bottomSectionTopY = Math.min(payY, sY) - 18;
+
+  // Left Column: Terms & Statutory Declaration Box
+  const termsBoxWidth = 240;
+  const termsBoxHeight = 58;
+  const termsBoxY = bottomSectionTopY - termsBoxHeight;
+  drawRect(36, termsBoxY, termsBoxWidth, termsBoxHeight, 0.97, 0.98, 0.99);
+  drawRect(36, termsBoxY, termsBoxWidth, termsBoxHeight, 0.88, 0.9, 0.93, false);
+  addText('TERMS & STATUTORY DECLARATION:', 44, termsBoxY + termsBoxHeight - 11, 7.5, 'F2', 0.1, 0.2, 0.35);
   addText(
-    data.terms_conditions || '1. Payment due within 15 days. 2. Custom software deliverables governed by MSA. 3. Subject to Mumbai jurisdiction.',
+    data.terms_conditions || '1. Payment due within 15 days of invoice date. 2. Custom software deliverables governed by MSA. 3. Subject to Mumbai jurisdiction.',
     44,
-    termsY - 17,
-    7,
+    termsBoxY + termsBoxHeight - 23,
+    6.8,
     'F1',
+    0.35,
     0.4,
-    0.45,
-    0.5
+    0.45
   );
-  addText('This is a computer generated official invoice authorized by Digi8 Solutions Pvt Ltd.', 44, termsY - 27, 6.5, 'F1', 0.5, 0.55, 0.6);
+  addText('This is a computer generated official invoice authorized by Digi8 Solutions Pvt Ltd.', 44, termsBoxY + termsBoxHeight - 45, 6.5, 'F1', 0.45, 0.5, 0.55);
+
+  // Center-Right: Official Company Seal / Stamp
+  const sealCenterX = 332;
+  const sealCenterY = termsBoxY + 28;
+  drawSeal(sealCenterX, sealCenterY);
+
+  // Far-Right: Authorized Signatory & Signature
+  const sigX = 405;
+  const sigY = termsBoxY + 24;
+  addText('For DIGI8 SOLUTIONS PRIVATE LIMITED', sigX, sigY + 26, 7.5, 'F2', 0.1, 0.15, 0.25);
+  drawSignature(sigX, sigY + 6);
+  drawLine(sigX, sigY, pageWidth - 36, sigY, 0.3, 0.35, 0.45, 0.8);
+  addText('Authorized Signatory', sigX + 22, sigY - 11, 8, 'F2', 0.08, 0.18, 0.32);
+  addText('(Corporate Finance & Accounts)', sigX + 12, sigY - 20, 6.8, 'F1', 0.4, 0.45, 0.5);
 
   // 9. Footer
   drawRect(0, 0, pageWidth, 24, 0.04, 0.08, 0.16);
