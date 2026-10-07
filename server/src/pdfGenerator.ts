@@ -68,7 +68,20 @@ export interface InvoicePdfData {
     signature_url?: string;
     authorized_signatory_name?: string;
     authorized_signatory_title?: string;
+    razorpay_enabled?: boolean;
+    razorpay_primary_payment?: boolean;
+    razorpay_key_id?: string;
+    payment_url?: string;
+    show_bank_details?: boolean;
+    show_upi_qr?: boolean;
   };
+  razorpay_enabled?: boolean;
+  razorpay_primary_payment?: boolean;
+  razorpay_key_id?: string;
+  payment_url?: string;
+  razorpay_payment_link_url?: string;
+  show_bank_details?: boolean;
+  show_upi_qr?: boolean;
   seal_url?: string;
   signature_url?: string;
   authorized_signatory_name?: string;
@@ -570,70 +583,143 @@ export function generateInvoicePdfBuffer(data: InvoicePdfData): Buffer {
   const summaryBoxX = pageWidth - 36 - summaryBoxWidth;
   const summaryTopY = currentY;
 
-  // Left Side: Payment Details (Bank & UPI) + Scannable QR Code
+  // Left Side: Payment Details (Bank & UPI / Razorpay) + Scannable QR Code
   let payY = summaryTopY;
   const p = data.payment_details || {};
-  addText('PAYMENT INSTRUCTIONS & BANK DETAILS', 36, payY, 8, 'F2', 0.0, 0.6, 0.7);
+  const isPaid = (data.payment_status?.toLowerCase() === 'paid') || (Number(data.balance_amount) <= 0);
+  const isRazorpay = Boolean(
+    data.razorpay_enabled !== undefined
+      ? data.razorpay_enabled
+      : (p.razorpay_enabled !== undefined ? p.razorpay_enabled : Boolean(data.razorpay_key_id || p.razorpay_key_id))
+  );
+  const isRazorpayPrimary = data.razorpay_primary_payment !== false && p.razorpay_primary_payment !== false;
+  const showBankDetails = data.show_bank_details !== false && p.show_bank_details !== false;
 
-  // Generate Scannable UPI QR Code
+  const fallbackDomain = 'https://digi8solutions.com';
+  const paymentUrl = (data.payment_url || data.razorpay_payment_link_url || `${fallbackDomain}/pay/${encodeURIComponent(data.invoice_number || 'INV')}`).trim();
+
   const upiId = p.upi_id || 'digi8solutions@hdfcbank';
   const payeeName = p.upi_display_name || p.bank_account_holder || data.company_name || 'Digi8 Solutions Pvt Ltd';
   const amountToPay = (data.balance_amount > 0 ? data.balance_amount : data.grand_total).toFixed(2);
   const invoiceRef = data.invoice_number || 'INV';
   const upiPayIntent = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amountToPay}&cu=INR&tn=${encodeURIComponent('Invoice ' + invoiceRef)}`;
 
-  let qrModules: any = null;
-  try {
-    const createFn = (QRCode as any).create || (QRCode as any).default?.create;
-    if (typeof createFn === 'function') {
-      const qrSymbol = createFn(upiPayIntent, { errorCorrectionLevel: 'M' });
-      if (qrSymbol && qrSymbol.modules) {
-        qrModules = qrSymbol.modules;
-      }
-    }
-  } catch (err) {
-    console.warn('PDF QR symbol notice:', err);
-  }
+  if (isPaid) {
+    addText('PAYMENT STATUS & RECONCILIATION', 36, payY, 8, 'F2', 0.08, 0.55, 0.25);
 
-  // Draw QR code on left if available
-  const bankX = qrModules ? 116 : 36;
-  if (qrModules) {
-    const qrSize = qrModules.size;
-    const qrWidth = 64;
-    const qrCellSize = qrWidth / qrSize;
-    const qrX = 36;
-    const qrY = payY - 74;
+    const badgeX = 36;
+    const badgeY = payY - 74;
+    const badgeW = 68;
+    const badgeH = 68;
 
-    // QR Box background and border
-    drawRect(qrX - 3, qrY - 3, qrWidth + 6, qrWidth + 6, 1, 1, 1, true);
-    drawRect(qrX - 3, qrY - 3, qrWidth + 6, qrWidth + 6, 0.82, 0.85, 0.9, false);
+    // Soft emerald verified badge box
+    drawRect(badgeX - 2, badgeY - 2, badgeW + 4, badgeH + 4, 0.93, 0.98, 0.94, true);
+    drawRect(badgeX - 2, badgeY - 2, badgeW + 4, badgeH + 4, 0.15, 0.65, 0.35, false);
+    drawRect(badgeX + 2, badgeY + 2, badgeW - 4, badgeH - 4, 0.72, 0.9, 0.76, false);
 
-    // Draw QR modules
-    for (let r = 0; r < qrSize; r++) {
-      for (let c = 0; c < qrSize; c++) {
-        if (qrModules.get(r, c)) {
-          const cy = qrY + (qrSize - 1 - r) * qrCellSize;
-          const cx = qrX + c * qrCellSize;
-          drawRect(cx, cy, qrCellSize + 0.1, qrCellSize + 0.1, 0, 0, 0, true);
+    // Paid stamp badge text
+    addText('PAID', badgeX + 17, badgeY + 40, 14, 'F2', 0.08, 0.55, 0.25);
+    addText('IN FULL', badgeX + 15, badgeY + 24, 9, 'F2', 0.1, 0.58, 0.28);
+    addText('VERIFIED RECEIPT', badgeX + 6, badgeY + 10, 6, 'F1', 0.2, 0.45, 0.3);
+
+    const textX = 116;
+    payY -= 12;
+    addText('Payment Status: FULLY SETTLED / PAID', textX, payY, 8.5, 'F2', 0.08, 0.55, 0.25);
+    payY -= 11;
+    addText(`Settled Amount: ${formatCurrency(data.grand_total)}`, textX, payY, 8, 'F2', 0.15, 0.2, 0.25);
+    payY -= 11;
+    addText('Outstanding Due: Rs. 0.00 (Nil Balance)', textX, payY, 8, 'F1', 0.2, 0.6, 0.3);
+    payY -= 11;
+    addText(`Invoice Ref: ${data.invoice_number}  |  Settled: ${formatPdfDate(data.invoice_date)}`, textX, payY, 7.5, 'F1', 0.3, 0.35, 0.4);
+    payY -= 11;
+    addText(isRazorpay ? 'Channel: Razorpay Enterprise Online Gateway' : 'Channel: Direct Corporate Bank Settlement', textX, payY, 7.5, 'F1', 0.3, 0.35, 0.4);
+    payY -= 12;
+    addText('Official digital receipt recorded in Digi8 ledger. Thank you!', textX, payY, 7, 'F2', 0.1, 0.5, 0.25);
+  } else {
+    // Generate Scannable QR Code (Razorpay payment portal or fallback UPI intent)
+    const qrPayload = isRazorpay ? paymentUrl : upiPayIntent;
+    let qrModules: any = null;
+    try {
+      const createFn = (QRCode as any).create || (QRCode as any).default?.create;
+      if (typeof createFn === 'function') {
+        const qrSymbol = createFn(qrPayload, { errorCorrectionLevel: 'M' });
+        if (qrSymbol && qrSymbol.modules) {
+          qrModules = qrSymbol.modules;
         }
       }
+    } catch (err) {
+      console.warn('PDF QR symbol notice:', err);
     }
 
-    addText('SCAN TO PAY (UPI)', qrX + 2, qrY - 10, 6.5, 'F2', 0.0, 0.5, 0.7);
-  }
+    const qrSize = qrModules ? qrModules.size : 0;
+    const qrWidth = 64;
+    const qrCellSize = qrSize > 0 ? qrWidth / qrSize : 0;
+    const qrX = 36;
+    const qrY = payY - 74;
+    const bankX = qrModules ? 116 : 36;
 
-  payY -= 13;
-  addText(`Bank Name: ${p.bank_name || 'HDFC Bank Ltd'}`, bankX, payY, 8, 'F1', 0.2, 0.25, 0.3);
-  payY -= 11;
-  addText(`Account Holder: ${p.bank_account_holder || data.company_name || 'Digi8 Solutions Pvt Ltd'}`, bankX, payY, 8, 'F1', 0.2, 0.25, 0.3);
-  payY -= 11;
-  addText(`Account Number: ${p.bank_account_number || '50200098765432'}`, bankX, payY, 8, 'F2', 0.1, 0.15, 0.2);
-  payY -= 11;
-  addText(`IFSC: ${p.bank_ifsc || 'HDFC0000123'}  |  Branch: ${p.bank_branch || 'Mindspace Branch'}`, bankX, payY, 7.5, 'F1', 0.3, 0.35, 0.4);
-  payY -= 11;
-  addText(`UPI ID: ${p.upi_id || 'digi8solutions@hdfcbank'}`, bankX, payY, 8, 'F2', 0.0, 0.5, 0.8);
-  payY -= 12;
-  addText('Scan UPI QR or transfer via NEFT/RTGS.', bankX, payY, 7, 'F1', 0.4, 0.45, 0.5);
+    if (isRazorpay) {
+      addText('ONLINE PAYMENT & RAZORPAY GATEWAY', 36, payY, 8, 'F2', 0.0, 0.55, 0.75);
+    } else {
+      addText('PAYMENT INSTRUCTIONS & BANK DETAILS', 36, payY, 8, 'F2', 0.0, 0.6, 0.7);
+    }
+
+    // Draw QR code on left if available
+    if (qrModules) {
+      // QR Box background and border
+      drawRect(qrX - 3, qrY - 3, qrWidth + 6, qrWidth + 6, 1, 1, 1, true);
+      drawRect(qrX - 3, qrY - 3, qrWidth + 6, qrWidth + 6, 0.82, 0.85, 0.9, false);
+
+      // Draw QR modules
+      for (let r = 0; r < qrSize; r++) {
+        for (let c = 0; c < qrSize; c++) {
+          if (qrModules.get(r, c)) {
+            const cy = qrY + (qrSize - 1 - r) * qrCellSize;
+            const cx = qrX + c * qrCellSize;
+            drawRect(cx, cy, qrCellSize + 0.1, qrCellSize + 0.1, 0, 0, 0, true);
+          }
+        }
+      }
+
+      if (isRazorpay) {
+        addText('SCAN TO PAY ONLINE', qrX - 2, qrY - 10, 6.2, 'F2', 0.0, 0.5, 0.7);
+        addText('Razorpay: UPI, Cards & NetBanking', qrX - 6, qrY - 18, 5.2, 'F1', 0.35, 0.45, 0.55);
+      } else {
+        addText('SCAN TO PAY (UPI)', qrX + 2, qrY - 10, 6.5, 'F2', 0.0, 0.5, 0.7);
+      }
+    }
+
+    if (isRazorpay && isRazorpayPrimary) {
+      payY -= 12;
+      addText('Payment Gateway: Razorpay Enterprise Online Payments', bankX, payY, 7.8, 'F2', 0.0, 0.45, 0.75);
+      payY -= 11;
+      const cleanPayUrl = paymentUrl.length > 44 ? `${paymentUrl.slice(0, 42)}...` : paymentUrl;
+      addText(`Online Portal: ${cleanPayUrl}`, bankX, payY, 7.5, 'F2', 0.0, 0.5, 0.8);
+      payY -= 11;
+      addText('Accepted: UPI (GPay/PhonePe/Paytm), Cards & Net Banking', bankX, payY, 7.2, 'F1', 0.2, 0.25, 0.3);
+      payY -= 11;
+      addText('Auto-Reconciliation: Invoice updates instantly on payment', bankX, payY, 7.2, 'F1', 0.2, 0.25, 0.3);
+      payY -= 11;
+      if (showBankDetails && p.bank_account_number) {
+        addText(`NEFT/RTGS: ${p.bank_name || 'Bank'} | A/C: ${p.bank_account_number} | IFSC: ${p.bank_ifsc || 'HDFC0000123'}`, bankX, payY, 6.8, 'F1', 0.35, 0.4, 0.45);
+        payY -= 10;
+      }
+      addText('Scan QR with phone camera/UPI app or visit payment link.', bankX, payY, 6.8, 'F1', 0.4, 0.45, 0.5);
+    } else {
+      payY -= 13;
+      addText(`Bank Name: ${p.bank_name || 'HDFC Bank Ltd'}`, bankX, payY, 8, 'F1', 0.2, 0.25, 0.3);
+      payY -= 11;
+      addText(`Account Holder: ${p.bank_account_holder || data.company_name || 'Digi8 Solutions Pvt Ltd'}`, bankX, payY, 8, 'F1', 0.2, 0.25, 0.3);
+      payY -= 11;
+      addText(`Account Number: ${p.bank_account_number || '50200098765432'}`, bankX, payY, 8, 'F2', 0.1, 0.15, 0.2);
+      payY -= 11;
+      addText(`IFSC: ${p.bank_ifsc || 'HDFC0000123'}  |  Branch: ${p.bank_branch || 'Mindspace Branch'}`, bankX, payY, 7.5, 'F1', 0.3, 0.35, 0.4);
+      payY -= 11;
+      addText(`UPI ID: ${p.upi_id || 'digi8solutions@hdfcbank'}`, bankX, payY, 8, 'F2', 0.0, 0.5, 0.8);
+      payY -= 12;
+      addText('Scan UPI QR or transfer via NEFT/RTGS.', bankX, payY, 7, 'F1', 0.4, 0.45, 0.5);
+    }
+  }
 
   // Right Side: Grand Total & Taxes Box
   let sY = summaryTopY;

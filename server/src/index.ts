@@ -38,6 +38,12 @@ app.use(express.json({
 // Mount Billing & Invoices Management Module
 app.use('/api', billingRouter);
 
+// Direct customer payment redirection (supporting QR scans from server domain)
+app.get('/pay/:invoiceNumber', (req, res) => {
+  const targetBase = process.env.APP_URL || 'http://localhost:5173';
+  res.redirect(`${targetBase.replace(/\/$/, '')}/pay/${encodeURIComponent(req.params.invoiceNumber)}`);
+});
+
 // Initialize DB
 initDb().catch(console.error);
 

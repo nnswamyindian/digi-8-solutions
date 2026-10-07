@@ -99,7 +99,7 @@ export default function InvoiceDetailsModal({
   const balanceToPay = Math.max(0, Number(invoice?.balance_amount) || 0);
   const isPaid = Number(invoice?.balance_amount) <= 0 || invoice?.payment_status === 'paid';
 
-  // Generate real UPI QR Code (Both SVG for perfect print vector and DataURL fallback)
+  // Generate real QR Code (Razorpay online payment URL or UPI Intent)
   useEffect(() => {
     if (!invoice || !isOpen) return;
 
@@ -109,11 +109,15 @@ export default function InvoiceDetailsModal({
     const invoiceRef = invoice.invoice_number || 'INV';
     const note = `Invoice ${invoiceRef}`;
 
-    // UPI Intent URL RFC specification
+    // UPI Intent URL RFC specification fallback
     const upiPayIntent = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amountToRequest}&cu=INR&tn=${encodeURIComponent(note)}`;
 
+    const isRazorpayActive = Boolean(snapshot.razorpay_enabled ?? true);
+    const paymentPortalUrl = invoice.razorpay_payment_link_url || `${window.location.origin}/pay/${encodeURIComponent(invoice.invoice_number)}`;
+    const qrPayload = isRazorpayActive ? paymentPortalUrl : upiPayIntent;
+
     // Vector SVG generation (Highest quality for printer output)
-    QRCode.toString(upiPayIntent, {
+    QRCode.toString(qrPayload, {
       type: 'svg',
       width: 140,
       margin: 1,
@@ -125,7 +129,7 @@ export default function InvoiceDetailsModal({
       .then(svg => setQrSvg(svg))
       .catch(err => console.warn('QR Code SVG generation failed:', err));
 
-    QRCode.toDataURL(upiPayIntent, {
+    QRCode.toDataURL(qrPayload, {
       width: 200,
       margin: 1,
       color: {
@@ -572,32 +576,41 @@ export default function InvoiceDetailsModal({
                 )}
 
                 <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start">
-                  {/* Dynamic Scannable UPI QR Code */}
+                  {/* Dynamic Scannable QR Code or Paid Badge */}
                   {snapshot.show_upi_qr !== false && (
-                    <div className="shrink-0 text-center bg-white p-2.5 rounded-xl shadow-lg border border-white/20 print:border-gray-400 print:bg-white print:block print:p-2 print-exact-qr">
-                      {qrSvg ? (
-                        <div 
-                          className="w-32 h-32 flex items-center justify-center mx-auto print:block print:w-32 print:h-32 [&>svg]:w-full [&>svg]:h-full"
-                          dangerouslySetInnerHTML={{ __html: qrSvg }}
-                        />
-                      ) : qrDataUrl ? (
-                        <img 
-                          src={qrDataUrl} 
-                          alt="UPI Payment QR Code" 
-                          className="w-32 h-32 object-contain mx-auto print:block" 
-                        />
-                      ) : (
-                        <div className="w-32 h-32 flex items-center justify-center text-slate-500 text-[10px] font-mono">
-                          Generating QR...
+                    isPaid ? (
+                      <div className="shrink-0 text-center bg-emerald-950/40 p-4 rounded-xl border border-emerald-500/30 flex flex-col items-center justify-center w-36 h-36 print:border-emerald-700 print:bg-emerald-50">
+                        <CheckCircle size={36} className="text-emerald-400 mb-1.5" />
+                        <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider print:text-emerald-800">Paid in Full</span>
+                        <span className="text-[10px] text-emerald-400/80 mt-0.5 print:text-emerald-700">Verified Digital Receipt</span>
+                        <span className="text-[9px] text-slate-400 mt-1 font-mono print:text-slate-600">₹0.00 Balance</span>
+                      </div>
+                    ) : (
+                      <div className="shrink-0 text-center bg-white p-2.5 rounded-xl shadow-lg border border-white/20 print:border-gray-400 print:bg-white print:block print:p-2 print-exact-qr">
+                        {qrSvg ? (
+                          <div 
+                            className="w-32 h-32 flex items-center justify-center mx-auto print:block print:w-32 print:h-32 [&>svg]:w-full [&>svg]:h-full"
+                            dangerouslySetInnerHTML={{ __html: qrSvg }}
+                          />
+                        ) : qrDataUrl ? (
+                          <img 
+                            src={qrDataUrl} 
+                            alt="Payment QR Code" 
+                            className="w-32 h-32 object-contain mx-auto print:block" 
+                          />
+                        ) : (
+                          <div className="w-32 h-32 flex items-center justify-center text-slate-500 text-[10px] font-mono">
+                            Generating QR...
+                          </div>
+                        )}
+                        <div className="text-[9px] text-slate-900 font-bold mt-1.5 tracking-tight print:text-black">
+                          Scan to Pay ₹{balanceToPay > 0 ? balanceToPay.toLocaleString('en-IN') : Number(invoice.grand_total).toLocaleString('en-IN')}
                         </div>
-                      )}
-                      <div className="text-[9px] text-slate-900 font-bold mt-1.5 tracking-tight print:text-black">
-                        Scan to Pay ₹{balanceToPay > 0 ? balanceToPay.toLocaleString('en-IN') : Number(invoice.grand_total).toLocaleString('en-IN')}
+                        <div className="text-[8px] text-sky-700 font-semibold print:text-sky-800">
+                          {snapshot.razorpay_enabled !== false ? 'Razorpay: UPI, Cards & NetBanking' : 'BHIM / GPay / PhonePe / Paytm'}
+                        </div>
                       </div>
-                      <div className="text-[8px] text-slate-600 font-medium print:text-gray-600">
-                        BHIM / GPay / PhonePe / Paytm
-                      </div>
-                    </div>
+                    )
                   )}
 
                   {/* Bank & UPI text details */}

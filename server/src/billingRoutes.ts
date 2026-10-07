@@ -364,7 +364,10 @@ export function getPaymentDetailsSnapshot(): any {
     seal_url: settings.seal_url || '/images/seal.png',
     signature_url: settings.signature_url || '/images/signature.png',
     authorized_signatory_name: settings.authorized_signatory_name || 'Authorized Signatory',
-    authorized_signatory_title: settings.authorized_signatory_title || 'Corporate Finance & Accounts Division'
+    authorized_signatory_title: settings.authorized_signatory_title || 'Corporate Finance & Accounts Division',
+    razorpay_enabled: settings.razorpay_enabled !== undefined ? Boolean(settings.razorpay_enabled) : true,
+    razorpay_primary_payment: settings.razorpay_primary_payment !== undefined ? Boolean(settings.razorpay_primary_payment) : true,
+    razorpay_key_id: settings.razorpay_key_id || 'rzp_test_digi8solutions'
   };
 }
 
@@ -658,6 +661,12 @@ router.get('/invoices/:id/pdf', async (req, res) => {
     const sealUrl = snapshot?.seal_url || settings?.seal_url || '/images/seal.png';
     const sigUrl = snapshot?.signature_url || settings?.signature_url || '/images/signature.png';
 
+    const rzpConfig = await getRazorpayConfig();
+    const reqOrigin = req.get('origin') || (req.get('referer') ? new URL(req.get('referer')!).origin : null);
+    const appBase = (process.env.APP_URL || reqOrigin || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+    const cleanInvoiceNum = encodeURIComponent(invoice.invoice_number);
+    const paymentUrl = invoice.razorpay_payment_link_url || `${appBase}/pay/${cleanInvoiceNum}`;
+
     const pdfData: InvoicePdfData = {
       invoice_number: invoice.invoice_number,
       invoice_date: invoice.invoice_date,
@@ -711,6 +720,13 @@ router.get('/invoices/:id/pdf', async (req, res) => {
           total_amount: lineTotal
         };
       }),
+      razorpay_enabled: rzpConfig.enabled,
+      razorpay_primary_payment: rzpConfig.primaryPayment,
+      razorpay_key_id: rzpConfig.keyId,
+      payment_url: paymentUrl,
+      razorpay_payment_link_url: invoice.razorpay_payment_link_url || paymentUrl,
+      show_bank_details: snapshot?.show_bank_details !== undefined ? snapshot.show_bank_details : (settings?.show_bank_details !== false),
+      show_upi_qr: snapshot?.show_upi_qr !== undefined ? snapshot.show_upi_qr : (settings?.show_upi_qr !== false),
       payment_details: {
         bank_name: snapshot?.bank_name || settings?.bank_name || 'State Bank of India',
         bank_account_holder: snapshot?.bank_account_holder || settings?.bank_account_holder || 'N Narayana Swamy',
@@ -723,7 +739,13 @@ router.get('/invoices/:id/pdf', async (req, res) => {
         seal_url: sealUrl,
         signature_url: sigUrl,
         authorized_signatory_name: snapshot?.authorized_signatory_name || settings?.authorized_signatory_name || 'Authorized Signatory',
-        authorized_signatory_title: snapshot?.authorized_signatory_title || settings?.authorized_signatory_title || 'Corporate Finance & Accounts Division'
+        authorized_signatory_title: snapshot?.authorized_signatory_title || settings?.authorized_signatory_title || 'Corporate Finance & Accounts Division',
+        razorpay_enabled: rzpConfig.enabled,
+        razorpay_primary_payment: rzpConfig.primaryPayment,
+        razorpay_key_id: rzpConfig.keyId,
+        payment_url: paymentUrl,
+        show_bank_details: snapshot?.show_bank_details !== undefined ? snapshot.show_bank_details : (settings?.show_bank_details !== false),
+        show_upi_qr: snapshot?.show_upi_qr !== undefined ? snapshot.show_upi_qr : (settings?.show_upi_qr !== false)
       },
       seal_url: sealUrl,
       signature_url: sigUrl,
@@ -823,6 +845,72 @@ router.post('/invoices/:id/send-email', async (req, res) => {
           total_amount: lineTotal
         };
       }),
+    const rzpConfig = await getRazorpayConfig();
+    const reqOrigin = req.get('origin') || (req.get('referer') ? new URL(req.get('referer')!).origin : null);
+    const appBase = (process.env.APP_URL || reqOrigin || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+    const cleanInvoiceNum = encodeURIComponent(invoice.invoice_number);
+    const paymentUrl = invoice.razorpay_payment_link_url || `${appBase}/pay/${cleanInvoiceNum}`;
+
+    const pdfData: InvoicePdfData = {
+      invoice_number: invoice.invoice_number,
+      invoice_date: invoice.invoice_date,
+      due_date: invoice.due_date,
+      invoice_status: invoice.invoice_status,
+      payment_status: invoice.payment_status,
+      company_name: settings?.company_name || 'Digi8 Solutions Private Limited',
+      company_address: settings?.company_address || 'T-Hub, Inorbit Mall Rd, Vittal Rao Nagar, Madhapur',
+      company_city: settings?.company_city || 'Hyderabad',
+      company_state: settings?.company_state || 'Telangana',
+      company_pincode: settings?.company_pincode || '500032',
+      company_phone: settings?.company_phone || '+91 90002 07739',
+      company_email: settings?.company_email || 'hello@digi8solutions.com',
+      company_gstin: settings?.company_gstin || '',
+      company_pan: settings?.company_pan || '',
+      customer_name: customer?.name || invoice.customer_name || 'Valued Client',
+      customer_company: customer?.company_name || invoice.customer_company,
+      customer_mobile: customer?.mobile || invoice.customer_mobile,
+      customer_email: customer?.email || invoice.customer_email,
+      customer_address: customer?.billing_address || invoice.customer_address,
+      customer_city: customer?.city || invoice.customer_city,
+      customer_state: customer?.state || invoice.customer_state,
+      customer_gstin: customer?.gstin || invoice.customer_gstin,
+      project_name: invoice.project_name,
+      project_code: invoice.project_code,
+      subtotal: Number(invoice.market_total ?? invoice.subtotal) || Number(invoice.taxable_amount) || 0,
+      discount_total: Number(invoice.discount_total) || 0,
+      taxable_amount: Number(invoice.taxable_amount) || 0,
+      cgst_amount: Number(invoice.cgst_amount) || 0,
+      sgst_amount: Number(invoice.sgst_amount) || 0,
+      igst_amount: Number(invoice.igst_amount) || 0,
+      tax_total: Number(invoice.tax_total) || 0,
+      tax_type: invoice.tax_type,
+      round_off: Number(invoice.round_off) || 0,
+      grand_total: Number(invoice.grand_total) || 0,
+      amount_paid: Number(invoice.amount_paid) || 0,
+      balance_amount: Number(invoice.balance_amount) || 0,
+      items: items.map(it => {
+        const qty = Number(it.quantity) || 1;
+        const selling = Number(it.unit_selling_price ?? it.selling_price) || 0;
+        const market = Number(it.unit_market_price ?? it.market_price) || selling;
+        const lineTotal = Number(it.line_total ?? it.total_amount) || (selling * qty);
+        return {
+          item_name: it.item_name || it.name || 'Deliverable',
+          description: it.description,
+          quantity: qty,
+          unit_market_price: market,
+          unit_selling_price: selling,
+          discount_amount: Number(it.discount_amount) || 0,
+          tax_percentage: it.tax_percentage !== undefined ? Number(it.tax_percentage) : 18,
+          total_amount: lineTotal
+        };
+      }),
+      razorpay_enabled: rzpConfig.enabled,
+      razorpay_primary_payment: rzpConfig.primaryPayment,
+      razorpay_key_id: rzpConfig.keyId,
+      payment_url: paymentUrl,
+      razorpay_payment_link_url: invoice.razorpay_payment_link_url || paymentUrl,
+      show_bank_details: snapshot?.show_bank_details !== undefined ? snapshot.show_bank_details : (settings?.show_bank_details !== false),
+      show_upi_qr: snapshot?.show_upi_qr !== undefined ? snapshot.show_upi_qr : (settings?.show_upi_qr !== false),
       payment_details: {
         bank_name: snapshot?.bank_name || settings?.bank_name || 'State Bank of India',
         bank_account_holder: snapshot?.bank_account_holder || settings?.bank_account_holder || 'N Narayana Swamy',
@@ -835,7 +923,13 @@ router.post('/invoices/:id/send-email', async (req, res) => {
         seal_url: sealUrl,
         signature_url: sigUrl,
         authorized_signatory_name: snapshot?.authorized_signatory_name || settings?.authorized_signatory_name || 'Authorized Signatory',
-        authorized_signatory_title: snapshot?.authorized_signatory_title || settings?.authorized_signatory_title || 'Corporate Finance & Accounts Division'
+        authorized_signatory_title: snapshot?.authorized_signatory_title || settings?.authorized_signatory_title || 'Corporate Finance & Accounts Division',
+        razorpay_enabled: rzpConfig.enabled,
+        razorpay_primary_payment: rzpConfig.primaryPayment,
+        razorpay_key_id: rzpConfig.keyId,
+        payment_url: paymentUrl,
+        show_bank_details: snapshot?.show_bank_details !== undefined ? snapshot.show_bank_details : (settings?.show_bank_details !== false),
+        show_upi_qr: snapshot?.show_upi_qr !== undefined ? snapshot.show_upi_qr : (settings?.show_upi_qr !== false)
       },
       seal_url: sealUrl,
       signature_url: sigUrl,
@@ -897,7 +991,18 @@ router.post('/invoices/:id/send-email', async (req, res) => {
             </table>
           </div>
 
-          <!-- Payment Instructions -->
+          ${rzpConfig.enabled && Number(invoice.balance_amount) > 0 ? `
+          <!-- Razorpay Online Payment Box -->
+          <div style="background-color: #070c17; border: 1px solid #00e5ff; border-radius: 8px; padding: 18px; margin: 20px 0; text-align: center;">
+            <h4 style="color: #00e5ff; margin: 0 0 8px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Pay Securely Online via Razorpay</h4>
+            <p style="color: #cbd5e1; font-size: 12px; margin: 0 0 14px 0;">Instant receipt and automatic invoice reconciliation. Pay using UPI (GPay/PhonePe/Paytm), Cards, or Net Banking.</p>
+            <a href="${paymentUrl}" style="display: inline-block; background-color: #00e5ff; color: #040914; font-weight: bold; font-size: 13px; padding: 12px 28px; border-radius: 6px; text-decoration: none;">
+              Pay Rs. ${Number(invoice.balance_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })} Online Now &rarr;
+            </a>
+          </div>
+          ` : ''}
+
+          <!-- Direct Coordinates -->
           <div style="background-color: #070c17; border: 1px dashed #00e5ff; border-radius: 8px; padding: 16px; margin: 20px 0;">
             <h4 style="color: #00e5ff; margin: 0 0 8px 0; font-size: 13px; text-transform: uppercase;">Direct Bank & UPI Payment Coordinates:</h4>
             <p style="color: #cbd5e1; font-size: 12px; margin: 4px 0; line-height: 1.5;">
