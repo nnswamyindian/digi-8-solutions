@@ -799,13 +799,6 @@ const cleanInvoiceNum = encodeURIComponent(invoice.invoice_number);
 const paymentUrl = invoice.razorpay_payment_link_url || `${appBase}/pay/${cleanInvoiceNum}`;
 
 const pdfData: InvoicePdfData = {
-    const rzpConfig = await getRazorpayConfig();
-    const reqOrigin = req.get('origin') || (req.get('referer') ? new URL(req.get('referer')!).origin : null);
-    const appBase = (process.env.APP_URL || reqOrigin || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
-    const cleanInvoiceNum = encodeURIComponent(invoice.invoice_number);
-    const paymentUrl = invoice.razorpay_payment_link_url || `${appBase}/pay/${cleanInvoiceNum}`;
-
-    const pdfData: InvoicePdfData = {
       invoice_number: invoice.invoice_number,
       invoice_date: invoice.invoice_date,
       due_date: invoice.due_date,
