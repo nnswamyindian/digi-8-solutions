@@ -168,6 +168,7 @@ function AppShell() {
           <Route path="/request-proposal" element={<QuoteCalculator />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/pay/:invoiceNumber" element={<CustomerInvoicePayment />} />
+          <Route path="/pay/*" element={<CustomerInvoicePayment />} />
           <Route path="/pay" element={<CustomerInvoicePayment />} />
           <Route path="/invoice/:id" element={<CustomerInvoicePayment />} />
           <Route path="*" element={<NotFound />} />

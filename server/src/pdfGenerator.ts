@@ -596,7 +596,7 @@ export function generateInvoicePdfBuffer(data: InvoicePdfData): Buffer {
   const showBankDetails = data.show_bank_details !== false && p.show_bank_details !== false;
 
   const fallbackDomain = 'https://digi8solutions.com';
-  const paymentUrl = (data.payment_url || data.razorpay_payment_link_url || `${fallbackDomain}/pay/${encodeURIComponent(data.invoice_number || 'INV')}`).trim();
+  const paymentUrl = (data.payment_url || data.razorpay_payment_link_url || `${fallbackDomain}/pay?inv=${encodeURIComponent(data.invoice_number || 'INV')}`).trim();
 
   const upiId = p.upi_id || 'digi8solutions@hdfcbank';
   const payeeName = p.upi_display_name || p.bank_account_holder || data.company_name || 'Digi8 Solutions Pvt Ltd';
@@ -691,20 +691,23 @@ export function generateInvoicePdfBuffer(data: InvoicePdfData): Buffer {
 
     if (isRazorpay && isRazorpayPrimary) {
       payY -= 12;
-      addText('Payment Gateway: Razorpay Enterprise Online Payments', bankX, payY, 7.8, 'F2', 0.0, 0.45, 0.75);
+      addText('Gateway: Razorpay Enterprise Online', bankX, payY, 7.5, 'F2', 0.0, 0.45, 0.75);
       payY -= 11;
-      const cleanPayUrl = paymentUrl.length > 44 ? `${paymentUrl.slice(0, 42)}...` : paymentUrl;
-      addText(`Online Portal: ${cleanPayUrl}`, bankX, payY, 7.5, 'F2', 0.0, 0.5, 0.8);
-      payY -= 11;
-      addText('Accepted: UPI (GPay/PhonePe/Paytm), Cards & Net Banking', bankX, payY, 7.2, 'F1', 0.2, 0.25, 0.3);
-      payY -= 11;
-      addText('Auto-Reconciliation: Invoice updates instantly on payment', bankX, payY, 7.2, 'F1', 0.2, 0.25, 0.3);
-      payY -= 11;
+      const cleanDisplayHost = paymentUrl.replace(/^https?:\/\//i, '').replace(/%2F/gi, '/');
+      const cleanPayUrl = cleanDisplayHost.length > 38 ? `${cleanDisplayHost.slice(0, 36)}...` : cleanDisplayHost;
+      addText(`Pay Portal: ${cleanPayUrl}`, bankX, payY, 7, 'F2', 0.0, 0.5, 0.8);
+      payY -= 10;
+      addText('Accepted: UPI, Debit/Credit Cards & Net Banking', bankX, payY, 6.8, 'F1', 0.2, 0.25, 0.3);
+      payY -= 10;
+      addText('Auto-Reconciliation: Instant Receipt & Settlement', bankX, payY, 6.8, 'F1', 0.2, 0.25, 0.3);
+      payY -= 10;
       if (showBankDetails && p.bank_account_number) {
-        addText(`NEFT/RTGS: ${p.bank_name || 'Bank'} | A/C: ${p.bank_account_number} | IFSC: ${p.bank_ifsc || 'HDFC0000123'}`, bankX, payY, 6.8, 'F1', 0.35, 0.4, 0.45);
-        payY -= 10;
+        addText(`Wire: ${p.bank_name || 'HDFC Bank'} | A/C: ${p.bank_account_number}`, bankX, payY, 6.5, 'F1', 0.3, 0.35, 0.4);
+        payY -= 9;
+        addText(`IFSC: ${p.bank_ifsc || 'HDFC0000123'}`, bankX, payY, 6.5, 'F1', 0.3, 0.35, 0.4);
+        payY -= 9;
       }
-      addText('Scan QR with phone camera/UPI app or visit payment link.', bankX, payY, 6.8, 'F1', 0.4, 0.45, 0.5);
+      addText('Scan QR with phone camera or UPI app.', bankX, payY, 6.5, 'F1', 0.4, 0.45, 0.5);
     } else {
       payY -= 13;
       addText(`Bank Name: ${p.bank_name || 'HDFC Bank Ltd'}`, bankX, payY, 8, 'F1', 0.2, 0.25, 0.3);

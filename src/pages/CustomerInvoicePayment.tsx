@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import QRCode from 'qrcode';
 import {
   CreditCard,
@@ -46,8 +46,10 @@ function loadRazorpaySdk(): Promise<boolean> {
 }
 
 export default function CustomerInvoicePayment() {
-  const { invoiceNumber, id } = useParams<{ invoiceNumber?: string; id?: string }>();
-  const lookupKey = invoiceNumber || id || '';
+  const { invoiceNumber, id, '*': wildcard } = useParams<any>();
+  const [searchParams] = useSearchParams();
+  const queryInv = searchParams.get('inv') || searchParams.get('id') || searchParams.get('number') || searchParams.get('invoice');
+  const lookupKey = (queryInv || invoiceNumber || wildcard || id || '').trim();
 
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);

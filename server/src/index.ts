@@ -39,9 +39,11 @@ app.use(express.json({
 app.use('/api', billingRouter);
 
 // Direct customer payment redirection (supporting QR scans from server domain)
-app.get('/pay/:invoiceNumber', (req, res) => {
-  const targetBase = process.env.APP_URL || 'http://localhost:5173';
-  res.redirect(`${targetBase.replace(/\/$/, '')}/pay/${encodeURIComponent(req.params.invoiceNumber)}`);
+app.get(['/pay', '/pay/*'], (req, res) => {
+  const targetBase = (process.env.APP_URL && !process.env.APP_URL.includes('localhost') ? process.env.APP_URL : '') || 'http://localhost:5173';
+  const queryString = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+  const subPath = req.params[0] ? `/${req.params[0]}` : '';
+  res.redirect(`${targetBase.replace(/\/$/, '')}/pay${subPath}${queryString}`);
 });
 
 // Initialize DB

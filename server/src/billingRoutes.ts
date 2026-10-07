@@ -644,6 +644,65 @@ async function fetchCompleteInvoiceData(id: string | number) {
   return { invoice, items, customer, settings };
 }
 
+// Helper to resolve public application base URL (supporting VPS domains, reverse proxies, and local development)
+export function resolvePublicBaseUrl(req: express.Request, settings?: any): string {
+  // 1. Explicit app_url in settings if configured
+  if (settings?.app_url && typeof settings.app_url === 'string' && settings.app_url.trim()) {
+    const custom = settings.app_url.trim().replace(/\/$/, '');
+    if (!custom.includes('localhost') && !custom.includes('127.0.0.1')) {
+      return custom;
+    }
+  }
+
+  // 2. Detect incoming request headers from remote VPS client
+  const fwdProto = (req.get('x-forwarded-proto') || '').split(',')[0].trim();
+  const reqProto = fwdProto || req.protocol || 'https';
+  const fwdHost = (req.get('x-forwarded-host') || '').split(',')[0].trim();
+  const host = (fwdHost || req.get('host') || '').split(',')[0].trim();
+
+  const origin = req.get('origin');
+  if (origin) {
+    try {
+      const oUrl = new URL(origin);
+      if (!oUrl.hostname.includes('localhost') && !oUrl.hostname.includes('127.0.0.1')) {
+        return origin.replace(/\/$/, '');
+      }
+    } catch {}
+  }
+
+  const referer = req.get('referer');
+  if (referer) {
+    try {
+      const refUrl = new URL(referer);
+      if (!refUrl.hostname.includes('localhost') && !refUrl.hostname.includes('127.0.0.1')) {
+        return refUrl.origin.replace(/\/$/, '');
+      }
+    } catch {}
+  }
+
+  // If host header is a public domain or VPS IP
+  if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+    const cleanHost = host.replace(/:3001$/, '');
+    return `${reqProto}://${cleanHost}`.replace(/\/$/, '');
+  }
+
+  // 3. Environment variable APP_URL (if not localhost)
+  if (process.env.APP_URL && !process.env.APP_URL.includes('localhost') && !process.env.APP_URL.includes('127.0.0.1')) {
+    return process.env.APP_URL.trim().replace(/\/$/, '');
+  }
+
+  // 4. company_website in settings (e.g. https://digi8solutions.com)
+  if (settings?.company_website && typeof settings.company_website === 'string' && settings.company_website.startsWith('http')) {
+    const web = settings.company_website.trim().replace(/\/$/, '');
+    if (!web.includes('localhost') && !web.includes('127.0.0.1')) {
+      return web;
+    }
+  }
+
+  // 5. Local environment fallback
+  return (process.env.APP_URL || 'http://localhost:5173').replace(/\/$/, '');
+}
+
 // GET /api/invoices/:id/pdf - Stream or download official generated PDF
 router.get('/invoices/:id/pdf', async (req, res) => {
   try {
@@ -662,10 +721,9 @@ router.get('/invoices/:id/pdf', async (req, res) => {
     const sigUrl = snapshot?.signature_url || settings?.signature_url || '/images/signature.png';
 
     const rzpConfig = await getRazorpayConfig();
-    const reqOrigin = req.get('origin') || (req.get('referer') ? new URL(req.get('referer')!).origin : null);
-    const appBase = (process.env.APP_URL || reqOrigin || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+    const appBase = resolvePublicBaseUrl(req, settings);
     const cleanInvoiceNum = encodeURIComponent(invoice.invoice_number);
-    const paymentUrl = invoice.razorpay_payment_link_url || `${appBase}/pay/${cleanInvoiceNum}`;
+    const paymentUrl = invoice.razorpay_payment_link_url || `${appBase}/pay?inv=${cleanInvoiceNum}`;
 
     const pdfData: InvoicePdfData = {
       invoice_number: invoice.invoice_number,
@@ -793,10 +851,9 @@ router.post('/invoices/:id/send-email', async (req, res) => {
     const sigUrl = snapshot?.signature_url || settings?.signature_url || '/images/signature.png';
     
     const rzpConfig = await getRazorpayConfig();
-const reqOrigin = req.get('origin') || (req.get('referer') ? new URL(req.get('referer')!).origin : null);
-const appBase = (process.env.APP_URL || reqOrigin || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
-const cleanInvoiceNum = encodeURIComponent(invoice.invoice_number);
-const paymentUrl = invoice.razorpay_payment_link_url || `${appBase}/pay/${cleanInvoiceNum}`;
+    const appBase = resolvePublicBaseUrl(req, settings);
+    const cleanInvoiceNum = encodeURIComponent(invoice.invoice_number);
+    const paymentUrl = invoice.razorpay_payment_link_url || `${appBase}/pay?inv=${cleanInvoiceNum}`;
 
 const pdfData: InvoicePdfData = {
       invoice_number: invoice.invoice_number,

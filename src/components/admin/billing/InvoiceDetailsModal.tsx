@@ -113,7 +113,7 @@ export default function InvoiceDetailsModal({
     const upiPayIntent = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amountToRequest}&cu=INR&tn=${encodeURIComponent(note)}`;
 
     const isRazorpayActive = Boolean(snapshot.razorpay_enabled ?? true);
-    const paymentPortalUrl = invoice.razorpay_payment_link_url || `${window.location.origin}/pay/${encodeURIComponent(invoice.invoice_number)}`;
+    const paymentPortalUrl = invoice.razorpay_payment_link_url || `${window.location.origin}/pay?inv=${encodeURIComponent(invoice.invoice_number)}`;
     const qrPayload = isRazorpayActive ? paymentPortalUrl : upiPayIntent;
 
     // Vector SVG generation (Highest quality for printer output)
