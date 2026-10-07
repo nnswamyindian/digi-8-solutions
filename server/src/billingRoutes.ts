@@ -2519,7 +2519,7 @@ router.post('/invoices/:id/payment-verify', async (req, res) => {
     const payResult = await recordVerifiedRazorpayPayment({
       invoiceId: invoice.id,
       amount: payAmount,
-      paymentMethod,
+      paymentMethod: 'Razorpay',
       transactionReference: razorpay_payment_id,
       razorpayOrderId: razorpay_order_id,
       razorpayPaymentId: razorpay_payment_id,

@@ -302,12 +302,17 @@ async function runTestSuite() {
     const orderRes = await createRazorpayOrder(inv.id);
     assert(orderRes.success === true, 'Order creation should succeed');
     assert(orderRes.order !== undefined, 'Order object must be returned');
+    if (!orderRes.order) {
+  throw new Error('Order object must be returned');
+}
+
+const order = orderRes.order;
 
     // Amount in paise: 30000 * 100 = 3,000,000
     const expectedPaise = 30000 * 100;
     assert(
-      orderRes.order.amount === expectedPaise,
-      `Expected order amount ${expectedPaise} paise (₹30,000), but got ${orderRes.order.amount}`
+      order.amount === expectedPaise,
+      `Expected order amount ${expectedPaise} paise (₹30,000), but got ${order.amount}`
     );
     assert(
       orderRes.invoice.outstanding_amount === 30000,
@@ -317,7 +322,7 @@ async function runTestSuite() {
     results.push({
       name: 'Test 6 – Outstanding Payment Link (Dynamic balance calculation ₹30,000 from ₹50,000 - ₹20,000)',
       passed: true,
-      details: { expectedPaise, orderAmount: orderRes.order.amount, outstanding: orderRes.invoice.outstanding_amount }
+      details: { expectedPaise, orderAmount: order.amount, outstanding: orderRes.invoice.outstanding_amount }
     });
   } catch (err: any) {
     results.push({ name: 'Test 6 – Outstanding Payment Link', passed: false, message: err.message });
