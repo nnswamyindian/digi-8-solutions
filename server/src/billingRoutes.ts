@@ -7,6 +7,15 @@ import pool, { loadPersistentStore, savePersistentStore } from './db.js';
 import { broadcastAdminNotification } from './index.js';
 import { generateInvoicePdfBuffer, InvoicePdfData } from './pdfGenerator.js';
 import { sendMailWithFallbacks, getSmtpUser } from './emailService.js';
+import {
+  getRazorpayConfig,
+  getPublicRazorpayConfig,
+  createRazorpayOrder,
+  createRazorpayPaymentLink,
+  verifyRazorpayPaymentSignature,
+  verifyRazorpayWebhookSignature,
+  recordVerifiedRazorpayPayment
+} from './razorpayService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -2166,104 +2175,93 @@ router.post('/invoices/:id/payments/:paymentId/reverse', async (req, res) => {
   }
 });
 
-// POST /api/invoices/:id/payment-verify - Online payment verification
-router.post('/invoices/:id/payment-verify', async (req, res) => {
+// GET /api/payments/razorpay/config - Public Razorpay client configuration
+router.get('/payments/razorpay/config', async (_req, res) => {
+  try {
+    const config = await getPublicRazorpayConfig();
+    res.json({ success: true, data: config });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/invoices/public/:id - Public customer-facing invoice view (No auth required)
+router.get('/invoices/public/:id', async (req, res) => {
   try {
     const id = req.params.id;
-    const { razorpay_payment_id, razorpay_order_id, razorpay_signature, amount, payment_method = 'Online Gateway' } = req.body;
+    const { invoice, items, customer, settings } = await fetchCompleteInvoiceData(id);
 
-    let invoice: any = null;
-    try {
-      const [rows]: any = await pool.query('SELECT * FROM invoices WHERE id = ?', [id]);
-      if (rows && rows.length > 0) invoice = rows[0];
-    } catch {
-      const store = loadPersistentStore();
-      invoice = (store.invoices || []).find(i => String(i.id) === String(id));
+    if (!invoice) {
+      return res.status(404).json({ success: false, error: 'Invoice not found.' });
     }
 
-    if (!invoice) return res.status(404).json({ success: false, error: 'Invoice not found.' });
-
-    const payAmount = Number(amount) || Number(invoice.balance_amount);
-    const newAmountPaid = Number(invoice.amount_paid) + payAmount;
-    const newBalance = Math.max(0, Number(invoice.grand_total) - newAmountPaid);
-    const newPaymentStatus = newBalance <= 0 ? 'paid' : 'partially_paid';
-
-    const payNumber = `PAY-ONL-${Date.now().toString().slice(-6)}`;
-    const payDate = new Date().toISOString().split('T')[0];
-    const txnRef = razorpay_payment_id || `TXN-${Date.now()}`;
-
+    // Load payments for this invoice
+    let payments: any[] = [];
     try {
-      const conn = await pool.getConnection();
-      try {
-        await conn.beginTransaction();
-
-        await conn.query(
-          `INSERT INTO payments (invoice_id, project_id, payment_number, amount, payment_method, transaction_reference, payment_date, notes, created_by)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [id, invoice.project_id || null, payNumber, payAmount, payment_method, txnRef, payDate, `Online payment verified (${txnRef})`, 'Gateway Webhook']
-        );
-
-        await conn.query(
-          'UPDATE invoices SET amount_paid = ?, balance_amount = ?, payment_status = ? WHERE id = ?',
-          [newAmountPaid, newBalance, newPaymentStatus, id]
-        );
-
-        await conn.commit();
-      } catch (dbErr) {
-        await conn.rollback();
-        throw dbErr;
-      } finally {
-        conn.release();
-      }
+      const [pRows]: any = await pool.query(
+        'SELECT * FROM payments WHERE invoice_id = ? ORDER BY id DESC',
+        [invoice.id]
+      );
+      payments = pRows || [];
     } catch {
       const store = loadPersistentStore();
-      if (!Array.isArray(store.payments)) store.payments = [];
-      store.payments.push({
-        id: (store.payments?.length || 0) + 1,
-        invoice_id: Number(id),
-        project_id: invoice.project_id || null,
-        payment_number: payNumber,
-        amount: payAmount,
-        payment_method,
-        transaction_reference: txnRef,
-        payment_date: payDate,
-        notes: `Online payment verified (${txnRef})`,
-        created_by: 'Gateway Webhook',
-        created_at: new Date().toISOString()
-      });
-      const invIndex = (store.invoices || []).findIndex(i => String(i.id) === String(id));
-      if (invIndex !== -1) {
-        store.invoices[invIndex].amount_paid = newAmountPaid;
-        store.invoices[invIndex].balance_amount = newBalance;
-        store.invoices[invIndex].payment_status = newPaymentStatus;
-      }
-      savePersistentStore(store);
+      payments = (store.payments || []).filter(p => Number(p.invoice_id) === Number(invoice.id));
     }
 
-    await logInvoiceAudit(
-      Number(id),
-      invoice.invoice_number,
-      'ONLINE_PAYMENT_VERIFIED',
-      `Balance ₹${invoice.balance_amount}`,
-      `Verified online payment ₹${payAmount} via ${payment_method} (${txnRef})`,
-      'Gateway'
-    );
+    // Dynamic Outstanding calculation from individual payments
+    const successfulPayments = payments.filter(p => p.status === 'success' || p.status === 'completed' || !p.status);
+    const sumPaid = successfulPayments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+    const grandTotal = Number(invoice.grand_total) || 0;
+    const balanceAmount = Math.max(0, grandTotal - sumPaid);
 
-    broadcastAdminNotification(
-      'PAYMENT_RECORDED',
-      '⚡ Online Payment Confirmed',
-      `Payment of ₹${payAmount.toLocaleString('en-IN')} received online for invoice ${invoice.invoice_number}`,
-      { invoice_id: id, invoice_number: invoice.invoice_number, amount: payAmount }
-    );
+    let paymentStatus = invoice.payment_status;
+    if (balanceAmount <= 0.01) {
+      paymentStatus = 'paid';
+    } else if (sumPaid > 0) {
+      paymentStatus = 'partially_paid';
+    } else {
+      paymentStatus = 'unpaid';
+    }
+
+    const rzpConfig = await getPublicRazorpayConfig();
 
     res.json({
       success: true,
-      message: 'Online payment verified successfully',
       data: {
-        payment_number: payNumber,
-        amount_paid: newAmountPaid,
-        balance_amount: newBalance,
-        payment_status: newPaymentStatus
+        invoice: {
+          ...invoice,
+          amount_paid: sumPaid,
+          balance_amount: balanceAmount,
+          payment_status: paymentStatus
+        },
+        items,
+        customer,
+        payments,
+        settings: {
+          company_name: settings?.company_name || 'Digi8 Solutions Private Limited',
+          company_address: settings?.company_address,
+          company_city: settings?.company_city,
+          company_state: settings?.company_state,
+          company_pincode: settings?.company_pincode,
+          company_phone: settings?.company_phone,
+          company_email: settings?.company_email,
+          company_website: settings?.company_website,
+          company_gstin: settings?.company_gstin,
+          company_pan: settings?.company_pan,
+          terms_conditions: invoice.terms_conditions || settings?.terms_conditions,
+          upi_id: settings?.upi_id || 'digi8solutions@hdfcbank',
+          upi_display_name: settings?.upi_display_name || 'Digi8 Solutions',
+          bank_name: settings?.bank_name,
+          bank_account_holder: settings?.bank_account_holder,
+          bank_account_number: settings?.bank_account_number,
+          bank_ifsc: settings?.bank_ifsc,
+          bank_branch: settings?.bank_branch,
+          show_upi_qr: settings?.show_upi_qr !== false,
+          show_bank_details: settings?.show_bank_details !== false,
+          razorpay_enabled: rzpConfig.enabled,
+          razorpay_primary_payment: rzpConfig.primaryPayment
+        },
+        razorpay: rzpConfig
       }
     });
   } catch (err: any) {
@@ -2271,65 +2269,476 @@ router.post('/invoices/:id/payment-verify', async (req, res) => {
   }
 });
 
-// POST /api/billing/webhook/razorpay - Idempotent payment webhook
-router.post('/billing/webhook/razorpay', async (req, res) => {
+// POST /api/invoices/:id/razorpay-order - Create Razorpay order for current outstanding amount
+router.post('/invoices/:id/razorpay-order', async (req, res) => {
   try {
+    const id = req.params.id;
+
+    // Fetch invoice
+    let invoice: any = null;
+    try {
+      const [rows]: any = await pool.query('SELECT * FROM invoices WHERE id = ? OR invoice_number = ?', [id, id]);
+      if (rows && rows.length > 0) invoice = rows[0];
+    } catch {
+      const store = loadPersistentStore();
+      invoice = (store.invoices || []).find(i => String(i.id) === String(id) || i.invoice_number === id);
+    }
+
+    if (!invoice) {
+      return res.status(404).json({ success: false, error: 'Invoice not found.' });
+    }
+
+    if (invoice.invoice_status === 'cancelled') {
+      return res.status(400).json({ success: false, error: 'Cannot create payment order for cancelled invoice.' });
+    }
+
+    // Calculate actual outstanding amount from database payments
+    let sumPaid = 0;
+    try {
+      const [sumRows]: any = await pool.query(
+        "SELECT COALESCE(SUM(amount), 0) AS total_paid FROM payments WHERE invoice_id = ? AND (status = 'success' OR status IS NULL OR status = 'completed')",
+        [invoice.id]
+      );
+      sumPaid = Number(sumRows[0]?.total_paid || 0);
+    } catch {
+      const store = loadPersistentStore();
+      sumPaid = (store.payments || [])
+        .filter(p => Number(p.invoice_id) === Number(invoice.id) && p.status !== 'reversed' && p.status !== 'failed')
+        .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    }
+
+    const grandTotal = Number(invoice.grand_total) || 0;
+    const outstanding = Math.max(0, grandTotal - sumPaid);
+
+    if (outstanding <= 0.01) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invoice is already fully paid. No outstanding balance remains.',
+        balance_amount: 0,
+        payment_status: 'paid'
+      });
+    }
+
+    // Optional partial amount override if customer wishes to pay less than outstanding
+    // (Never trust amount > outstanding!)
+    let requestedAmount = outstanding;
+    if (req.body.amount && Number(req.body.amount) > 0) {
+      const parsedReq = Number(req.body.amount);
+      if (parsedReq > outstanding + 0.01) {
+        return res.status(400).json({
+          success: false,
+          error: `Payment amount (₹${parsedReq}) cannot exceed the outstanding balance of ₹${outstanding}.`
+        });
+      }
+      requestedAmount = parsedReq;
+    }
+
+    const orderRes = await createRazorpayOrder({
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoice_number,
+      customerId: invoice.customer_id,
+      customerName: invoice.customer_name,
+      customerEmail: invoice.customer_email,
+      customerMobile: invoice.customer_mobile,
+      amount: requestedAmount,
+      currency: 'INR'
+    });
+
+    if (!orderRes.success || !orderRes.orderId) {
+      return res.status(500).json({ success: false, error: orderRes.error || 'Failed to initialize payment order.' });
+    }
+
+    // Store order ID on invoice
+    try {
+      await pool.query('UPDATE invoices SET razorpay_order_id = ? WHERE id = ?', [orderRes.orderId, invoice.id]);
+    } catch {
+      const store = loadPersistentStore();
+      const inv = (store.invoices || []).find(i => Number(i.id) === Number(invoice.id));
+      if (inv) inv.razorpay_order_id = orderRes.orderId;
+      savePersistentStore(store);
+    }
+
+    const publicCfg = await getPublicRazorpayConfig();
+
+    res.json({
+      success: true,
+      data: {
+        order_id: orderRes.orderId,
+        amount: orderRes.amount, // in paise
+        amount_in_rupees: requestedAmount,
+        currency: orderRes.currency || 'INR',
+        key_id: publicCfg.keyId,
+        invoice_id: invoice.id,
+        invoice_number: invoice.invoice_number,
+        outstanding_balance: outstanding,
+        customer: {
+          name: invoice.customer_name,
+          email: invoice.customer_email,
+          mobile: invoice.customer_mobile
+        },
+        is_simulated: orderRes.isSimulated
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/invoices/:id/razorpay-link - Create or retrieve dynamic Razorpay Payment Link
+router.post('/invoices/:id/razorpay-link', async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    let invoice: any = null;
+    try {
+      const [rows]: any = await pool.query('SELECT * FROM invoices WHERE id = ? OR invoice_number = ?', [id, id]);
+      if (rows && rows.length > 0) invoice = rows[0];
+    } catch {
+      const store = loadPersistentStore();
+      invoice = (store.invoices || []).find(i => String(i.id) === String(id) || i.invoice_number === id);
+    }
+
+    if (!invoice) return res.status(404).json({ success: false, error: 'Invoice not found.' });
+    if (invoice.invoice_status === 'cancelled') return res.status(400).json({ success: false, error: 'Invoice is cancelled.' });
+
+    // Calculate actual outstanding amount
+    let sumPaid = 0;
+    try {
+      const [sumRows]: any = await pool.query(
+        "SELECT COALESCE(SUM(amount), 0) AS total_paid FROM payments WHERE invoice_id = ? AND (status = 'success' OR status IS NULL OR status = 'completed')",
+        [invoice.id]
+      );
+      sumPaid = Number(sumRows[0]?.total_paid || 0);
+    } catch {
+      const store = loadPersistentStore();
+      sumPaid = (store.payments || [])
+        .filter(p => Number(p.invoice_id) === Number(invoice.id) && p.status !== 'reversed' && p.status !== 'failed')
+        .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    }
+
+    const outstanding = Math.max(0, Number(invoice.grand_total) - sumPaid);
+    if (outstanding <= 0.01) {
+      return res.status(400).json({ success: false, error: 'Invoice is already fully paid.' });
+    }
+
+    const linkRes = await createRazorpayPaymentLink({
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoice_number,
+      customerName: invoice.customer_name,
+      customerEmail: invoice.customer_email,
+      customerMobile: invoice.customer_mobile,
+      amount: outstanding
+    });
+
+    if (!linkRes.success) {
+      return res.status(500).json({ success: false, error: linkRes.error || 'Failed to create payment link.' });
+    }
+
+    // Save payment link reference in DB
+    try {
+      await pool.query(
+        'UPDATE invoices SET razorpay_payment_link_id = ?, razorpay_payment_link_url = ? WHERE id = ?',
+        [linkRes.paymentLinkId, linkRes.shortUrl, invoice.id]
+      );
+    } catch {
+      const store = loadPersistentStore();
+      const inv = (store.invoices || []).find(i => Number(i.id) === Number(invoice.id));
+      if (inv) {
+        inv.razorpay_payment_link_id = linkRes.paymentLinkId;
+        inv.razorpay_payment_link_url = linkRes.shortUrl;
+      }
+      savePersistentStore(store);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        payment_link_id: linkRes.paymentLinkId,
+        payment_link_url: linkRes.shortUrl,
+        amount: outstanding,
+        is_simulated: linkRes.isSimulated
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/invoices/:id/payment-verify - Server-side Razorpay payment signature verification & reconciliation
+router.post('/invoices/:id/payment-verify', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      amount,
+      payment_method = 'Razorpay'
+    } = req.body;
+
+    if (!razorpay_payment_id) {
+      return res.status(400).json({ success: false, error: 'Razorpay Payment ID is required.' });
+    }
+
+    // 1. Fetch invoice
+    let invoice: any = null;
+    try {
+      const [rows]: any = await pool.query('SELECT * FROM invoices WHERE id = ? OR invoice_number = ?', [id, id]);
+      if (rows && rows.length > 0) invoice = rows[0];
+    } catch {
+      const store = loadPersistentStore();
+      invoice = (store.invoices || []).find(i => String(i.id) === String(id) || i.invoice_number === id);
+    }
+
+    if (!invoice) return res.status(404).json({ success: false, error: 'Invoice not found.' });
+
+    // 2. Signature verification
+    const cfg = await getRazorpayConfig();
+    if (razorpay_order_id && razorpay_signature) {
+      const isValidSig = verifyRazorpayPaymentSignature(
+        razorpay_order_id,
+        razorpay_payment_id,
+        razorpay_signature,
+        cfg.keySecret
+      );
+
+      if (!isValidSig) {
+        console.warn(`[RAZORPAY VERIFY FAILED] Invalid payment signature for order ${razorpay_order_id}, payment ${razorpay_payment_id}`);
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid payment signature. Payment verification failed.'
+        });
+      }
+    }
+
+    // 3. Compute pay amount
+    // If not sent explicitly, use the outstanding balance
+    const payAmount = Number(amount) > 0 ? Number(amount) : Number(invoice.balance_amount);
+
+    // 4. Record payment with transaction safety & idempotency
+    const payResult = await recordVerifiedRazorpayPayment({
+      invoiceId: invoice.id,
+      amount: payAmount,
+      paymentMethod,
+      transactionReference: razorpay_payment_id,
+      razorpayOrderId: razorpay_order_id,
+      razorpayPaymentId: razorpay_payment_id,
+      notes: `Verified online payment (${razorpay_payment_id})`,
+      createdBy: 'Razorpay Gateway'
+    });
+
+    if (!payResult.success) {
+      return res.status(400).json({ success: false, error: payResult.error });
+    }
+
+    res.json({
+      success: true,
+      message: payResult.isDuplicate 
+        ? 'Payment already processed and recorded' 
+        : 'Payment verified and invoice updated successfully',
+      data: payResult
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Webhook Handler Function (Used by both /payments/razorpay/webhook and /billing/webhook/razorpay)
+async function handleRazorpayWebhookEvent(req: express.Request, res: express.Response) {
+  try {
+    const signature = (req.headers['x-razorpay-signature'] as string) || '';
+    const cfg = await getRazorpayConfig();
+
+    // Verify signature if secret is configured
+    if (cfg.webhookSecret && signature) {
+      const rawBody = (req as any).rawBody || JSON.stringify(req.body);
+      const isSigValid = verifyRazorpayWebhookSignature(rawBody, signature, cfg.webhookSecret);
+      if (!isSigValid) {
+        console.warn('[RAZORPAY WEBHOOK] Invalid webhook signature detected. Rejecting request.');
+        return res.status(400).json({ success: false, error: 'Invalid webhook signature.' });
+      }
+    }
+
     const event = req.body;
-    if (event?.event === 'payment.captured') {
+    const eventType = event?.event;
+    console.log(`[RAZORPAY WEBHOOK] Processing event: ${eventType} (Event ID: ${event?.event_id || event?.id || 'none'})`);
+
+    // Handle payment.captured and order.paid
+    if (eventType === 'payment.captured' || eventType === 'order.paid') {
       const paymentPayload = event.payload?.payment?.entity;
-      const invoiceId = paymentPayload?.notes?.invoice_id;
+      const orderPayload = event.payload?.order?.entity;
+
+      const invoiceIdRaw = paymentPayload?.notes?.invoice_id || orderPayload?.notes?.invoice_id;
+      const invoiceNumberRaw = paymentPayload?.notes?.invoice_number || orderPayload?.notes?.invoice_number;
       const paymentId = paymentPayload?.id;
-      const amount = (paymentPayload?.amount || 0) / 100;
+      const orderId = paymentPayload?.order_id || orderPayload?.id;
+      const amount = paymentPayload?.amount ? Number(paymentPayload.amount) / 100 : (orderPayload?.amount_paid ? Number(orderPayload.amount_paid) / 100 : 0);
+      const method = paymentPayload?.method || 'Razorpay';
 
-      if (invoiceId && paymentId) {
+      let invoiceId = invoiceIdRaw ? Number(invoiceIdRaw) : null;
+
+      // If invoiceId not directly in notes, lookup by invoice number
+      if (!invoiceId && invoiceNumberRaw) {
+        try {
+          const [invRows]: any = await pool.query('SELECT id FROM invoices WHERE invoice_number = ?', [invoiceNumberRaw]);
+          if (invRows && invRows.length > 0) invoiceId = invRows[0].id;
+        } catch {
+          const store = loadPersistentStore();
+          const inv = (store.invoices || []).find(i => i.invoice_number === invoiceNumberRaw);
+          if (inv) invoiceId = inv.id;
+        }
+      }
+
+      if (invoiceId && paymentId && amount > 0) {
+        await recordVerifiedRazorpayPayment({
+          invoiceId,
+          amount,
+          paymentMethod: method.toUpperCase(),
+          transactionReference: paymentId,
+          razorpayOrderId: orderId,
+          razorpayPaymentId: paymentId,
+          webhookEventId: event?.id || event?.event_id,
+          rawReference: paymentPayload,
+          notes: `Recorded automatically via Razorpay Webhook (${eventType})`,
+          createdBy: 'Razorpay Webhook'
+        });
+      }
+    } else if (eventType === 'payment.failed') {
+      // Requirement 19: Payment Failure Handling
+      // Failed payment does NOT increase amount_paid. Paid amount remains unchanged.
+      const paymentPayload = event.payload?.payment?.entity;
+      const invoiceIdRaw = paymentPayload?.notes?.invoice_id;
+      const paymentId = paymentPayload?.id;
+      const errorDesc = paymentPayload?.error_description || 'Payment transaction failed';
+
+      console.warn(`[RAZORPAY WEBHOOK] Payment failed for invoice ${invoiceIdRaw} (${paymentId}): ${errorDesc}`);
+
+      if (invoiceIdRaw) {
         const store = loadPersistentStore();
-        // Idempotency check: has this gateway payment ID already been recorded?
-        const alreadyExists = (store.payments || []).some(p => p.transaction_reference === paymentId);
-        if (!alreadyExists) {
-          const invIndex = (store.invoices || []).findIndex(i => String(i.id) === String(invoiceId));
-          if (invIndex !== -1) {
-            const invoice = store.invoices[invIndex];
-            const newAmountPaid = Number(invoice.amount_paid) + amount;
-            const newBalance = Math.max(0, Number(invoice.grand_total) - newAmountPaid);
-            const newPaymentStatus = newBalance <= 0 ? 'paid' : 'partially_paid';
+        if (!Array.isArray(store.invoice_audit_logs)) store.invoice_audit_logs = [];
+        store.invoice_audit_logs.push({
+          id: Date.now(),
+          invoice_id: Number(invoiceIdRaw),
+          action: 'PAYMENT_FAILED',
+          old_value: 'Processing',
+          new_value: `Payment Failed (${paymentId}): ${errorDesc}`,
+          performed_by: 'Razorpay Webhook',
+          created_at: new Date().toISOString()
+        });
+        savePersistentStore(store);
 
-            invoice.amount_paid = newAmountPaid;
-            invoice.balance_amount = newBalance;
-            invoice.payment_status = newPaymentStatus;
+        broadcastAdminNotification(
+          'PAYMENT_FAILED',
+          '❌ Online Payment Failed',
+          `Payment attempt of ₹${((paymentPayload?.amount || 0) / 100).toLocaleString('en-IN')} failed: ${errorDesc}`,
+          { invoice_id: invoiceIdRaw, payment_id: paymentId, error: errorDesc }
+        );
+      }
+    } else if (eventType === 'refund.processed') {
+      // Requirement 20: Refund Handling
+      const refundPayload = event.payload?.refund?.entity;
+      const paymentPayload = event.payload?.payment?.entity;
+      const paymentId = refundPayload?.payment_id || paymentPayload?.id;
+      const refundAmount = (refundPayload?.amount || 0) / 100;
 
-            store.payments.push({
-              id: (store.payments?.length || 0) + 1,
-              invoice_id: Number(invoiceId),
-              project_id: invoice.project_id || null,
-              payment_number: `PAY-WH-${Date.now().toString().slice(-6)}`,
-              amount,
-              payment_method: paymentPayload?.method || 'Razorpay',
-              transaction_reference: paymentId,
-              payment_date: new Date().toISOString().split('T')[0],
-              notes: 'Recorded automatically via Razorpay Webhook',
-              created_by: 'Razorpay Webhook',
-              created_at: new Date().toISOString()
-            });
+      console.log(`[RAZORPAY WEBHOOK] Refund processed: ₹${refundAmount} for payment ${paymentId}`);
 
-            savePersistentStore(store);
+      if (paymentId) {
+        const store = loadPersistentStore();
+        const paymentRecord = (store.payments || []).find(p => p.transaction_reference === paymentId || p.razorpay_payment_id === paymentId);
+        if (paymentRecord) {
+          paymentRecord.status = 'refunded';
+          paymentRecord.reversal_reason = `Refunded via Razorpay (${refundPayload?.id || 'Ref'})`;
 
-            await logInvoiceAudit(
-              Number(invoiceId),
-              invoice.invoice_number,
-              'WEBHOOK_PAYMENT_CAPTURED',
-              `Balance ₹${invoice.balance_amount}`,
-              `Webhook recorded payment ₹${amount} (${paymentId})`,
-              'Razorpay'
-            );
+          // Recalculate invoice
+          const inv = (store.invoices || []).find(i => Number(i.id) === Number(paymentRecord.invoice_id));
+          if (inv) {
+            const activePayments = (store.payments || []).filter(p => Number(p.invoice_id) === Number(inv.id) && p.status !== 'refunded' && p.status !== 'reversed');
+            const totalPaid = activePayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+            const balance = Math.max(0, Number(inv.grand_total) - totalPaid);
+            inv.amount_paid = totalPaid;
+            inv.balance_amount = balance;
+            inv.payment_status = balance <= 0 ? 'paid' : (totalPaid > 0 ? 'partially_paid' : 'unpaid');
           }
+          savePersistentStore(store);
         }
       }
     }
-    res.json({ status: 'ok' });
+
+    res.json({ status: 'ok', event: eventType });
   } catch (err: any) {
+    console.error('[RAZORPAY WEBHOOK ERROR]', err);
     res.status(500).json({ status: 'error', error: err.message });
   }
+}
+
+// POST /api/payments/razorpay/webhook - Primary Razorpay webhook endpoint
+router.post('/payments/razorpay/webhook', handleRazorpayWebhookEvent);
+
+// POST /api/billing/webhook/razorpay - Backward-compatible webhook alias
+router.post('/billing/webhook/razorpay', handleRazorpayWebhookEvent);
+
+// GET /api/payments/transactions - Comprehensive payments log for Admin & Sales dashboards
+router.get('/payments/transactions', async (req, res) => {
+  try {
+    const authUser = getAuthUser(req);
+    let payments: any[] = [];
+    let invoices: any[] = [];
+
+    try {
+      const [payRows]: any = await pool.query('SELECT * FROM payments ORDER BY id DESC');
+      payments = payRows || [];
+      const [invRows]: any = await pool.query('SELECT id, invoice_number, customer_id, customer_name, customer_company, grand_total, amount_paid, balance_amount, payment_status, sales_user_id, sales_person_name FROM invoices');
+      invoices = invRows || [];
+    } catch {
+      const store = loadPersistentStore();
+      payments = [...(store.payments || [])].sort((a, b) => (b.id || 0) - (a.id || 0));
+      invoices = store.invoices || [];
+    }
+
+    // Map invoice and customer info to each payment record
+    const invoiceMap = new Map(invoices.map(i => [Number(i.id), i]));
+
+    let transactions = payments.map(p => {
+      const inv = invoiceMap.get(Number(p.invoice_id));
+      return {
+        id: p.id,
+        invoice_id: p.invoice_id,
+        invoice_number: inv?.invoice_number || `INV-${p.invoice_id}`,
+        customer_name: inv?.customer_name || 'Customer',
+        customer_company: inv?.customer_company,
+        payment_number: p.payment_number,
+        amount: Number(p.amount),
+        currency: p.currency || 'INR',
+        payment_method: p.payment_method,
+        transaction_reference: p.transaction_reference,
+        razorpay_order_id: p.razorpay_order_id,
+        razorpay_payment_id: p.razorpay_payment_id || p.transaction_reference,
+        razorpay_payment_link_id: p.razorpay_payment_link_id,
+        status: p.status || 'success',
+        payment_date: p.payment_date,
+        created_by: p.created_by,
+        created_at: p.created_at,
+        sales_person_name: inv?.sales_person_name,
+        invoice_grand_total: inv?.grand_total,
+        invoice_balance: inv?.balance_amount,
+        invoice_payment_status: inv?.payment_status
+      };
+    });
+
+    // Sales Executive filter
+    if (authUser?.role === 'Sales Executive') {
+      transactions = transactions.filter(t => 
+        t.sales_person_name === authUser.name || t.created_by === authUser.email
+      );
+    }
+
+    res.json({ success: true, data: transactions });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
+
 
 // GET /api/invoices/:id/audit-logs - Audit history
 router.get('/invoices/:id/audit-logs', async (req, res) => {
@@ -2813,7 +3222,29 @@ router.get('/billing/settings', async (_req, res) => {
       settings = store.invoice_settings?.[0] || null;
     }
 
-    res.json({ success: true, data: settings });
+    if (!settings) {
+      const store = loadPersistentStore();
+      settings = store.invoice_settings?.[0] || null;
+    }
+
+    const rzpConfig = await getRazorpayConfig();
+
+    // Mask secret keys so they are never leaked in clear text
+    const maskedSecret = rzpConfig.keySecret ? `${rzpConfig.keySecret.slice(0, 4)}••••••••${rzpConfig.keySecret.slice(-4)}` : '';
+    const maskedWebhook = rzpConfig.webhookSecret ? `${rzpConfig.webhookSecret.slice(0, 4)}••••••••${rzpConfig.webhookSecret.slice(-4)}` : '';
+
+    const sanitized = {
+      ...settings,
+      razorpay_enabled: rzpConfig.enabled,
+      razorpay_key_id: rzpConfig.keyId,
+      razorpay_key_secret_masked: maskedSecret,
+      razorpay_webhook_secret_masked: maskedWebhook,
+      has_razorpay_key_secret: Boolean(rzpConfig.keySecret),
+      has_razorpay_webhook_secret: Boolean(rzpConfig.webhookSecret),
+      razorpay_primary_payment: rzpConfig.primaryPayment
+    };
+
+    res.json({ success: true, data: sanitized });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -2858,7 +3289,12 @@ router.put('/billing/settings', async (req, res) => {
       seal_url,
       signature_url,
       authorized_signatory_name,
-      authorized_signatory_title
+      authorized_signatory_title,
+      razorpay_enabled,
+      razorpay_key_id,
+      razorpay_key_secret,
+      razorpay_webhook_secret,
+      razorpay_primary_payment
     } = req.body;
 
     try {
@@ -2894,7 +3330,12 @@ router.put('/billing/settings', async (req, res) => {
           seal_url = COALESCE(?, seal_url),
           signature_url = COALESCE(?, signature_url),
           authorized_signatory_name = COALESCE(?, authorized_signatory_name),
-          authorized_signatory_title = COALESCE(?, authorized_signatory_title)
+          authorized_signatory_title = COALESCE(?, authorized_signatory_title),
+          razorpay_enabled = COALESCE(?, razorpay_enabled),
+          razorpay_key_id = COALESCE(?, razorpay_key_id),
+          razorpay_key_secret = COALESCE(?, razorpay_key_secret),
+          razorpay_webhook_secret = COALESCE(?, razorpay_webhook_secret),
+          razorpay_primary_payment = COALESCE(?, razorpay_primary_payment)
          WHERE id = 1`,
         [
           company_name, company_address, company_city, company_state, company_state_code, company_pincode,
@@ -2902,7 +3343,12 @@ router.put('/billing/settings', async (req, res) => {
           invoice_prefix, financial_year, starting_number, next_number, number_padding,
           terms_conditions, bank_name, bank_account_holder, bank_account_number, bank_ifsc, bank_branch,
           upi_id, upi_display_name, show_upi_qr, show_bank_details, payment_instructions,
-          seal_url, signature_url, authorized_signatory_name, authorized_signatory_title
+          seal_url, signature_url, authorized_signatory_name, authorized_signatory_title,
+          razorpay_enabled !== undefined ? Boolean(razorpay_enabled) : null,
+          razorpay_key_id || null,
+          razorpay_key_secret && !razorpay_key_secret.includes('••••') ? razorpay_key_secret : null,
+          razorpay_webhook_secret && !razorpay_webhook_secret.includes('••••') ? razorpay_webhook_secret : null,
+          razorpay_primary_payment !== undefined ? Boolean(razorpay_primary_payment) : null
         ]
       );
     } catch {
@@ -2940,7 +3386,12 @@ router.put('/billing/settings', async (req, res) => {
         ...(seal_url !== undefined && { seal_url }),
         ...(signature_url !== undefined && { signature_url }),
         ...(authorized_signatory_name !== undefined && { authorized_signatory_name }),
-        ...(authorized_signatory_title !== undefined && { authorized_signatory_title })
+        ...(authorized_signatory_title !== undefined && { authorized_signatory_title }),
+        ...(razorpay_enabled !== undefined && { razorpay_enabled: Boolean(razorpay_enabled) }),
+        ...(razorpay_key_id !== undefined && { razorpay_key_id }),
+        ...(razorpay_key_secret && !razorpay_key_secret.includes('••••') && { razorpay_key_secret }),
+        ...(razorpay_webhook_secret && !razorpay_webhook_secret.includes('••••') && { razorpay_webhook_secret }),
+        ...(razorpay_primary_payment !== undefined && { razorpay_primary_payment: Boolean(razorpay_primary_payment) })
       }];
       savePersistentStore(store);
     }

@@ -4,7 +4,8 @@ import {
   X, Printer, Download, Share2, DollarSign, Ban, 
   History, CheckCircle, Clock, AlertTriangle, Building2, 
   Phone, Mail, Globe, MapPin, QrCode, FileText, ArrowLeft,
-  Copy, ExternalLink, Edit3, ShieldAlert, Check, RefreshCw
+  Copy, ExternalLink, Edit3, ShieldAlert, Check, RefreshCw,
+  Zap, CreditCard
 } from 'lucide-react';
 import { Invoice, PaymentRecord, InvoiceAuditLog, PaymentDetailsSnapshot, BillingSettings, getBillingSettings, reversePayment, downloadInvoicePdf } from '../../../lib/billingApi';
 import SendInvoiceEmailModal from './SendInvoiceEmailModal';
@@ -339,6 +340,18 @@ export default function InvoiceDetailsModal({
             </button>
 
             {invoice.invoice_status !== 'cancelled' && invoice.invoice_status !== 'draft' && balanceToPay > 0 && (
+              <a
+                href={`/pay/${invoice.invoice_number}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-sky-500/20 to-blue-500/20 border border-sky-500/40 text-sky-300 hover:text-white hover:border-sky-400 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-[0_0_10px_rgba(56,189,248,0.2)]"
+                title="Open Customer-Facing Razorpay Payment Portal"
+              >
+                <Zap size={14} className="text-sky-400" /> Pay ₹{balanceToPay.toLocaleString('en-IN')} Online
+              </a>
+            )}
+
+            {invoice.invoice_status !== 'cancelled' && invoice.invoice_status !== 'draft' && balanceToPay > 0 && (
               <button
                 onClick={() => onRecordPayment(invoice)}
                 className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-[0_0_10px_rgba(16,185,129,0.2)]"
@@ -538,6 +551,25 @@ export default function InvoiceDetailsModal({
                     </span>
                   )}
                 </div>
+
+                {/* Razorpay Online Gateway Banner */}
+                {balanceToPay > 0 && (
+                  <div className="p-2.5 rounded-lg bg-sky-950/30 border border-sky-500/20 flex items-center justify-between gap-2 print:hidden">
+                    <div className="flex items-center gap-2">
+                      <Zap size={14} className="text-sky-400 shrink-0" />
+                      <span className="text-[11px] text-sky-200 font-medium">Razorpay Online Payment Available</span>
+                    </div>
+                    <a
+                      href={`/pay/${invoice.invoice_number}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-1 rounded-md bg-sky-500 hover:bg-sky-400 text-slate-900 font-bold text-[10px] inline-flex items-center gap-1 transition-colors shrink-0"
+                    >
+                      <span>Pay ₹{balanceToPay.toLocaleString('en-IN')}</span>
+                      <ExternalLink size={10} />
+                    </a>
+                  </div>
+                )}
 
                 <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start">
                   {/* Dynamic Scannable UPI QR Code */}
@@ -743,8 +775,18 @@ export default function InvoiceDetailsModal({
                       <tr key={pay.id} className={pay.status === 'reversed' ? 'opacity-50 line-through' : ''}>
                         <td className="p-2.5 font-mono text-brand-cyan print:text-black">{pay.payment_number}</td>
                         <td className="p-2.5 text-slate-300 print:text-gray-700">{new Date(pay.payment_date).toLocaleDateString('en-IN')}</td>
-                        <td className="p-2.5 text-slate-300 print:text-gray-700">{pay.payment_method}</td>
-                        <td className="p-2.5 font-mono text-slate-400 print:text-gray-600">{pay.transaction_reference || '—'}</td>
+                        <td className="p-2.5 text-slate-300 print:text-gray-700">
+                          {pay.razorpay_payment_id ? (
+                            <span className="inline-flex items-center gap-1 text-sky-400 font-medium">
+                              <Zap size={11} /> {pay.payment_method}
+                            </span>
+                          ) : (
+                            pay.payment_method
+                          )}
+                        </td>
+                        <td className="p-2.5 font-mono text-slate-400 print:text-gray-600">
+                          {pay.razorpay_payment_id || pay.transaction_reference || '—'}
+                        </td>
                         <td className="p-2.5 text-slate-300 print:text-gray-700">{pay.created_by || 'Staff'}</td>
                         <td className="p-2.5 text-right font-mono font-bold text-emerald-400 print:text-emerald-800">
                           ₹{Number(pay.amount).toLocaleString('en-IN')}

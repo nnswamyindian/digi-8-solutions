@@ -26,16 +26,21 @@ export interface PaymentRecord {
   project_id?: number | null;
   payment_number?: string;
   amount: number;
+  currency?: string;
   payment_method: 'Cash' | 'UPI' | 'Bank Transfer' | 'Card' | 'Razorpay' | 'Cheque' | 'Other';
   transaction_reference?: string;
+  razorpay_order_id?: string;
+  razorpay_payment_id?: string;
+  razorpay_payment_link_id?: string;
   payment_date: string;
-  status?: 'completed' | 'reversed';
+  status?: 'completed' | 'reversed' | 'SUCCESS' | 'captured' | 'failed' | 'processing';
   reversed_at?: string | null;
   reversed_by?: string | null;
   reversal_reason?: string | null;
   notes?: string;
   created_by?: string;
   created_at?: string;
+  updated_at?: string;
 }
 
 export interface InvoiceAuditLog {
@@ -65,6 +70,9 @@ export interface PaymentDetailsSnapshot {
   signature_url?: string;
   authorized_signatory_name?: string;
   authorized_signatory_title?: string;
+  razorpay_enabled?: boolean;
+  razorpay_key_id?: string;
+  razorpay_primary_payment?: boolean;
 }
 
 export interface Invoice {
@@ -111,6 +119,9 @@ export interface Invoice {
   issued_at?: string | null;
   cancelled_reason?: string | null;
   cancelled_at?: string | null;
+  razorpay_order_id?: string;
+  razorpay_payment_link_id?: string;
+  razorpay_payment_link_url?: string;
   notes?: string;
   terms_conditions?: string;
   created_by?: string;
@@ -193,6 +204,11 @@ export interface BillingSettings {
   signature_url?: string;
   authorized_signatory_name?: string;
   authorized_signatory_title?: string;
+  razorpay_enabled?: boolean;
+  razorpay_key_id?: string;
+  razorpay_key_secret?: string;
+  razorpay_webhook_secret?: string;
+  razorpay_primary_payment?: boolean;
 }
 
 export interface ProjectFinancialSummary {
@@ -986,3 +1002,182 @@ export async function getFinancialDashboard(
     return { success: false, error: err.message };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Razorpay Automatic Payment & Reconciliation APIs
+// ---------------------------------------------------------------------------
+
+export interface PublicRazorpayConfig {
+  enabled: boolean;
+  keyId: string;
+  primaryPayment: boolean;
+  companyName: string;
+}
+
+export interface RazorpayOrderResponse {
+  success: boolean;
+  order?: {
+    id: string;
+    amount: number; // in paise
+    currency: string;
+    receipt: string;
+    notes?: any;
+  };
+  keyId?: string;
+  invoice?: {
+    id: number;
+    invoice_number: string;
+    grand_total: number;
+    amount_paid: number;
+    outstanding_amount: number;
+    customer_name: string;
+    customer_email?: string;
+    customer_mobile?: string;
+  };
+  error?: string;
+}
+
+export interface PaymentTransactionItem {
+  id: number;
+  invoice_id: number;
+  invoice_number?: string;
+  customer_name?: string;
+  payment_number?: string;
+  amount: number;
+  currency: string;
+  payment_method: string;
+  status: string;
+  transaction_reference?: string;
+  razorpay_order_id?: string;
+  razorpay_payment_id?: string;
+  razorpay_payment_link_id?: string;
+  payment_date: string;
+  created_at: string;
+}
+
+export async function getRazorpayPublicConfig(): Promise<{ success: boolean; data?: PublicRazorpayConfig; error?: string }> {
+  try {
+    const res = await fetch(buildApiUrl('/api/payments/razorpay/config'));
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function createRazorpayOrder(
+  invoiceId: number | string,
+  amount?: number
+): Promise<RazorpayOrderResponse> {
+  try {
+    const res = await fetch(buildApiUrl(`/api/invoices/${invoiceId}/razorpay-order`), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders()
+      },
+      body: JSON.stringify({ amount })
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function createRazorpayPaymentLink(
+  invoiceId: number | string,
+  amount?: number
+): Promise<{ success: boolean; link?: any; error?: string }> {
+  try {
+    const res = await fetch(buildApiUrl(`/api/invoices/${invoiceId}/razorpay-link`), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders()
+      },
+      body: JSON.stringify({ amount })
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function verifyRazorpayPayment(
+  invoiceId: number | string,
+  payload: {
+    razorpay_order_id?: string;
+    razorpay_payment_id: string;
+    razorpay_signature?: string;
+    amount?: number;
+    method?: string;
+  }
+): Promise<{ success: boolean; invoice?: Invoice; error?: string; message?: string }> {
+  try {
+    const res = await fetch(buildApiUrl(`/api/invoices/${invoiceId}/payment-verify`), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders()
+      },
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function getPublicInvoice(idOrNumber: string | number): Promise<{
+  success: boolean;
+  data?: Invoice;
+  razorpay_config?: {
+    enabled: boolean;
+    key_id: string;
+    primary_payment: boolean;
+  };
+  error?: string;
+}> {
+  try {
+    const res = await fetch(buildApiUrl(`/api/invoices/public/${encodeURIComponent(String(idOrNumber))}`));
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function getPaymentTransactions(params?: {
+  invoice_id?: number | string;
+  limit?: number;
+  offset?: number;
+}): Promise<{
+  success: boolean;
+  data?: PaymentTransactionItem[];
+  total?: number;
+  metrics?: {
+    today_collected: number;
+    month_collected: number;
+    total_collected: number;
+    pending_amount: number;
+    paid_count: number;
+    partially_paid_count: number;
+    failed_count: number;
+  };
+  error?: string;
+}> {
+  try {
+    let url = '/api/payments/transactions';
+    const queryParts: string[] = [];
+    if (params?.invoice_id) queryParts.push(`invoice_id=${encodeURIComponent(String(params.invoice_id))}`);
+    if (params?.limit) queryParts.push(`limit=${params.limit}`);
+    if (params?.offset) queryParts.push(`offset=${params.offset}`);
+    if (queryParts.length > 0) url += `?${queryParts.join('&')}`;
+
+    const res = await fetch(buildApiUrl(url), {
+      headers: getAuthHeaders()
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+

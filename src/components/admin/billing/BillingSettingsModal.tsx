@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Settings, Save, CheckCircle2, AlertCircle, Building2, CreditCard, Upload, Stamp, PenTool, Image as ImageIcon } from 'lucide-react';
+import { X, Settings, Save, CheckCircle2, AlertCircle, Building2, CreditCard, Upload, Stamp, PenTool, Image as ImageIcon, Zap, ShieldCheck, Copy, Check } from 'lucide-react';
 import { BillingSettings, getBillingSettings, updateBillingSettings, uploadBillingAsset } from '../../../lib/billingApi';
 
 interface BillingSettingsModalProps {
@@ -48,6 +48,14 @@ export default function BillingSettingsModal({
   const [showUpiQr, setShowUpiQr] = useState<boolean>(true);
   const [showBankDetails, setShowBankDetails] = useState<boolean>(true);
   const [paymentInstructions, setPaymentInstructions] = useState('Scan the UPI QR code using any UPI App (GPay/PhonePe/Paytm) or transfer directly to our current bank account using NEFT/RTGS/IMPS.');
+
+  // Razorpay Payment Gateway Integration
+  const [razorpayEnabled, setRazorpayEnabled] = useState<boolean>(true);
+  const [razorpayKeyId, setRazorpayKeyId] = useState('');
+  const [razorpayKeySecret, setRazorpayKeySecret] = useState('');
+  const [razorpayWebhookSecret, setRazorpayWebhookSecret] = useState('');
+  const [razorpayPrimaryPayment, setRazorpayPrimaryPayment] = useState<boolean>(true);
+  const [copiedWebhookUrl, setCopiedWebhookUrl] = useState(false);
 
   // Official Seal Stamp & Authorized Signature
   const [sealUrl, setSealUrl] = useState('/images/seal.png');
@@ -104,6 +112,13 @@ export default function BillingSettingsModal({
         if (d.show_upi_qr !== undefined) setShowUpiQr(!!d.show_upi_qr);
         if (d.show_bank_details !== undefined) setShowBankDetails(!!d.show_bank_details);
         if (d.payment_instructions) setPaymentInstructions(d.payment_instructions);
+
+        // Razorpay settings
+        if (d.razorpay_enabled !== undefined) setRazorpayEnabled(!!d.razorpay_enabled);
+        if (d.razorpay_key_id) setRazorpayKeyId(d.razorpay_key_id);
+        if (d.razorpay_key_secret) setRazorpayKeySecret(d.razorpay_key_secret);
+        if (d.razorpay_webhook_secret) setRazorpayWebhookSecret(d.razorpay_webhook_secret);
+        if (d.razorpay_primary_payment !== undefined) setRazorpayPrimaryPayment(!!d.razorpay_primary_payment);
 
         if (d.seal_url) setSealUrl(d.seal_url);
         if (d.signature_url) setSignatureUrl(d.signature_url);
@@ -205,6 +220,11 @@ export default function BillingSettingsModal({
         show_upi_qr: showUpiQr,
         show_bank_details: showBankDetails,
         payment_instructions: paymentInstructions,
+        razorpay_enabled: razorpayEnabled,
+        razorpay_key_id: razorpayKeyId,
+        razorpay_key_secret: razorpayKeySecret,
+        razorpay_webhook_secret: razorpayWebhookSecret,
+        razorpay_primary_payment: razorpayPrimaryPayment,
         seal_url: sealUrl,
         signature_url: signatureUrl,
         authorized_signatory_name: authorizedSignatoryName,
@@ -213,7 +233,7 @@ export default function BillingSettingsModal({
 
       const res = await updateBillingSettings(payload);
       if (res.success) {
-        setSuccessMessage('Billing, Seal Stamp & Authorized Signature settings updated successfully.');
+        setSuccessMessage('Billing, Razorpay Payment Gateway & Signature settings updated successfully.');
         if (onSettingsSaved) onSettingsSaved();
         setTimeout(() => setSuccessMessage(''), 3000);
       } else {
@@ -560,6 +580,107 @@ export default function BillingSettingsModal({
                 />
               </div>
             </div>
+          </div>
+
+          {/* Section 3.5: Razorpay Payment Gateway Integration */}
+          <div className="p-4 rounded-xl bg-gradient-to-br from-indigo-950/20 via-sky-950/10 to-transparent border border-sky-500/20 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-500/20 pb-3">
+              <div>
+                <h4 className="font-bold text-sm text-sky-400 uppercase tracking-wider flex items-center gap-2">
+                  <Zap size={16} className="text-sky-400" /> Razorpay Automated Payment Gateway
+                </h4>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Real-time automated reconciliation via Razorpay Webhooks. Supports Cards, Net Banking, UPI, and dynamic UPI QR.
+                </p>
+              </div>
+              <div className="flex items-center gap-4 text-xs">
+                <label className="flex items-center gap-2 cursor-pointer text-slate-200 select-none font-medium">
+                  <input
+                    type="checkbox"
+                    checked={razorpayEnabled}
+                    onChange={e => setRazorpayEnabled(e.target.checked)}
+                    className="accent-sky-500 w-4 h-4 rounded cursor-pointer"
+                  />
+                  <span>Enable Razorpay Online Payments</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-slate-200 select-none font-medium">
+                  <input
+                    type="checkbox"
+                    checked={razorpayPrimaryPayment}
+                    onChange={e => setRazorpayPrimaryPayment(e.target.checked)}
+                    className="accent-sky-500 w-4 h-4 rounded cursor-pointer"
+                  />
+                  <span>Make Razorpay Primary (Hides manual bank details)</span>
+                </label>
+              </div>
+            </div>
+
+            {razorpayEnabled && (
+              <div className="space-y-4 pt-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] text-slate-300 block mb-1">Razorpay Key ID (Public Key) *</label>
+                    <input
+                      type="text"
+                      value={razorpayKeyId}
+                      onChange={e => setRazorpayKeyId(e.target.value)}
+                      placeholder="rzp_live_xxxxxxxx or rzp_test_xxxxxxxx"
+                      className="w-full bg-[#070b13] border border-white/10 rounded-lg px-3 py-2 text-white font-mono focus:border-sky-400 focus:outline-none"
+                    />
+                    <span className="text-[10px] text-slate-500 block mt-1">This key is safely shared with client browsers to load Razorpay Checkout.</span>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-slate-300 block mb-1">Razorpay Key Secret (Private Key) *</label>
+                    <input
+                      type="password"
+                      value={razorpayKeySecret}
+                      onChange={e => setRazorpayKeySecret(e.target.value)}
+                      placeholder="Enter secret or leave blank to keep existing"
+                      className="w-full bg-[#070b13] border border-white/10 rounded-lg px-3 py-2 text-white font-mono focus:border-sky-400 focus:outline-none"
+                    />
+                    <span className="text-[10px] text-slate-500 block mt-1">Never shared with browsers. Kept strictly on the backend.</span>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="text-[11px] text-slate-300 block mb-1">Webhook Secret (HMAC SHA-256 Signature Verification) *</label>
+                    <input
+                      type="password"
+                      value={razorpayWebhookSecret}
+                      onChange={e => setRazorpayWebhookSecret(e.target.value)}
+                      placeholder="Enter secret created in Razorpay Dashboard > Webhooks"
+                      className="w-full bg-[#070b13] border border-white/10 rounded-lg px-3 py-2 text-white font-mono focus:border-sky-400 focus:outline-none"
+                    />
+                    <span className="text-[10px] text-slate-500 block mt-1">Mandatory for verifying webhook authenticity and preventing unauthorized status updates.</span>
+                  </div>
+                </div>
+
+                {/* Webhook Endpoint Helper */}
+                <div className="p-3 rounded-lg bg-sky-950/30 border border-sky-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <div className="text-[11px] font-bold text-sky-300">Your Razorpay Webhook URL:</div>
+                    <code className="text-[10px] text-slate-300 font-mono break-all select-all">
+                      {window.location.origin}/api/payments/razorpay/webhook
+                    </code>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url = `${window.location.origin}/api/payments/razorpay/webhook`;
+                      if (navigator.clipboard) {
+                        navigator.clipboard.writeText(url);
+                        setCopiedWebhookUrl(true);
+                        setTimeout(() => setCopiedWebhookUrl(false), 2500);
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 text-xs font-medium self-start sm:self-auto transition-colors"
+                  >
+                    {copiedWebhookUrl ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                    <span>{copiedWebhookUrl ? 'Copied' : 'Copy Webhook URL'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Section 4: Official Company Seal Stamp & Authorized Signature */}

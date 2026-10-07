@@ -275,7 +275,12 @@ export const DEFAULT_BILLING_SETTINGS = {
   seal_url: '/images/seal.png',
   signature_url: '/images/signature.png',
   authorized_signatory_name: 'Authorized Signatory',
-  authorized_signatory_title: 'Corporate Finance & Accounts Division'
+  authorized_signatory_title: 'Corporate Finance & Accounts Division',
+  razorpay_enabled: true,
+  razorpay_key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_digi8solutions',
+  razorpay_key_secret: process.env.RAZORPAY_KEY_SECRET || 'digi8_razorpay_secret_key_2026',
+  razorpay_webhook_secret: process.env.RAZORPAY_WEBHOOK_SECRET || 'digi8_webhook_secret_2026',
+  razorpay_primary_payment: true
 };
 
 export const DEFAULT_PROJECTS = [
@@ -2051,12 +2056,22 @@ export const initDb = async () => {
       try { await connection.query(`ALTER TABLE invoices ADD COLUMN payment_details_snapshot JSON NULL`); } catch {}
       try { await connection.query(`ALTER TABLE invoices ADD COLUMN tax_calculation_mode VARCHAR(20) DEFAULT 'exclusive'`); } catch {}
       try { await connection.query(`ALTER TABLE invoices ADD COLUMN revision_number INT DEFAULT 1`); } catch {}
+      try { await connection.query(`ALTER TABLE invoices ADD COLUMN razorpay_order_id VARCHAR(100) NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE invoices ADD COLUMN razorpay_payment_link_id VARCHAR(100) NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE invoices ADD COLUMN razorpay_payment_link_url VARCHAR(500) NULL`); } catch {}
 
       try { await connection.query(`ALTER TABLE payments ADD COLUMN project_id INT NULL`); } catch {}
       try { await connection.query(`ALTER TABLE payments ADD COLUMN status VARCHAR(50) DEFAULT 'success'`); } catch {}
       try { await connection.query(`ALTER TABLE payments ADD COLUMN reversed_at TIMESTAMP NULL`); } catch {}
       try { await connection.query(`ALTER TABLE payments ADD COLUMN reversed_by VARCHAR(255) NULL`); } catch {}
       try { await connection.query(`ALTER TABLE payments ADD COLUMN reversal_reason TEXT NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE payments ADD COLUMN razorpay_order_id VARCHAR(100) NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE payments ADD COLUMN razorpay_payment_id VARCHAR(100) NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE payments ADD COLUMN razorpay_payment_link_id VARCHAR(100) NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE payments ADD COLUMN currency VARCHAR(10) DEFAULT 'INR'`); } catch {}
+      try { await connection.query(`ALTER TABLE payments ADD COLUMN webhook_event_id VARCHAR(100) NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE payments ADD COLUMN raw_reference TEXT NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE payments ADD UNIQUE INDEX uq_rzp_payment_id (razorpay_payment_id)`); } catch {}
 
       try { await connection.query(`ALTER TABLE invoice_settings ADD COLUMN upi_display_name VARCHAR(255) NULL`); } catch {}
       try { await connection.query(`ALTER TABLE invoice_settings ADD COLUMN bank_account_holder VARCHAR(255) NULL`); } catch {}
@@ -2067,6 +2082,11 @@ export const initDb = async () => {
       try { await connection.query(`ALTER TABLE invoice_settings ADD COLUMN signature_url VARCHAR(500) NULL`); } catch {}
       try { await connection.query(`ALTER TABLE invoice_settings ADD COLUMN authorized_signatory_name VARCHAR(255) NULL`); } catch {}
       try { await connection.query(`ALTER TABLE invoice_settings ADD COLUMN authorized_signatory_title VARCHAR(255) NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE invoice_settings ADD COLUMN razorpay_enabled BOOLEAN DEFAULT TRUE`); } catch {}
+      try { await connection.query(`ALTER TABLE invoice_settings ADD COLUMN razorpay_key_id VARCHAR(100) NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE invoice_settings ADD COLUMN razorpay_key_secret VARCHAR(100) NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE invoice_settings ADD COLUMN razorpay_webhook_secret VARCHAR(100) NULL`); } catch {}
+      try { await connection.query(`ALTER TABLE invoice_settings ADD COLUMN razorpay_primary_payment BOOLEAN DEFAULT TRUE`); } catch {}
 
       // Project Expenses Table
       await connection.query(`

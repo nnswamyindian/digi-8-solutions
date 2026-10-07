@@ -7,7 +7,7 @@ import {
   Clock, Ban, FileText, ArrowUpRight, ArrowDownRight, 
   Building2, User, Eye, Edit3, Printer, Download, Mail, CreditCard, 
   History, Settings, ShoppingCart, Percent, Layers, 
-  ChevronRight, Users, Sparkles, ExternalLink
+  ChevronRight, Users, Sparkles, ExternalLink, Zap, Check
 } from 'lucide-react';
 import { 
   Invoice, 
@@ -24,7 +24,9 @@ import {
   SalespersonReport,
   DiscountReportItem,
   OutstandingReportItem,
-  ProductReportItem
+  ProductReportItem,
+  PaymentTransactionItem,
+  getPaymentTransactions
 } from '../../lib/billingApi';
 
 // Modals
@@ -45,8 +47,8 @@ export default function AdminInvoices() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [userRole, setUserRole] = useState<string>('Super Admin');
 
-  // Active Main Tab: 'invoices' | 'customers' | 'reports'
-  const [activeTab, setActiveTab] = useState<'invoices' | 'customers' | 'reports'>('invoices');
+  // Active Main Tab: 'invoices' | 'customers' | 'reports' | 'payments'
+  const [activeTab, setActiveTab] = useState<'invoices' | 'customers' | 'reports' | 'payments'>('invoices');
 
   // Secondary Filter Tabs for Invoices
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -57,6 +59,16 @@ export default function AdminInvoices() {
   // Data states
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [transactions, setTransactions] = useState<PaymentTransactionItem[]>([]);
+  const [paymentMetrics, setPaymentMetrics] = useState<{
+    today_collected: number;
+    month_collected: number;
+    total_collected: number;
+    pending_amount: number;
+    paid_count: number;
+    partially_paid_count: number;
+    failed_count: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Reports data states
@@ -101,13 +113,14 @@ export default function AdminInvoices() {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      const [invRes, custRes, salesRes, discRes, outRes, prodRes] = await Promise.all([
+      const [invRes, custRes, salesRes, discRes, outRes, prodRes, payRes] = await Promise.all([
         getInvoices(),
         getCustomers(),
         getSalesReport(),
         getDiscountReport(),
         getOutstandingReport(),
-        getProductSalesReport()
+        getProductSalesReport(),
+        getPaymentTransactions()
       ]);
 
       if (invRes.success && invRes.data) setInvoices(invRes.data);
@@ -119,6 +132,10 @@ export default function AdminInvoices() {
       if (discRes.success && discRes.data) setDiscountReports(discRes.data);
       if (outRes.success && outRes.data) setOutstandingReports(outRes.data);
       if (prodRes.success && prodRes.data) setProductReports(prodRes.data);
+      if (payRes.success && payRes.data) {
+        setTransactions(payRes.data);
+        if (payRes.metrics) setPaymentMetrics(payRes.metrics);
+      }
     } catch (err) {
       console.error('Error loading billing records:', err);
     } finally {
@@ -428,6 +445,18 @@ export default function AdminInvoices() {
               <span>Financial Reports & Telemetry</span>
             </button>
           )}
+
+          <button
+            onClick={() => setActiveTab('payments')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              activeTab === 'payments'
+                ? 'bg-brand-cyan/10 border border-brand-cyan/30 text-brand-cyan shadow-[0_0_15px_rgba(0,229,255,0.2)]'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <CreditCard size={15} />
+            <span>Payments & Razorpay Gateway ({transactions.length})</span>
+          </button>
         </div>
 
         {/* ═════════════════════════════════════════════════════════════ */}
@@ -984,6 +1013,178 @@ export default function AdminInvoices() {
               </div>
             )}
 
+          </div>
+        )}
+
+        {/* ═════════════════════════════════════════════════════════════ */}
+        {/* TAB 4: PAYMENTS & RAZORPAY GATEWAY TELEMETRY */}
+        {/* ═════════════════════════════════════════════════════════════ */}
+        {activeTab === 'payments' && (
+          <div className="space-y-6 animate-fade-in">
+            {/* Requirement 21: Metric Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+              <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1">
+                <div className="text-[10px] uppercase font-bold text-slate-400">Today's Payments</div>
+                <div className="text-lg font-black text-emerald-400 font-mono">
+                  ₹{Number(paymentMetrics?.today_collected || 0).toLocaleString('en-IN')}
+                </div>
+                <div className="text-[10px] text-slate-500">Collected today</div>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1">
+                <div className="text-[10px] uppercase font-bold text-slate-400">This Month</div>
+                <div className="text-lg font-black text-brand-cyan font-mono">
+                  ₹{Number(paymentMetrics?.month_collected || 0).toLocaleString('en-IN')}
+                </div>
+                <div className="text-[10px] text-slate-500">Month-to-date</div>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1">
+                <div className="text-[10px] uppercase font-bold text-slate-400">Total Collected</div>
+                <div className="text-lg font-black text-white font-mono">
+                  ₹{Number(paymentMetrics?.total_collected || 0).toLocaleString('en-IN')}
+                </div>
+                <div className="text-[10px] text-slate-500">All-time settled</div>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1">
+                <div className="text-[10px] uppercase font-bold text-amber-400">Pending Amount</div>
+                <div className="text-lg font-black text-amber-400 font-mono">
+                  ₹{Number(paymentMetrics?.pending_amount || 0).toLocaleString('en-IN')}
+                </div>
+                <div className="text-[10px] text-slate-500">Uncollected dues</div>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1">
+                <div className="text-[10px] uppercase font-bold text-emerald-400">Paid Invoices</div>
+                <div className="text-lg font-black text-emerald-400 font-mono">
+                  {paymentMetrics?.paid_count || 0}
+                </div>
+                <div className="text-[10px] text-slate-500">100% settled</div>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1">
+                <div className="text-[10px] uppercase font-bold text-cyan-400">Partially Paid</div>
+                <div className="text-lg font-black text-cyan-400 font-mono">
+                  {paymentMetrics?.partially_paid_count || 0}
+                </div>
+                <div className="text-[10px] text-slate-500">Balance remaining</div>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1">
+                <div className="text-[10px] uppercase font-bold text-red-400">Failed Payments</div>
+                <div className="text-lg font-black text-red-400 font-mono">
+                  {paymentMetrics?.failed_count || 0}
+                </div>
+                <div className="text-[10px] text-slate-500">Declined attempts</div>
+              </div>
+            </div>
+
+            {/* Transactions Master Table */}
+            <div className="border border-white/10 rounded-2xl overflow-hidden bg-[#070b13]">
+              <div className="p-4 border-b border-white/10 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                    <Zap size={16} className="text-brand-cyan" /> Gateway Payments & Webhook Reconciliations
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Real-time transaction log with verified Razorpay payment IDs, order IDs, and automatic invoice updates.
+                  </p>
+                </div>
+                <button
+                  onClick={() => loadAllData()}
+                  className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-slate-300 flex items-center gap-1.5"
+                >
+                  <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+                  <span>Refresh Log</span>
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-white/5 text-slate-400 border-b border-white/10">
+                    <tr>
+                      <th className="p-3">Invoice #</th>
+                      <th className="p-3">Customer</th>
+                      <th className="p-3">Payment ID</th>
+                      <th className="p-3">Razorpay Order ID</th>
+                      <th className="p-3 text-right">Amount</th>
+                      <th className="p-3">Method</th>
+                      <th className="p-3">Date</th>
+                      <th className="p-3 text-center">Status</th>
+                      <th className="p-3 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {transactions.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="p-8 text-center text-slate-500">
+                          No payment transactions recorded yet. Payments completed via Razorpay or manual entries will appear here in real-time.
+                        </td>
+                      </tr>
+                    ) : (
+                      transactions.map((tx) => (
+                        <tr key={tx.id} className="hover:bg-white/[0.02]">
+                          <td className="p-3 font-mono font-bold text-brand-cyan">
+                            {tx.invoice_number || `INV #${tx.invoice_id}`}
+                          </td>
+                          <td className="p-3 text-white font-medium">
+                            {tx.customer_name || 'Customer'}
+                          </td>
+                          <td className="p-3 font-mono text-slate-300">
+                            {tx.razorpay_payment_id || tx.transaction_reference || tx.payment_number || '—'}
+                          </td>
+                          <td className="p-3 font-mono text-slate-400 text-[11px]">
+                            {tx.razorpay_order_id || '—'}
+                          </td>
+                          <td className="p-3 text-right font-mono font-bold text-emerald-400">
+                            ₹{Number(tx.amount).toLocaleString('en-IN')}
+                          </td>
+                          <td className="p-3 text-slate-300">
+                            <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[10px]">
+                              {tx.payment_method}
+                            </span>
+                          </td>
+                          <td className="p-3 text-slate-400">
+                            {new Date(tx.payment_date || tx.created_at).toLocaleDateString('en-IN', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric'
+                            })}
+                          </td>
+                          <td className="p-3 text-center">
+                            {tx.status === 'SUCCESS' || tx.status === 'completed' || tx.status === 'captured' ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1">
+                                <Check size={10} /> Success
+                              </span>
+                            ) : tx.status === 'failed' ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-red-500/10 text-red-400 border border-red-500/20">
+                                Failed
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                {tx.status}
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3 text-center">
+                            <button
+                              onClick={() => {
+                                const found = invoices.find((i) => i.id === tx.invoice_id || i.invoice_number === tx.invoice_number);
+                                if (found) setSelectedInvoiceForDetails(found);
+                              }}
+                              className="px-2.5 py-1 rounded-md bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-[10px] font-semibold"
+                            >
+                              View Invoice
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
 

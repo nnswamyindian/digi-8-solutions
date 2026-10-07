@@ -26,6 +26,7 @@ import Terms from './pages/Terms';
 import NotFound from './pages/NotFound';
 import QuoteCalculator from './pages/QuoteCalculator';
 import VerifyEmail from './pages/VerifyEmail';
+import CustomerInvoicePayment from './pages/CustomerInvoicePayment';
 
 // Service Division Platforms
 import BrandingIdentity from './pages/services/BrandingIdentity';
@@ -166,6 +167,9 @@ function AppShell() {
           <Route path="/quote-calculator" element={<QuoteCalculator />} />
           <Route path="/request-proposal" element={<QuoteCalculator />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/pay/:invoiceNumber" element={<CustomerInvoicePayment />} />
+          <Route path="/pay" element={<CustomerInvoicePayment />} />
+          <Route path="/invoice/:id" element={<CustomerInvoicePayment />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
