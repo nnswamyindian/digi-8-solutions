@@ -528,6 +528,8 @@ router.post('/admin/products', async (req, res) => {
       is_published: isPub,
       status: computedStatus,
       display_order: Number(display_order) || 0,
+      brand_color: brand_color || '',
+      card_color: card_color || '',
       seo_title: seo_title || `${name.trim()} | Digi8 Solutions`,
       seo_description: seo_description || short_description || '',
       features: Array.isArray(features) ? features : [],

@@ -154,6 +154,8 @@ export default function ProductLandingPage() {
   }
 
   const primaryImage = product.banner_url || product.thumbnail_url || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80';
+  const brandColor = product.brand_color || '#00e5ff';
+  const cardColor = product.card_color || '#0b101d';
 
   return (
     <div className="font-inter text-white pb-24 overflow-hidden">
@@ -178,7 +180,10 @@ export default function ProductLandingPage() {
 
       {/* Hero Section */}
       <section className="relative pt-12 pb-20 border-b border-white/10 overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-4/5 h-80 bg-brand-cyan/15 blur-[160px] pointer-events-none rounded-full" />
+        <div 
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-4/5 h-80 blur-[160px] pointer-events-none rounded-full"
+          style={{ backgroundColor: `${brandColor}25` }}
+        />
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
@@ -186,7 +191,14 @@ export default function ProductLandingPage() {
             {/* Left Column: Copy & Actions */}
             <div className="lg:col-span-7 space-y-6">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="px-3 py-1 rounded-md text-xs font-bold bg-brand-cyan/10 text-brand-cyan border border-brand-cyan/30">
+                <span 
+                  className="px-3 py-1 rounded-md text-xs font-bold border backdrop-blur-md"
+                  style={{
+                    backgroundColor: `${brandColor}15`,
+                    color: brandColor,
+                    borderColor: `${brandColor}40`
+                  }}
+                >
                   {product.category}
                 </span>
                 <span className="px-3 py-1 rounded-md text-xs font-semibold bg-white/5 text-gray-300 border border-white/10">
@@ -211,7 +223,12 @@ export default function ProductLandingPage() {
               <div className="flex flex-wrap items-center gap-3 pt-2">
                 <button
                   onClick={() => setDemoModalOpen(true)}
-                  className="btn-glow text-xs sm:text-sm py-3 px-6 justify-center flex items-center gap-2 font-bold"
+                  className="text-xs sm:text-sm py-3 px-6 justify-center flex items-center gap-2 font-bold rounded-xl transition-all shadow-lg hover:scale-[1.02]"
+                  style={{
+                    backgroundColor: brandColor,
+                    color: '#070b13',
+                    boxShadow: `0 0 20px ${brandColor}35`
+                  }}
                 >
                   <Calendar size={16} /> Request Live Demo
                 </button>
@@ -231,7 +248,7 @@ export default function ProductLandingPage() {
                     className="py-3 px-5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/20 text-white font-semibold text-xs sm:text-sm flex items-center gap-2 transition"
                   >
                     <span>Visit Official Website</span>
-                    <ExternalLink size={14} className="text-brand-cyan" />
+                    <ExternalLink size={14} style={{ color: brandColor }} />
                   </a>
                 )}
 
@@ -267,7 +284,13 @@ export default function ProductLandingPage() {
 
             {/* Right Column: Hero Banner Image */}
             <div className="lg:col-span-5 relative">
-              <div className="relative rounded-2xl border border-brand-cyan/30 overflow-hidden shadow-2xl shadow-brand-cyan/15 group bg-slate-950">
+              <div 
+                className="relative rounded-2xl border overflow-hidden shadow-2xl group bg-slate-950"
+                style={{
+                  borderColor: `${brandColor}50`,
+                  boxShadow: `0 0 35px ${brandColor}20`
+                }}
+              >
                 <img
                   src={primaryImage}
                   alt={product.name}

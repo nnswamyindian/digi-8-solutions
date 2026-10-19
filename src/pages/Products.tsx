@@ -230,11 +230,18 @@ export default function Products() {
               const formattedPrice = product.starting_price 
                 ? `${product.currency === 'INR' ? '₹' : product.currency} ${Number(product.starting_price).toLocaleString('en-IN')}`
                 : null;
+              const brandColor = product.brand_color || '#00e5ff';
+              const cardColor = product.card_color || '#0b101d';
 
               return (
                 <div
                   key={product.id}
-                  className="group relative bg-[#0b101d] rounded-2xl border border-white/10 hover:border-brand-cyan/40 transition-all duration-300 flex flex-col overflow-hidden hover:shadow-2xl hover:shadow-brand-cyan/10"
+                  className="group relative rounded-2xl border transition-all duration-300 flex flex-col overflow-hidden hover:shadow-2xl"
+                  style={{
+                    backgroundColor: cardColor,
+                    borderColor: `${brandColor}35`,
+                    boxShadow: `0 4px 20px -2px rgba(0,0,0,0.5)`
+                  }}
                 >
                   {/* Image & Header */}
                   <div className="relative h-52 bg-slate-950 overflow-hidden border-b border-white/10">
@@ -243,11 +250,21 @@ export default function Products() {
                       alt={product.name}
                       className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0b101d] via-[#0b101d]/30 to-transparent" />
+                    <div 
+                      className="absolute inset-0 bg-gradient-to-t via-transparent to-transparent opacity-90"
+                      style={{ backgroundImage: `linear-gradient(to top, ${cardColor}, transparent)` }}
+                    />
                     
                     {/* Floating Badges */}
                     <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 items-center">
-                      <span className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-[#0b101d]/90 text-brand-cyan border border-brand-cyan/30 backdrop-blur-md">
+                      <span 
+                        className="px-2.5 py-1 rounded-md text-[11px] font-bold backdrop-blur-md border"
+                        style={{
+                          backgroundColor: `${cardColor}ea`,
+                          color: brandColor,
+                          borderColor: `${brandColor}50`
+                        }}
+                      >
                         {product.category}
                       </span>
                       {product.is_featured && (
@@ -259,7 +276,13 @@ export default function Products() {
 
                     {/* Logo Overlay */}
                     {product.logo_url && (
-                      <div className="absolute bottom-3 left-4 w-12 h-12 rounded-xl bg-slate-900/90 border border-white/20 p-1.5 shadow-xl flex items-center justify-center backdrop-blur-md">
+                      <div 
+                        className="absolute bottom-3 left-4 w-12 h-12 rounded-xl p-1.5 shadow-xl flex items-center justify-center backdrop-blur-md border"
+                        style={{
+                          backgroundColor: `${cardColor}f0`,
+                          borderColor: `${brandColor}40`
+                        }}
+                      >
                         <img src={product.logo_url} alt="" className="w-full h-full object-contain" />
                       </div>
                     )}
@@ -307,7 +330,7 @@ export default function Products() {
                             <span className="text-[10px] uppercase font-bold text-gray-400 block tracking-wider">
                               Starting At
                             </span>
-                            <span className="text-sm font-extrabold text-brand-cyan">
+                            <span className="text-sm font-extrabold" style={{ color: brandColor }}>
                               {formattedPrice}
                             </span>
                           </>
@@ -323,7 +346,12 @@ export default function Products() {
                     <div className="grid grid-cols-2 gap-2 mb-2">
                       <Link
                         to={`/products/${product.slug}`}
-                        className="w-full py-2.5 px-3 rounded-xl bg-brand-cyan hover:bg-cyan-400 text-brand-dark font-bold text-xs text-center transition flex items-center justify-center gap-1.5 shadow-md shadow-brand-cyan/10"
+                        className="w-full py-2.5 px-3 rounded-xl font-bold text-xs text-center transition flex items-center justify-center gap-1.5 shadow-md"
+                        style={{
+                          backgroundColor: brandColor,
+                          color: '#070b13',
+                          boxShadow: `0 0 15px ${brandColor}33`
+                        }}
                       >
                         View Details <ArrowRight size={13} />
                       </Link>

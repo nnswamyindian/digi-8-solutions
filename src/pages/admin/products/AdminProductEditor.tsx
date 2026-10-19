@@ -4,7 +4,7 @@ import AdminLayout from '../AdminLayout';
 import {
   ArrowLeft, Save, Eye, CheckCircle2, AlertCircle, Upload, Plus, Trash2,
   Globe, ExternalLink, Image as ImageIcon, DollarSign, Layers, ShieldCheck,
-  Zap, HelpCircle, Star, MoveUp, MoveDown, Check, Loader2, Sparkles, FileText
+  Zap, HelpCircle, Star, MoveUp, MoveDown, Check, Loader2, Sparkles, FileText, X
 } from 'lucide-react';
 import {
   Product,
@@ -16,6 +16,8 @@ import {
   saveAdminProduct,
   uploadProductImage
 } from '../../../lib/productsApi';
+import { extractColorsFromImage } from '../../../lib/colorExtractor';
+import { generateProductWithAI } from '../../../lib/productAiGenerator';
 
 export default function AdminProductEditor() {
   const { id } = useParams<{ id: string }>();
@@ -30,6 +32,19 @@ export default function AdminProductEditor() {
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState('');
   const [saveError, setSaveError] = useState('');
+
+  // AI Modal States
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiTitle, setAiTitle] = useState('');
+  const [aiTotalInfo, setAiTotalInfo] = useState('');
+  const [aiCategory, setAiCategory] = useState('');
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiSuccessBanner, setAiSuccessBanner] = useState(false);
+
+  // Auto Colors
+  const [brandColor, setBrandColor] = useState('#00e5ff');
+  const [cardColor, setCardColor] = useState('#0b101d');
+  const [colorAutoExtracted, setColorAutoExtracted] = useState(false);
 
   // Image upload states
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -110,6 +125,8 @@ export default function AdminProductEditor() {
           setIsFeatured(Boolean(p.is_featured));
           setDisplayOrder(p.display_order ?? 0);
           setStatus(p.status || (p.is_published ? 'published' : 'draft'));
+          if (p.brand_color) setBrandColor(p.brand_color);
+          if (p.card_color) setCardColor(p.card_color);
 
           setOfficialWebsiteUrl(p.official_website_url || '');
           setApplicationUrl(p.application_url || '');
@@ -163,17 +180,36 @@ export default function AdminProductEditor() {
     }
   };
 
+  // Color extraction from logo
+  const triggerColorExtraction = async (source: string | File) => {
+    try {
+      const palette = await extractColorsFromImage(source);
+      if (palette.brandColor) {
+        setBrandColor(palette.brandColor);
+        setCardColor(palette.cardColor);
+        setColorAutoExtracted(true);
+      }
+    } catch (err) {
+      console.warn('Failed to extract color from logo', err);
+    }
+  };
+
   // Image Upload Handler
   const handleFileUpload = async (file: File, target: 'logo' | 'thumb' | 'banner' | 'screenshot') => {
     try {
-      if (target === 'logo') setUploadingLogo(true);
+      if (target === 'logo') {
+        setUploadingLogo(true);
+        triggerColorExtraction(file);
+      }
       if (target === 'thumb') setUploadingThumb(true);
       if (target === 'banner') setUploadingBanner(true);
       if (target === 'screenshot') setUploadingScreenshot(true);
 
       const res = await uploadProductImage(file);
       if (res.success && res.url) {
-        if (target === 'logo') setLogoUrl(res.url);
+        if (target === 'logo') {
+          setLogoUrl(res.url);
+        }
         if (target === 'thumb') setThumbnailUrl(res.url);
         if (target === 'banner') setBannerUrl(res.url);
         if (target === 'screenshot') {
@@ -264,6 +300,60 @@ export default function AdminProductEditor() {
     setBenefits(prev => prev.filter((_, i) => i !== idx));
   };
 
+  // AI Auto-Fill Handler
+  const handleAiGenerate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!aiTitle.trim() && !aiTotalInfo.trim()) return;
+
+    setAiGenerating(true);
+    try {
+      const generated = await generateProductWithAI({
+        title: aiTitle.trim() || name.trim() || 'New Digital Solution',
+        totalInfo: aiTotalInfo.trim(),
+        category: aiCategory.trim() || undefined
+      });
+
+      setName(generated.name);
+      setSlug(generated.slug);
+      setShortDescription(generated.short_description);
+      setDescription(generated.description);
+      setCategory(generated.category);
+      setProductType(generated.product_type);
+      setPricingModel(generated.pricing_model);
+      setCurrency(generated.currency);
+      setStartingPrice(generated.starting_price);
+      setMonthlyPrice(generated.monthly_price);
+      setAnnualPrice(generated.annual_price);
+      setTrialAvailable(generated.trial_available);
+      setTrialDays(generated.trial_days);
+      setPricingNotes(generated.pricing_notes);
+      setDisplayPrice(generated.display_price);
+      setIsFeatured(generated.is_featured);
+
+      if (generated.brand_color) setBrandColor(generated.brand_color);
+      if (generated.card_color) setCardColor(generated.card_color);
+
+      setFeatures(generated.features);
+      setBenefits(generated.benefits);
+      setPlans(generated.plans);
+      setPlatforms(generated.specifications.platforms);
+      setDevices(generated.specifications.devices);
+      setDeployment(generated.specifications.deployment);
+      setHardware(generated.specifications.integrations);
+      setFaqs(generated.faqs);
+      setSeoTitle(generated.seo_title);
+      setSeoDescription(generated.seo_description);
+
+      setAiModalOpen(false);
+      setAiSuccessBanner(true);
+      setTimeout(() => setAiSuccessBanner(false), 9000);
+    } catch (err: any) {
+      alert(err.message || 'AI generation failed');
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
   // Form Submit
   const handleSave = async (publishIntent?: boolean) => {
     if (!name.trim()) {
@@ -291,6 +381,8 @@ export default function AdminProductEditor() {
       logo_url: logoUrl.trim(),
       thumbnail_url: thumbnailUrl.trim(),
       banner_url: bannerUrl.trim(),
+      brand_color: brandColor,
+      card_color: cardColor,
       is_featured: isFeatured,
       display_order: Number(displayOrder) || 0,
       status: targetStatus,
@@ -388,7 +480,20 @@ export default function AdminProductEditor() {
           </div>
 
           {/* Action CTAs */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* AI Auto-Fill Trigger Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setAiTitle(name);
+                setAiModalOpen(true);
+              }}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-400 via-teal-300 to-brand-cyan hover:from-emerald-300 hover:to-cyan-200 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-[0_0_20px_rgba(16,185,129,0.35)] transition-all hover:scale-[1.03]"
+            >
+              <Sparkles size={14} className="text-slate-950 animate-pulse" />
+              <span>Auto-Fill with AI</span>
+            </button>
+
             {slug && (
               <Link
                 to={`/products/${slug}?preview=true`}
@@ -422,6 +527,20 @@ export default function AdminProductEditor() {
             </button>
           </div>
         </div>
+
+        {/* AI Success Notification */}
+        {aiSuccessBanner && (
+          <div className="p-4 rounded-xl bg-gradient-to-r from-teal-500/15 to-brand-cyan/15 border border-brand-cyan/40 text-teal-300 flex items-start gap-3 text-xs animate-fade-in shadow-lg">
+            <Sparkles size={18} className="text-brand-cyan flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <span className="font-bold text-white block mb-0.5">✨ AI Auto-Fill Generated Successfully!</span>
+              <span>All 7 sections (Basic Info, Theme Colors, Pricing Tiers, Features, Specs, FAQs, SEO) have been automatically populated based on your provided product information. Review or tweak any details below.</span>
+            </div>
+            <button onClick={() => setAiSuccessBanner(false)} className="text-gray-400 hover:text-white">
+              <Check size={16} />
+            </button>
+          </div>
+        )}
 
         {/* Notifications */}
         {saveSuccess && (
@@ -605,22 +724,33 @@ export default function AdminProductEditor() {
               {/* Logo & Thumbnail */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
-                {/* Logo */}
+                {/* Logo & Automatic Theme Color Extraction */}
                 <div className="p-4 rounded-xl bg-[#070b13] border border-white/10 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-slate-300">Product Logo</span>
-                    {uploadingLogo && <span className="text-[10px] text-brand-cyan animate-pulse">Uploading...</span>}
+                    {uploadingLogo && <span className="text-[10px] text-brand-cyan animate-pulse">Analyzing &amp; Uploading...</span>}
                   </div>
                   {logoUrl ? (
-                    <div className="w-24 h-24 rounded-xl bg-black/60 border border-white/10 overflow-hidden relative group">
-                      <img src={logoUrl} alt="Logo" className="w-full h-full object-contain p-2" />
-                      <button
-                        type="button"
-                        onClick={() => setLogoUrl('')}
-                        className="absolute top-1 right-1 p-1 rounded bg-black/80 text-rose-400 hover:text-white"
-                      >
-                        <Trash2 size={12} />
-                      </button>
+                    <div className="flex items-center gap-3">
+                      <div className="w-20 h-20 rounded-xl bg-black/60 border border-white/10 overflow-hidden relative group shrink-0">
+                        <img src={logoUrl} alt="Logo" className="w-full h-full object-contain p-2" />
+                        <button
+                          type="button"
+                          onClick={() => { setLogoUrl(''); setColorAutoExtracted(false); }}
+                          className="absolute top-1 right-1 p-1 rounded bg-black/80 text-rose-400 hover:text-white"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                      <div className="text-[11px] text-slate-300 space-y-1">
+                        <div className="flex items-center gap-1.5 text-emerald-400 font-semibold">
+                          <CheckCircle2 size={13} />
+                          <span>Logo Active</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400">
+                          Brand and card colors are automatically sampled from this image.
+                        </p>
+                      </div>
                     </div>
                   ) : null}
                   <div className="flex items-center gap-2">
@@ -628,7 +758,12 @@ export default function AdminProductEditor() {
                       type="text"
                       placeholder="Enter logo image URL or upload..."
                       value={logoUrl}
-                      onChange={e => setLogoUrl(e.target.value)}
+                      onChange={e => {
+                        setLogoUrl(e.target.value);
+                        if (e.target.value.startsWith('http') || e.target.value.startsWith('/uploads')) {
+                          triggerColorExtraction(e.target.value);
+                        }
+                      }}
                       className="flex-1 bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white"
                     />
                     <label className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white cursor-pointer flex items-center gap-1 font-semibold shrink-0">
@@ -640,6 +775,87 @@ export default function AdminProductEditor() {
                         onChange={e => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'logo')}
                       />
                     </label>
+                  </div>
+
+                  {/* Auto-Extracted Color Scheme Controls */}
+                  <div className="mt-3 p-3 rounded-lg bg-black/50 border border-white/10 space-y-2.5">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-white">🎨 Auto Theme Colors</span>
+                        {colorAutoExtracted && (
+                          <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/30">
+                            Extracted from Logo
+                          </span>
+                        )}
+                      </div>
+                      {logoUrl && (
+                        <button
+                          type="button"
+                          onClick={() => triggerColorExtraction(logoUrl)}
+                          className="text-[10px] text-brand-cyan hover:underline font-semibold"
+                        >
+                          Re-extract Colors
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-1">
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-1">Product Accent Color</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={brandColor}
+                            onChange={e => setBrandColor(e.target.value)}
+                            className="w-7 h-7 rounded border border-white/20 bg-transparent cursor-pointer shrink-0"
+                          />
+                          <input
+                            type="text"
+                            value={brandColor}
+                            onChange={e => setBrandColor(e.target.value)}
+                            className="w-full bg-black/60 border border-white/10 rounded px-2 py-1 font-mono text-xs text-white"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-1">Card Background Theme</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={cardColor}
+                            onChange={e => setCardColor(e.target.value)}
+                            className="w-7 h-7 rounded border border-white/20 bg-transparent cursor-pointer shrink-0"
+                          />
+                          <input
+                            type="text"
+                            value={cardColor}
+                            onChange={e => setCardColor(e.target.value)}
+                            className="w-full bg-black/60 border border-white/10 rounded px-2 py-1 font-mono text-xs text-white"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Live Preview of the Extracted Colors */}
+                    <div
+                      className="p-2.5 rounded-lg border transition-all flex items-center justify-between text-[11px]"
+                      style={{
+                        backgroundColor: cardColor || '#0b101d',
+                        borderColor: brandColor ? `${brandColor}50` : 'rgba(0, 229, 255, 0.3)'
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-3.5 h-3.5 rounded-full shrink-0 shadow-sm" style={{ backgroundColor: brandColor }} />
+                        <span className="text-white font-semibold">Live Card Theme Preview</span>
+                      </div>
+                      <span
+                        className="px-2 py-0.5 rounded text-[10px] font-bold"
+                        style={{ backgroundColor: `${brandColor}25`, color: brandColor }}
+                      >
+                        Dynamic Palette
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -1327,6 +1543,109 @@ export default function AdminProductEditor() {
         </div>
 
       </div>
+
+      {/* AI AUTO-FILL MODAL */}
+      {aiModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div className="bg-[#0b101d] border border-brand-cyan/40 rounded-2xl max-w-xl w-full max-h-[92vh] overflow-y-auto p-6 sm:p-7 shadow-2xl relative space-y-5">
+            <button
+              type="button"
+              onClick={() => setAiModalOpen(false)}
+              className="absolute top-5 right-5 text-gray-400 hover:text-white"
+            >
+              <X size={20} />
+            </button>
+
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-brand-cyan/10 border border-brand-cyan/30 text-brand-cyan text-[10px] font-bold uppercase tracking-wider mb-2">
+                <Sparkles size={12} className="animate-pulse" /> Intelligent Product Assistant
+              </div>
+              <h3 className="font-outfit font-black text-xl text-white">
+                Auto-Fill Product Information with AI
+              </h3>
+              <p className="text-xs text-gray-400 mt-1 leading-relaxed">
+                Provide your product name and any raw details, bullet points, or overview notes. The AI will formulate descriptions, features, pricing plans, specifications, FAQs, and SEO across all sections.
+              </p>
+            </div>
+
+            <form onSubmit={handleAiGenerate} className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-slate-300 block mb-1">
+                  Product Name / Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={aiTitle}
+                  onChange={e => setAiTitle(e.target.value)}
+                  placeholder="e.g. Mana Kiranakottu, OmniCRM Suite, ClinicEase"
+                  className="w-full bg-[#070b13] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-brand-cyan"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-300 block mb-1">
+                  Total Info &amp; Notes About This Product *
+                </label>
+                <textarea
+                  required
+                  rows={6}
+                  value={aiTotalInfo}
+                  onChange={e => setAiTotalInfo(e.target.value)}
+                  placeholder="Enter total info, features, workflows, target customers, or notes...
+e.g. Mana Kiranakottu is retail kirana and grocery billing software in India.
+Features: fast barcode scanning, 5-second bills, thermal printer receipts, customer udhar khata credit ledger with WhatsApp reminders, stock alerts, multi-terminal cashier counters.
+Works offline on Windows and tablets. Basic plan is 1999/mo, pro plan 4999/mo with unlimited cashiers..."
+                  className="w-full bg-[#070b13] border border-white/15 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-brand-cyan leading-relaxed placeholder:text-gray-600 font-sans"
+                />
+                <span className="text-[10px] text-gray-400 mt-1 block">
+                  Tip: You can paste your product website text, feature notes, or bullet points here.
+                </span>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-300 block mb-1">
+                  Target Category / Industry (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={aiCategory}
+                  onChange={e => setAiCategory(e.target.value)}
+                  placeholder="e.g. Retail & Kirana, SaaS & CRM, ERP, Healthcare, Education"
+                  className="w-full bg-[#070b13] border border-white/15 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-brand-cyan"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setAiModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs text-gray-300 font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={aiGenerating || (!aiTitle.trim() && !aiTotalInfo.trim())}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-400 to-brand-cyan hover:from-teal-300 hover:to-cyan-300 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg shadow-brand-cyan/25 disabled:opacity-50 transition-all hover:scale-[1.02]"
+                >
+                  {aiGenerating ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>Generating Specifications...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={14} />
+                      <span>Generate &amp; Fill All Info</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }

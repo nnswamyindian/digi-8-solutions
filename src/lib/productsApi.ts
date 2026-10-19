@@ -91,6 +91,8 @@ export interface Product {
   is_published: boolean;
   status: 'draft' | 'published' | 'archived';
   display_order: number;
+  brand_color?: string;
+  card_color?: string;
   seo_title?: string;
   seo_description?: string;
   features: ProductFeature[];
@@ -104,6 +106,18 @@ export interface Product {
   created_at: string;
   updated_at: string;
   archived_at?: string;
+}
+
+export function generateSlug(text: string): string {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w-]+/g, '')
+    .replace(/--+/g, '-')
+    .replace(/^-+/, '')
+    .replace(/-+$/, '');
 }
 
 export interface DemoRequest {
