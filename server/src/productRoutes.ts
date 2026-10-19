@@ -460,6 +460,8 @@ router.post('/admin/products', async (req, res) => {
       is_published,
       status,
       display_order,
+      brand_color,
+      card_color,
       seo_title,
       seo_description,
       features,
