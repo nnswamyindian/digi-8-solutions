@@ -1131,7 +1131,7 @@ export async function verifyRazorpayPayment(
 
 export async function getPublicInvoice(idOrNumber: string | number): Promise<{
   success: boolean;
-  data?: Invoice;
+  data?: any;
   razorpay_config?: {
     enabled: boolean;
     key_id: string;
@@ -1140,8 +1140,14 @@ export async function getPublicInvoice(idOrNumber: string | number): Promise<{
   error?: string;
 }> {
   try {
-    const res = await fetch(buildApiUrl(`/api/invoices/public/${encodeURIComponent(String(idOrNumber))}`));
-    return await res.json();
+    const raw = String(idOrNumber || '').trim();
+    const res = await fetch(buildApiUrl(`/api/invoices/public?inv=${encodeURIComponent(raw)}`));
+    if (res.ok) {
+      return await res.json();
+    }
+    // Fallback to path param
+    const fallbackRes = await fetch(buildApiUrl(`/api/invoices/public/${encodeURIComponent(raw)}`));
+    return await fallbackRes.json();
   } catch (err: any) {
     return { success: false, error: err.message };
   }

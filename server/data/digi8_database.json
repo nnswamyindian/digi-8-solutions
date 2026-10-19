@@ -2222,7 +2222,8 @@
       "terms_conditions": "1. Payment is strictly due within 15 days of invoice generation.\n2. Goods once sold are covered under respective manufacturer warranty.\n3. Custom software deliveries are governed by the Master Service Agreement (MSA).\n4. All disputes are subject to Mumbai jurisdiction only.",
       "created_by": "Priya Nair",
       "created_at": "2026-10-02T11:56:55.625Z",
-      "updated_at": "2026-10-02T11:56:55.625Z"
+      "updated_at": "2026-10-02T11:56:55.625Z",
+      "razorpay_order_id": "order_sim_1792413726728_hpueb2"
     },
     {
       "id": 13,

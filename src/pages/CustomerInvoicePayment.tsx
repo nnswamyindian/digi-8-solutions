@@ -77,6 +77,15 @@ export default function CustomerInvoicePayment() {
   const [qrSvg, setQrSvg] = useState<string>('');
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
+  const [copiedField, setCopiedField] = useState<string>('');
+
+  const handleCopyText = (field: string, text: string) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(''), 2500);
+    }
+  };
 
   const pollIntervalRef = useRef<any>(null);
 
@@ -88,9 +97,41 @@ export default function CustomerInvoicePayment() {
     try {
       const res = await getPublicInvoice(lookupKey);
       if (res.success && res.data) {
-        setInvoice(res.data);
-        if (res.razorpay_config) {
-          setRazorpayConfig(res.razorpay_config);
+        const payload: any = res.data;
+        const inv = payload.invoice || payload;
+        const items = payload.items || inv.items || [];
+        const customer = payload.customer || {};
+        const settings = payload.settings || {};
+        const rzp = payload.razorpay || res.razorpay_config || {};
+
+        const consolidatedInvoice: Invoice = {
+          ...inv,
+          customer_name: inv.customer_name || customer.name || 'Valued Client',
+          customer_email: inv.customer_email || customer.email || '',
+          customer_mobile: inv.customer_mobile || customer.mobile || '',
+          customer_company: inv.customer_company || customer.company_name || '',
+          customer_address: inv.customer_address || customer.billing_address || '',
+          customer_city: inv.customer_city || customer.city || '',
+          customer_state: inv.customer_state || customer.state || '',
+          customer_gstin: inv.customer_gstin || customer.gstin || '',
+          items: items,
+          payments: payload.payments || inv.payments || [],
+          payment_details_snapshot: inv.payment_details_snapshot || settings
+        };
+
+        setInvoice(consolidatedInvoice);
+        if (rzp && (rzp.key_id || rzp.keyId)) {
+          setRazorpayConfig({
+            enabled: rzp.enabled !== false,
+            key_id: rzp.key_id || rzp.keyId,
+            primary_payment: rzp.primary_payment !== false
+          });
+        } else if (settings.razorpay_key_id) {
+          setRazorpayConfig({
+            enabled: settings.razorpay_enabled !== false,
+            key_id: settings.razorpay_key_id,
+            primary_payment: settings.razorpay_primary_payment !== false
+          });
         }
         setError('');
       } else {
@@ -136,8 +177,9 @@ export default function CustomerInvoicePayment() {
   // Generate UPI QR Code dynamically based on outstanding amount
   useEffect(() => {
     if (!invoice) return;
-    const upiId = 'digi8solutions@hdfcbank';
-    const payeeName = 'Digi8 Solutions Private Limited';
+    const snapshot = invoice.payment_details_snapshot || {};
+    const upiId = snapshot.upi_id || '9666252024@sbi';
+    const payeeName = snapshot.upi_display_name || snapshot.bank_account_holder || 'Digi8 Solutions Private Limited';
     const amountToRequest = (activePayAmount > 0 ? activePayAmount : balanceOutstanding).toFixed(2);
     const invoiceRef = invoice.invoice_number || 'INV';
     const note = `Invoice ${invoiceRef}`;
@@ -180,22 +222,24 @@ export default function CustomerInvoicePayment() {
 
       // Step 1: Request server to create Razorpay Order for current outstanding amount
       const orderRes = await createRazorpayOrder(invoice.id, activePayAmount);
-      if (!orderRes.success || !orderRes.order) {
+      const order = orderRes.order || (orderRes as any).data;
+      const keyId = orderRes.keyId || (orderRes as any).data?.key_id || razorpayConfig.key_id;
+      if (!orderRes.success || !order) {
         throw new Error(orderRes.error || 'Failed to initialize payment order on server.');
       }
 
-      const { order, keyId } = orderRes;
-      const effectiveKey = keyId || razorpayConfig.key_id;
+      const orderId = order.id || order.order_id;
+      const orderAmount = order.amount;
 
       // Step 2: Open Razorpay Standard Checkout Modal
       const options = {
-        key: effectiveKey,
-        amount: order.amount,
+        key: keyId,
+        amount: orderAmount,
         currency: order.currency || 'INR',
         name: 'Digi8 Solutions Private Limited',
         description: `Invoice ${invoice.invoice_number} Payment`,
         image: '/images/logo.png',
-        order_id: order.id,
+        order_id: orderId,
         prefill: {
           name: invoice.customer_name || '',
           email: invoice.customer_email || '',
@@ -223,7 +267,7 @@ export default function CustomerInvoicePayment() {
           try {
             // Step 3: Verify payment signature and reconcile invoice on server
             const verifyRes = await verifyRazorpayPayment(invoice.id, {
-              razorpay_order_id: response.razorpay_order_id || order.id,
+              razorpay_order_id: response.razorpay_order_id || orderId,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
               amount: activePayAmount
@@ -591,6 +635,104 @@ export default function CustomerInvoicePayment() {
             )}
           </div>
         </div>
+
+        {/* Bank & Instant UPI Settlement Card */}
+        {(() => {
+          const snapshot = (invoice as any).payment_details_snapshot || {};
+          const bankName = snapshot.bank_name || 'State Bank of India';
+          const accName = snapshot.bank_account_holder || 'N Narayana Swamy';
+          const accNo = snapshot.bank_account_number || '43307998455';
+          const ifsc = snapshot.bank_ifsc || 'SBIN0004189';
+          const branch = snapshot.bank_branch || 'TADIPATRI BAZAR';
+          const upi = snapshot.upi_id || '9666252024@sbi';
+
+          return (
+            <div className="p-6 rounded-2xl bg-[#0e1424] border border-white/10 shadow-2xl space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
+                <div className="flex items-center gap-2">
+                  <Building2 size={18} className="text-brand-cyan" />
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                    Bank Account & Direct Wire Settlement
+                  </h3>
+                </div>
+                <span className="text-[11px] font-mono text-slate-400 bg-white/5 px-2.5 py-1 rounded-lg border border-white/10">
+                  NEFT / RTGS / IMPS / UPI
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 space-y-1">
+                  <div className="text-[11px] text-slate-400 uppercase font-semibold">Bank Name</div>
+                  <div className="text-sm font-bold text-white">{bankName}</div>
+                  <div className="text-[11px] text-slate-500">Branch: {branch}</div>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 space-y-1">
+                  <div className="text-[11px] text-slate-400 uppercase font-semibold">Beneficiary Name</div>
+                  <div className="text-sm font-bold text-white">{accName}</div>
+                  <div className="text-[11px] text-slate-500">Account Type: Current Account</div>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-cyan-500/[0.04] border border-cyan-500/20 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-brand-cyan uppercase font-semibold">Account Number</span>
+                    <button
+                      onClick={() => handleCopyText('accNo', accNo)}
+                      className="text-slate-400 hover:text-white p-1 rounded"
+                      title="Copy Account Number"
+                    >
+                      {copiedField === 'accNo' ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                    </button>
+                  </div>
+                  <div className="text-base font-black font-mono text-white tracking-wider">{accNo}</div>
+                  <div className="text-[11px] text-slate-400">
+                    {copiedField === 'accNo' ? <span className="text-emerald-400 font-bold">Copied to clipboard!</span> : 'Official billing collection A/C'}
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-slate-400 uppercase font-semibold">IFSC Code</span>
+                    <button
+                      onClick={() => handleCopyText('ifsc', ifsc)}
+                      className="text-slate-400 hover:text-white p-1 rounded"
+                      title="Copy IFSC Code"
+                    >
+                      {copiedField === 'ifsc' ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                    </button>
+                  </div>
+                  <div className="text-base font-black font-mono text-brand-cyan tracking-wider">{ifsc}</div>
+                  <div className="text-[11px] text-slate-400">
+                    {copiedField === 'ifsc' ? <span className="text-emerald-400 font-bold">Copied to clipboard!</span> : 'Valid for RTGS/NEFT/IMPS'}
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-cyan-500/[0.04] border border-cyan-500/20 space-y-1 sm:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-brand-cyan uppercase font-semibold">Corporate UPI ID</span>
+                    <button
+                      onClick={() => handleCopyText('upi', upi)}
+                      className="text-slate-400 hover:text-white p-1 rounded"
+                      title="Copy UPI ID"
+                    >
+                      {copiedField === 'upi' ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                    </button>
+                  </div>
+                  <div className="text-base font-black font-mono text-white tracking-wider">{upi}</div>
+                  <div className="text-[11px] text-slate-400 flex items-center justify-between">
+                    <span>{copiedField === 'upi' ? <span className="text-emerald-400 font-bold">Copied to clipboard!</span> : 'Supported by GPay, PhonePe, Paytm, BHIM'}</span>
+                    <button
+                      onClick={() => setShowQrModal(true)}
+                      className="text-brand-cyan hover:underline text-[11px] font-bold"
+                    >
+                      View QR Code →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Invoice Line Items Summary */}
         <div className="p-6 rounded-2xl bg-[#0e1424] border border-white/10 shadow-2xl space-y-4">

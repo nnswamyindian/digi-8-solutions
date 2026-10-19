@@ -615,10 +615,30 @@ async function fetchCompleteInvoiceData(id: string | number) {
   let customer: any = null;
   let settings: any = null;
 
+  const cleanId = String(id || '').trim();
+  let decodedId = cleanId;
+  try { decodedId = decodeURIComponent(cleanId); } catch {}
+
   try {
-    const [invRows]: any = await pool.query('SELECT * FROM invoices WHERE id = ? OR invoice_number = ?', [id, id]);
+    const [invRows]: any = await pool.query(
+      'SELECT * FROM invoices WHERE id = ? OR invoice_number = ? OR invoice_number = ? LIMIT 1',
+      [cleanId, cleanId, decodedId]
+    );
     if (invRows && invRows.length > 0) {
       invoice = invRows[0];
+    } else {
+      // Suffix search in MySQL if exact match not found (e.g. 0014 vs 000014)
+      const cleanSeq = decodedId.split(/[\/\-]/).pop()?.replace(/^0+/, '') || '';
+      if (cleanSeq) {
+        const [likeRows]: any = await pool.query(
+          'SELECT * FROM invoices WHERE invoice_number LIKE ? LIMIT 1',
+          [`%${cleanSeq}`]
+        );
+        if (likeRows && likeRows.length > 0) invoice = likeRows[0];
+      }
+    }
+
+    if (invoice) {
       const [itemRows]: any = await pool.query('SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id ASC', [invoice.id]);
       items = itemRows || [];
       const [custRows]: any = await pool.query('SELECT * FROM customers WHERE id = ?', [invoice.customer_id]);
@@ -628,7 +648,21 @@ async function fetchCompleteInvoiceData(id: string | number) {
     }
   } catch {
     const store = loadPersistentStore();
-    invoice = (store.invoices || []).find(i => String(i.id) === String(id) || i.invoice_number === id);
+    invoice = (store.invoices || []).find((i: any) => {
+      if (String(i.id) === cleanId || String(i.id) === decodedId) return true;
+      if (i.invoice_number === cleanId || i.invoice_number === decodedId) return true;
+      if (i.invoice_number?.toLowerCase() === cleanId.toLowerCase() || i.invoice_number?.toLowerCase() === decodedId.toLowerCase()) return true;
+
+      // Match suffix (e.g., 0014 vs 000014 or 14)
+      const extractSeq = (num: string) => (num || '').split(/[\/\-]/).pop()?.replace(/^0+/, '');
+      const targetSeq = extractSeq(decodedId);
+      if (targetSeq && targetSeq.length >= 1) {
+        const invSeq = extractSeq(i.invoice_number);
+        if (invSeq === targetSeq) return true;
+      }
+      return false;
+    });
+
     if (invoice) {
       items = (store.invoice_items || []).filter(item => item.invoice_id === invoice.id);
       customer = (store.customers || []).find(c => c.id === invoice.customer_id);
@@ -2303,10 +2337,14 @@ router.get('/payments/razorpay/config', async (_req, res) => {
   }
 });
 
-// GET /api/invoices/public/:id - Public customer-facing invoice view (No auth required)
-router.get('/invoices/public/:id', async (req, res) => {
+// GET /api/invoices/public - Public customer-facing invoice view (No auth required)
+router.get(['/invoices/public', '/invoices/public/:id', '/invoices/public/:id(*)'], async (req, res) => {
   try {
-    const id = req.params.id;
+    const rawId = (req.query.inv as string) || (req.query.id as string) || (req.params[0] ? `${req.params.id}${req.params[0]}` : req.params.id);
+    const id = (rawId || '').trim();
+    if (!id) {
+      return res.status(400).json({ success: false, error: 'Invoice reference or ID is required.' });
+    }
     const { invoice, items, customer, settings } = await fetchCompleteInvoiceData(id);
 
     if (!invoice) {
@@ -2480,6 +2518,13 @@ router.post('/invoices/:id/razorpay-order', async (req, res) => {
 
     res.json({
       success: true,
+      order: {
+        id: orderRes.orderId,
+        amount: orderRes.amount,
+        currency: orderRes.currency || 'INR',
+        receipt: `inv_${invoice.id}`
+      },
+      keyId: publicCfg.keyId,
       data: {
         order_id: orderRes.orderId,
         amount: orderRes.amount, // in paise
