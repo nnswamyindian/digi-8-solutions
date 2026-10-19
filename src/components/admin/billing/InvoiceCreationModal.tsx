@@ -224,7 +224,9 @@ export default function InvoiceCreationModal({
         quantity: Number(it.quantity) || 1,
         market_price: Number(it.market_price) || 0,
         selling_price: Number(it.selling_price) || 0,
-        tax_percentage: Number(it.tax_percentage) !== undefined ? Number(it.tax_percentage) : 18
+        tax_percentage: (it.tax_percentage !== undefined && it.tax_percentage !== null && !isNaN(Number(it.tax_percentage)))
+          ? Number(it.tax_percentage)
+          : (Number(inv.tax_total) === 0 ? 0 : 18)
       })));
     } else {
       // Fetch full details
@@ -236,7 +238,9 @@ export default function InvoiceCreationModal({
             quantity: Number(it.quantity) || 1,
             market_price: Number(it.market_price) || 0,
             selling_price: Number(it.selling_price) || 0,
-            tax_percentage: Number(it.tax_percentage) !== undefined ? Number(it.tax_percentage) : 18
+            tax_percentage: (it.tax_percentage !== undefined && it.tax_percentage !== null && !isNaN(Number(it.tax_percentage)))
+              ? Number(it.tax_percentage)
+              : (Number(full.data?.tax_total ?? inv.tax_total) === 0 ? 0 : 18)
           })));
         } else {
           addCustomItem();
@@ -293,6 +297,7 @@ export default function InvoiceCreationModal({
 
   // Add Item Helpers
   const addCustomItem = () => {
+    const defaultTax = (taxCalculationMode as any) === 'exempt' ? 0 : 18;
     const newItem: InvoiceItem = {
       item_type: 'custom',
       item_name: 'Custom Service / Deliverable',
@@ -303,7 +308,7 @@ export default function InvoiceCreationModal({
       selling_price: 20000,
       discount_type: 'fixed',
       discount_value: 5000,
-      tax_percentage: 18
+      tax_percentage: defaultTax
     };
     setItems(prev => [...prev, newItem]);
   };
@@ -311,6 +316,10 @@ export default function InvoiceCreationModal({
   const addProductFromCatalogue = (prod: Product) => {
     const mPrice = Number(prod.market_price) || 0;
     const sPrice = Number(prod.default_selling_price) || mPrice;
+    const defaultTax = (taxCalculationMode as any) === 'exempt' ? 0 : 18;
+    const itemTax = (prod.tax_percentage !== undefined && prod.tax_percentage !== null && !isNaN(Number(prod.tax_percentage)))
+      ? Number(prod.tax_percentage)
+      : defaultTax;
     const newItem: InvoiceItem = {
       product_id: prod.id,
       item_type: (prod.category?.toLowerCase() as any) || 'software',
@@ -323,7 +332,7 @@ export default function InvoiceCreationModal({
       selling_price: sPrice,
       discount_type: 'fixed',
       discount_value: Math.max(0, mPrice - sPrice),
-      tax_percentage: Number(prod.tax_percentage) !== undefined ? Number(prod.tax_percentage) : 18
+      tax_percentage: itemTax
     };
     setItems(prev => [...prev, newItem]);
     setShowCataloguePicker(false);
@@ -364,7 +373,8 @@ export default function InvoiceCreationModal({
       } else if (field === 'quantity') {
         item.quantity = Math.max(1, Number(value) || 1);
       } else if (field === 'tax_percentage') {
-        item.tax_percentage = Number(value);
+        const parsedTax = Number(value);
+        item.tax_percentage = isNaN(parsedTax) ? 0 : parsedTax;
       } else {
         (item as any)[field] = value;
       }
@@ -445,7 +455,9 @@ export default function InvoiceCreationModal({
         selling_price: Number(it.selling_price) || 0,
         discount_type: it.discount_type || 'fixed',
         discount_value: Number(it.discount_value) || 0,
-        tax_percentage: Number(it.tax_percentage)
+        tax_percentage: (taxCalculationMode as any) === 'exempt'
+          ? 0
+          : ((it.tax_percentage !== undefined && it.tax_percentage !== null && !isNaN(Number(it.tax_percentage))) ? Number(it.tax_percentage) : 0)
       })),
       extra_discount_type: extraDiscountType,
       extra_discount_value: Number(extraDiscountValue) || 0,
@@ -855,6 +867,20 @@ export default function InvoiceCreationModal({
                   }`}
                 >
                   GST Inclusive (Price Includes Tax)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTaxCalculationMode('exempt' as any);
+                    setItems(prev => prev.map(it => ({ ...it, tax_percentage: 0 })));
+                  }}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    (taxCalculationMode as any) === 'exempt'
+                      ? 'bg-emerald-400 text-black font-bold shadow-[0_0_10px_rgba(52,211,153,0.3)]'
+                      : 'bg-white/5 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  0% GST / Non-GST (Exempt)
                 </button>
               </div>
 

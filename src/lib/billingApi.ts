@@ -406,9 +406,11 @@ export function calculateLocalFinancials(
     if (sellingPrice < 0) sellingPrice = 0;
     const discountAmount = unitDiscount * qty;
     const itemSellingTotal = sellingPrice * qty;
-    const taxPct = (item.tax_percentage !== undefined && item.tax_percentage !== null && !isNaN(Number(item.tax_percentage)))
-      ? Number(item.tax_percentage)
-      : 18.00;
+    const taxPct = (taxCalculationMode as any) === 'exempt'
+      ? 0.00
+      : ((item.tax_percentage !== undefined && item.tax_percentage !== null && !isNaN(Number(item.tax_percentage)))
+          ? Number(item.tax_percentage)
+          : 18.00);
 
     let itemTaxable = 0;
     let itemTax = 0;

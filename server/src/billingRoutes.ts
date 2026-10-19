@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import pool, { loadPersistentStore, savePersistentStore } from './db.js';
 import { broadcastAdminNotification } from './index.js';
 import { generateInvoicePdfBuffer, InvoicePdfData } from './pdfGenerator.js';
+// Auto-reload trigger for pdfGenerator updates: 2026-10-19-2
 import { sendMailWithFallbacks, getSmtpUser } from './emailService.js';
 import {
   getRazorpayConfig,
@@ -121,9 +122,11 @@ export function calculateInvoiceFinancials(
     if (sellingPrice < 0) sellingPrice = 0;
     const discountAmount = unitDiscount * qty;
     const itemSellingTotal = sellingPrice * qty;
-    const taxPct = (item.tax_percentage !== undefined && item.tax_percentage !== null && !isNaN(Number(item.tax_percentage)))
-      ? Number(item.tax_percentage)
-      : 18.00;
+    const taxPct = (taxCalculationMode as any) === 'exempt'
+      ? 0.00
+      : ((item.tax_percentage !== undefined && item.tax_percentage !== null && !isNaN(Number(item.tax_percentage)))
+          ? Number(item.tax_percentage)
+          : 18.00);
 
     let itemTaxable = 0;
     let itemTax = 0;
@@ -767,6 +770,10 @@ router.get('/invoices/:id/pdf', async (req, res) => {
         const selling = Number(it.unit_selling_price ?? it.selling_price) || 0;
         const market = Number(it.unit_market_price ?? it.market_price) || selling;
         const lineTotal = Number(it.line_total ?? it.total_amount) || (selling * qty);
+        const isInvoiceZeroTax = Number(invoice.tax_total) === 0 && Number(invoice.cgst_amount) === 0 && Number(invoice.sgst_amount) === 0 && Number(invoice.igst_amount) === 0;
+        const taxPercentage = (it.tax_percentage !== undefined && it.tax_percentage !== null && !isNaN(Number(it.tax_percentage)))
+          ? Number(it.tax_percentage)
+          : (isInvoiceZeroTax ? 0 : 18);
         return {
           item_name: it.item_name || it.name || 'Deliverable',
           description: it.description,
@@ -774,7 +781,7 @@ router.get('/invoices/:id/pdf', async (req, res) => {
           unit_market_price: market,
           unit_selling_price: selling,
           discount_amount: Number(it.discount_amount) || 0,
-          tax_percentage: it.tax_percentage !== undefined ? Number(it.tax_percentage) : 18,
+          tax_percentage: taxPercentage,
           total_amount: lineTotal
         };
       }),
@@ -904,7 +911,9 @@ const pdfData: InvoicePdfData = {
           unit_market_price: market,
           unit_selling_price: selling,
           discount_amount: Number(it.discount_amount) || 0,
-          tax_percentage: it.tax_percentage !== undefined ? Number(it.tax_percentage) : 18,
+          tax_percentage: (it.tax_percentage !== undefined && it.tax_percentage !== null && !isNaN(Number(it.tax_percentage)))
+            ? Number(it.tax_percentage)
+            : ((Number(invoice.tax_total) === 0 && Number(invoice.cgst_amount) === 0 && Number(invoice.sgst_amount) === 0 && Number(invoice.igst_amount) === 0) ? 0 : 18),
           total_amount: lineTotal
         };
       }),
@@ -3185,12 +3194,16 @@ router.post('/products', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Product name, code/SKU, and category are required.' });
     }
 
+    const taxRate = (tax_percentage !== undefined && tax_percentage !== null && !isNaN(Number(tax_percentage)))
+      ? Number(tax_percentage)
+      : 18;
+
     let insertId = 0;
     try {
       const [resProd]: any = await pool.query(
         `INSERT INTO products (name, code, category, description, market_price, default_selling_price, tax_percentage, hsn_sac, unit, is_active)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [name, code, category, description, Number(market_price) || 0, Number(default_selling_price) || 0, Number(tax_percentage) || 18, hsn_sac, unit, is_active ? 1 : 0]
+        [name, code, category, description, Number(market_price) || 0, Number(default_selling_price) || 0, taxRate, hsn_sac, unit, is_active ? 1 : 0]
       );
       insertId = resProd.insertId;
     } catch {
@@ -3204,7 +3217,7 @@ router.post('/products', async (req, res) => {
         description,
         market_price: Number(market_price) || 0,
         default_selling_price: Number(default_selling_price) || 0,
-        tax_percentage: Number(tax_percentage) || 18,
+        tax_percentage: taxRate,
         hsn_sac,
         unit,
         is_active: is_active ?? true,
