@@ -22,6 +22,7 @@ import {
   getAdminEmail
 } from './emailService.js';
 import billingRouter from './billingRoutes.js';
+import productRouter from './productRoutes.js';
 
 dotenv.config();
 
@@ -34,6 +35,16 @@ app.use(express.json({
     req.rawBody = buf;
   }
 }));
+
+// Serve uploaded product images & documents statically
+const UPLOADS_ROOT = path.resolve(process.cwd(), 'uploads');
+if (!fs.existsSync(UPLOADS_ROOT)) {
+  fs.mkdirSync(UPLOADS_ROOT, { recursive: true });
+}
+app.use('/uploads', express.static(UPLOADS_ROOT));
+
+// Mount Dynamic Products Management Module
+app.use('/api', productRouter);
 
 // Mount Billing & Invoices Management Module
 app.use('/api', billingRouter);

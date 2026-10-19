@@ -105,6 +105,7 @@ export default function Footer() {
             </h4>
             <ul className="space-y-2.5 text-xs font-medium text-brand-gray">
               <li><Link to="/about" className="hover:text-brand-cyan transition-colors">About Us</Link></li>
+              <li><Link to="/products" className="hover:text-brand-cyan transition-colors">Products &amp; SaaS Solutions</Link></li>
               <li><Link to="/industries" className="hover:text-brand-cyan transition-colors">Industries Served</Link></li>
               <li><Link to="/portfolio" className="hover:text-brand-cyan transition-colors">Portfolio & Case Studies</Link></li>
               <li><Link to="/technologies" className="hover:text-brand-cyan transition-colors">Technology Stack</Link></li>

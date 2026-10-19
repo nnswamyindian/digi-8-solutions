@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Mail, Send, CheckCircle2, AlertCircle, FileText, Paperclip, Loader2 } from 'lucide-react';
+import { X, Mail, Send, CheckCircle2, AlertCircle, FileText, Paperclip, Loader2, ExternalLink, Copy, Check } from 'lucide-react';
 import { Invoice, sendInvoiceEmail } from '../../../lib/billingApi';
 
 interface SendInvoiceEmailModalProps {
@@ -21,16 +21,39 @@ export default function SendInvoiceEmailModal({
   const [isSending, setIsSending] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const cleanInvoiceNum = invoice ? encodeURIComponent(invoice.invoice_number) : '';
+  const portalHost = typeof window !== 'undefined' && !window.location.origin.includes('localhost')
+    ? window.location.origin
+    : 'https://digi8solutions.com';
+  const invoicePortalUrl = invoice ? `${portalHost}/pay?inv=${cleanInvoiceNum}` : '';
 
   useEffect(() => {
     if (invoice && isOpen) {
       setRecipientEmail(invoice.customer_email || '');
       setSubject(`Invoice ${invoice.invoice_number} from Digi8 Solutions — Total: ₹${Number(invoice.grand_total || 0).toLocaleString('en-IN')}`);
-      setMessage(`Dear ${invoice.customer_name || 'Client'},\n\nPlease find attached the official copy of your tax invoice #${invoice.invoice_number}. Let us know if you have any questions.\n\nThank you,\nDigi8 Solutions Finance Team`);
+      
+      const balance = Number(invoice.balance_amount !== undefined && invoice.balance_amount !== null ? invoice.balance_amount : invoice.grand_total || 0);
+      const isPaid = balance <= 0.01;
+
+      const defaultMsg = `Dear ${invoice.customer_name || 'Client'},\n\n` +
+        `Thank you for partnering with Digi8 Solutions. Please find attached the official copy of your tax invoice #${invoice.invoice_number}.\n\n` +
+        `You can also view the digital invoice, download the official PDF, and complete payment online via Razorpay (UPI, Credit/Debit Cards, NetBanking) or Direct Bank Transfer using this secure link:\n` +
+        `${invoicePortalUrl}\n\n` +
+        `Total Invoice Amount: ₹${Number(invoice.grand_total || 0).toLocaleString('en-IN')}\n` +
+        (isPaid ? `Payment Status: Settled in Full (Official Receipt Attached)\n\n` : `Outstanding Balance Due: ₹${balance.toLocaleString('en-IN')}\n\n`) +
+        `Please let us know if you have any questions.\n\n` +
+        `Warm regards,\n` +
+        `Digi8 Solutions Finance Team\n` +
+        `hello@digi8solutions.com | +91 90002 07739`;
+
+      setMessage(defaultMsg);
       setSuccessMsg('');
       setErrorMsg('');
+      setCopied(false);
     }
-  }, [invoice, isOpen]);
+  }, [invoice, isOpen, invoicePortalUrl]);
 
   if (!isOpen || !invoice) return null;
 
@@ -66,6 +89,13 @@ export default function SendInvoiceEmailModal({
     } finally {
       setIsSending(false);
     }
+  };
+
+  const handleCopyLink = () => {
+    if (!invoicePortalUrl) return;
+    navigator.clipboard.writeText(invoicePortalUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const safeFilename = `Invoice-${String(invoice.invoice_number).replace(/[\/\\]/g, '_')}.pdf`;
@@ -119,6 +149,41 @@ export default function SendInvoiceEmailModal({
             </div>
           </div>
 
+          {/* Public Invoice & Payment Portal Link Pill */}
+          <div className="p-3.5 rounded-xl bg-cyan-950/30 border border-brand-cyan/30 flex flex-col gap-2">
+            <div className="flex items-center justify-between text-brand-cyan">
+              <span className="font-semibold text-[11px] flex items-center gap-1.5">
+                <ExternalLink size={13} />
+                Online Invoice &amp; Payment Portal Link
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  className="px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white text-[10px] flex items-center gap-1 transition-colors"
+                >
+                  {copied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+                  <span>{copied ? 'Copied Link' : 'Copy Link'}</span>
+                </button>
+                <a
+                  href={invoicePortalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2.5 py-1 rounded bg-brand-cyan/20 hover:bg-brand-cyan/30 text-brand-cyan text-[10px] flex items-center gap-1 transition-colors"
+                >
+                  <ExternalLink size={11} />
+                  <span>Open Page</span>
+                </a>
+              </div>
+            </div>
+            <div className="font-mono text-[11px] text-white/90 bg-black/40 px-2.5 py-1.5 rounded-lg border border-white/5 break-all select-all">
+              {invoicePortalUrl}
+            </div>
+            <p className="text-[10px] text-slate-400 leading-normal">
+              This link is automatically embedded in the customer email. It allows the client to view the interactive breakdown, download the PDF, and complete settlement via Razorpay, UPI QR, or Bank wire.
+            </p>
+          </div>
+
           {/* Recipient Email Field */}
           <div>
             <label className="text-[11px] text-slate-300 block mb-1 font-semibold">
@@ -156,10 +221,10 @@ export default function SendInvoiceEmailModal({
               Cover Note / Message
             </label>
             <textarea
-              rows={4}
+              rows={6}
               value={message}
               onChange={e => setMessage(e.target.value)}
-              className="w-full bg-[#070b13] border border-white/10 rounded-lg p-3 text-white text-xs leading-relaxed focus:outline-none focus:border-brand-cyan"
+              className="w-full bg-[#070b13] border border-white/10 rounded-lg p-3 text-white text-xs leading-relaxed focus:outline-none focus:border-brand-cyan font-mono"
             />
           </div>
 

@@ -27,6 +27,8 @@ import NotFound from './pages/NotFound';
 import QuoteCalculator from './pages/QuoteCalculator';
 import VerifyEmail from './pages/VerifyEmail';
 import CustomerInvoicePayment from './pages/CustomerInvoicePayment';
+import Products from './pages/Products';
+import ProductLandingPage from './pages/ProductLandingPage';
 
 // Service Division Platforms
 import BrandingIdentity from './pages/services/BrandingIdentity';
@@ -42,6 +44,8 @@ import CustomizedGifting from './pages/services/CustomizedGifting';
 import AdminLogin from './pages/admin/AdminLogin';
 import StaffLogin from './pages/admin/StaffLogin';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminProductsDashboard from './pages/admin/products/AdminProductsDashboard';
+import AdminProductEditor from './pages/admin/products/AdminProductEditor';
 import AdminCareers from './pages/admin/AdminCareers';
 import AdminAtsPipeline from './pages/admin/AdminAtsPipeline';
 import AdminCandidateCrm from './pages/admin/AdminCandidateCrm';
@@ -108,6 +112,9 @@ function AppShell() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/admin/dashboard" element={<RequireAuth><AdminDashboard /></RequireAuth>} />
+        <Route path="/admin/products" element={<RequireAuth><AdminProductsDashboard /></RequireAuth>} />
+        <Route path="/admin/products/new" element={<RequireAuth><AdminProductEditor /></RequireAuth>} />
+        <Route path="/admin/products/:id/edit" element={<RequireAuth><AdminProductEditor /></RequireAuth>} />
         <Route path="/admin/careers" element={<RequireAuth><AdminCareers /></RequireAuth>} />
         <Route path="/admin/careers/pipeline" element={<RequireAuth><AdminAtsPipeline /></RequireAuth>} />
         <Route path="/admin/careers/candidates" element={<RequireAuth><AdminCandidateCrm /></RequireAuth>} />
@@ -140,6 +147,8 @@ function AppShell() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
+          <Route path="/products" element={<Products />} />
+          <Route path="/products/:slug" element={<ProductLandingPage />} />
           <Route path="/services" element={<Services />} />
           <Route path="/services/branding-identity" element={<BrandingIdentity />} />
           <Route path="/services/technology-infrastructure" element={<TechnologyInfrastructure />} />

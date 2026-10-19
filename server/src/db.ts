@@ -19,6 +19,9 @@ export interface PersistentDbStore {
   career_applications: any[];
   customers: any[];
   products: any[];
+  catalog_products: any[];
+  product_demo_requests: any[];
+  product_quotation_requests: any[];
   invoices: any[];
   invoice_items: any[];
   payments: any[];
@@ -29,6 +32,323 @@ export interface PersistentDbStore {
   invoice_audit_logs: any[];
   [key: string]: any[];
 }
+
+export const DEFAULT_CATALOG_PRODUCTS = [
+  {
+    id: 1,
+    name: 'Mana Kiranakottu',
+    slug: 'mana-kiranakottu',
+    short_description: 'Fast, intuitive Kirana and retail grocery billing software with barcode scanning, instant thermal printing, and real-time inventory management.',
+    description: 'Mana Kiranakottu is a comprehensive cloud-ready software solution purpose-built for Kirana, grocery, and general retail stores. Designed to simplify billing counters, eliminate inventory shortages, accelerate checkout speeds, and automate GST compliance effortlessly on desktop and mobile devices.',
+    category: 'Retail & Kirana Billing Software',
+    product_type: 'SaaS / Business Software',
+    logo_url: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=400&q=80',
+    thumbnail_url: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80',
+    banner_url: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1600&q=80',
+    official_website_url: 'https://manakiranakottu.dzgsolutions.com',
+    application_url: 'https://manakiranakottu.dzgsolutions.com/app',
+    login_url: 'https://manakiranakottu.dzgsolutions.com/login',
+    demo_url: 'https://manakiranakottu.dzgsolutions.com/demo',
+    video_demo_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    documentation_url: 'https://manakiranakottu.dzgsolutions.com/docs',
+    support_url: 'https://digi8solutions.com/contact',
+    pricing_model: 'Tiered Pricing',
+    currency: 'INR',
+    starting_price: 1999,
+    monthly_price: 1999,
+    annual_price: 19990,
+    trial_available: true,
+    trial_days: 14,
+    setup_fee: 0,
+    pricing_notes: 'Includes free cloud data sync, automated daily backups, and unlimited cashier terminals.',
+    display_price: true,
+    is_featured: true,
+    is_published: true,
+    status: 'published',
+    display_order: 1,
+    seo_title: 'Mana Kiranakottu — Retail & Kirana Billing Software | Digi8 Solutions',
+    seo_description: 'Fast barcode scanning billing software with multi-language receipts, thermal printing, and GST compliance for Kirana stores across India.',
+    features: [
+      {
+        id: 'f1',
+        title: 'Fast Billing & Invoicing',
+        description: 'Generate itemized bills in under 5 seconds with 1-click shortcut keys, quick item lookup, and auto-round off.',
+        icon: 'Zap',
+        display_order: 1
+      },
+      {
+        id: 'f2',
+        title: 'Product & Inventory Management',
+        description: 'Track stock counts in real time, set automated low-stock reorder thresholds, and categorize bulk dry fruits, pulses, and FMCG items.',
+        icon: 'Layers',
+        display_order: 2
+      },
+      {
+        id: 'f3',
+        title: 'Barcode & QR Scanning',
+        description: 'Instant recognition with USB & Bluetooth 1D/2D desktop scanners for fast checkout lines with zero typos.',
+        icon: 'Scan',
+        display_order: 3
+      },
+      {
+        id: 'f4',
+        title: 'Thermal Printer Integration',
+        description: 'Direct ESC/POS plug-and-play support for 58mm and 80mm high-speed thermal printers with customizable store headers.',
+        icon: 'Printer',
+        display_order: 4
+      },
+      {
+        id: 'f5',
+        title: 'Sales & Revenue Analytics',
+        description: 'Comprehensive daily revenue reports, gross profit margins, best-selling product rankings, and GST export spreadsheets.',
+        icon: 'BarChart3',
+        display_order: 5
+      },
+      {
+        id: 'f6',
+        title: 'Customer Ledger & Udhar (Credit) Tracking',
+        description: 'Digital khata ledger for neighborhood customers with automated payment reminder SMS and UPI payment collection links.',
+        icon: 'Users',
+        display_order: 6
+      },
+      {
+        id: 'f7',
+        title: 'Multi-Terminal Store Management',
+        description: 'Manage multiple checkout cashiers simultaneously with individual drawer balance reconciliation and role permissions.',
+        icon: 'ShieldCheck',
+        display_order: 7
+      },
+      {
+        id: 'f8',
+        title: 'Mobile-Friendly Workflows',
+        description: 'Audit stock, monitor daily revenue, and approve purchase bills remotely on your smartphone from anywhere.',
+        icon: 'Smartphone',
+        display_order: 8
+      }
+    ],
+    benefits: [
+      'Reduce customer checkout waiting times by over 60%',
+      'Eliminate stock pilferage and unrecorded credit losses',
+      'One-click GSTR-1 and GSTR-3B tax export compatibility',
+      'Works seamlessly even during temporary internet disconnections (Offline-first)'
+    ],
+    screenshots: [
+      {
+        id: 's1',
+        url: 'https://images.unsplash.com/photo-1556742049-0a67c5574f73?auto=format&fit=crop&w=1200&q=80',
+        caption: 'High-speed touch-friendly billing counter interface',
+        display_order: 1
+      },
+      {
+        id: 's2',
+        url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80',
+        caption: 'Executive daily sales, gross margin & revenue analytics dashboard',
+        display_order: 2
+      },
+      {
+        id: 's3',
+        url: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80',
+        caption: 'Real-time inventory levels and batch expiry tracking',
+        display_order: 3
+      }
+    ],
+    plans: [
+      {
+        id: 'p1',
+        plan_name: 'Single Store Starter',
+        price: 1999,
+        currency: 'INR',
+        billing_interval: 'month',
+        features: [
+          '1 Billing Counter Terminal',
+          'Unlimited Products & Categories',
+          'Fast Barcode Scanning & Thermal Printing',
+          'Customer Khata & Credit Reminders',
+          'Standard Email & Phone Support'
+        ],
+        is_featured: false,
+        cta_label: 'Start 14-Day Free Trial',
+        cta_destination: 'demo'
+      },
+      {
+        id: 'p2',
+        plan_name: 'Supermarket Pro',
+        price: 4499,
+        currency: 'INR',
+        billing_interval: 'month',
+        features: [
+          'Up to 4 Billing Counters',
+          'Multi-user Cashier Permissions',
+          'Inventory Batch & Expiry Alert Engine',
+          'Direct WhatsApp & SMS Receipts',
+          'Automated GST E-Invoicing & Reports',
+          'Priority 24/7 Phone & Remote Support'
+        ],
+        is_featured: true,
+        cta_label: 'Get Started with Pro',
+        cta_destination: 'demo'
+      },
+      {
+        id: 'p3',
+        plan_name: 'Multi-Store Enterprise',
+        price: 9999,
+        currency: 'INR',
+        billing_interval: 'month',
+        features: [
+          'Unlimited Store Branches & Counters',
+          'Centralized Warehouse Stock Allocation',
+          'Custom Hardware Integration & Setup',
+          'Dedicated Account Manager',
+          'Bespoke API Integrations & SLAs'
+        ],
+        is_featured: false,
+        cta_label: 'Request Custom Quotation',
+        cta_destination: 'quote'
+      }
+    ],
+    specifications: {
+      platforms: 'Web (Chrome, Edge, Safari), Windows 10/11, Android 9.0+',
+      devices: 'Desktop PCs, POS Terminals, Laptops, Android Tablets & Smartphones',
+      hardware: 'USB/Bluetooth Barcode Scanners, 58mm/80mm Thermal Receipt Printers, Cash Drawers, Digital Weighing Scales',
+      deployment: 'Cloud SaaS with offline-cached local sync engine',
+      compliance: 'Indian GST compliant, HSN/SAC code library, QR code e-way bill verification'
+    },
+    faqs: [
+      {
+        id: 'faq1',
+        question: 'Does Mana Kiranakottu work without internet?',
+        answer: 'Yes! Mana Kiranakottu features an offline-first architecture. You can continue scanning barcodes, generating bills, and printing receipts even if your broadband drops. The transactions automatically sync with the cloud as soon as connection is restored.',
+        display_order: 1
+      },
+      {
+        id: 'faq2',
+        question: 'What hardware devices are supported?',
+        answer: 'It works with standard desktop PCs, touchscreen POS systems, laptops, and Android tablets. We support all industry-standard USB and Bluetooth thermal printers (Epson, TVS, NGX, Everycom) and 1D/2D barcode scanners.',
+        display_order: 2
+      },
+      {
+        id: 'faq3',
+        question: 'How do customer credit (Udhar) reminders work?',
+        answer: 'You can create customer ledger profiles and record partial payments or outstanding balances. With one click, an automated payment reminder SMS or WhatsApp message with an instant UPI payment link is dispatched to the customer.',
+        display_order: 3
+      },
+      {
+        id: 'faq4',
+        question: 'Can you migrate my existing stock inventory and customer data?',
+        answer: 'Absolutely. We provide Excel/CSV bulk import templates, and our technical onboarding specialists assist you in migrating your existing product catalog and opening stock balances free of charge during onboarding.',
+        display_order: 4
+      }
+    ],
+    demo_options: {
+      live_demo_available: true,
+      video_demo_available: true,
+      schedule_demo_available: true,
+      request_account_available: true
+    },
+    quotation_options: {
+      customization_available: true,
+      hardware_bundle_available: true,
+      enterprise_licensing_available: true
+    },
+    created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: 2,
+    name: 'Digi8 Omnichannel CRM Suite',
+    slug: 'digi8-crm-suite',
+    short_description: 'AI-driven lead automation, WhatsApp Business API chat bots, automated follow-up sequences, and visual sales pipeline forecasting for high-growth enterprises.',
+    description: 'Transform your sales velocity with Digi8 CRM Suite. Unify inbound leads from Meta Ads, Google Ads, website forms, and WhatsApp chats into a single collaborative workspace with AI qualification, automated task routing, and closed-loop revenue reporting.',
+    category: 'Sales & Marketing Automation',
+    product_type: 'SaaS Platform',
+    logo_url: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=400&q=80',
+    thumbnail_url: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80',
+    banner_url: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1600&q=80',
+    official_website_url: 'https://crm.digi8solutions.com',
+    application_url: 'https://crm.digi8solutions.com/app',
+    login_url: 'https://crm.digi8solutions.com/login',
+    demo_url: 'https://crm.digi8solutions.com/demo',
+    pricing_model: 'Per User',
+    currency: 'INR',
+    starting_price: 1499,
+    monthly_price: 1499,
+    annual_price: 14990,
+    trial_available: true,
+    trial_days: 14,
+    display_price: true,
+    is_featured: true,
+    is_published: true,
+    status: 'published',
+    display_order: 2,
+    seo_title: 'Digi8 CRM Suite — Enterprise Lead & WhatsApp Automation Platform',
+    seo_description: 'Automate lead conversion, WhatsApp conversational bots, and sales deal pipelines with Digi8 CRM.',
+    features: [
+      { id: 'c1', title: 'WhatsApp Business API Inbox', description: 'Shared team inbox with green tick verified API integration and quick reply templates.', icon: 'MessageSquare', display_order: 1 },
+      { id: 'c2', title: 'Visual Kanban Deal Stages', description: 'Drag-and-drop opportunity tracking with automated stagnation warnings.', icon: 'Layers', display_order: 2 },
+      { id: 'c3', title: 'Automated Drip Sequences', description: 'Intelligent multi-channel email, WhatsApp, and SMS sequences tailored to lead activity.', icon: 'Zap', display_order: 3 },
+      { id: 'c4', title: 'Sales Rep Productivity & Call Logging', description: 'Integrated virtual numbers, automatic call recording, and team conversion leaderboards.', icon: 'Users', display_order: 4 }
+    ],
+    benefits: ['Increase lead-to-deal conversion rates by 45%', 'Respond to inbound customer inquiries in under 60 seconds with AI bots'],
+    screenshots: [
+      { id: 'cs1', url: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80', caption: 'Omnichannel visual pipeline & lead scoring desk', display_order: 1 }
+    ],
+    plans: [
+      { id: 'cp1', plan_name: 'Growth Pod', price: 1499, currency: 'INR', billing_interval: 'user/month', features: ['Up to 5 Users', 'WhatsApp API Shared Inbox', 'Visual Pipelines', 'Daily Automated Backups'], is_featured: false, cta_label: 'Start Free Trial', cta_destination: 'demo' },
+      { id: 'cp2', plan_name: 'Scale Enterprise', price: 2999, currency: 'INR', billing_interval: 'user/month', features: ['Unlimited Users', 'AI Bot Auto-responder', 'Custom Webhooks & REST API', 'Dedicated Account Manager'], is_featured: true, cta_label: 'Schedule Demo', cta_destination: 'demo' }
+    ],
+    faqs: [
+      { id: 'cfaq1', question: 'Can we port our existing WhatsApp Business number?', answer: 'Yes, we seamlessly onboard your official phone number onto the Meta Cloud API without losing your company verification status.', display_order: 1 }
+    ],
+    demo_options: { live_demo_available: true, schedule_demo_available: true },
+    quotation_options: { customization_available: true },
+    created_at: new Date(Date.now() - 20 * 86400000).toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: 3,
+    name: 'Digi8 Enterprise Cloud ERP',
+    slug: 'digi8-enterprise-erp',
+    short_description: 'Unified multi-warehouse supply chain, procurement automation, automated GST e-way billing, and asset lifecycle management for growing manufacturers & distributors.',
+    description: 'An enterprise resource planning solution architected to eliminate data silos across warehouses, assembly plants, logistics departments, and corporate finance headquarters.',
+    category: 'Enterprise ERP & Supply Chain',
+    product_type: 'Business Software',
+    logo_url: 'https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?auto=format&fit=crop&w=400&q=80',
+    thumbnail_url: 'https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?auto=format&fit=crop&w=800&q=80',
+    banner_url: 'https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?auto=format&fit=crop&w=1600&q=80',
+    official_website_url: 'https://erp.digi8solutions.com',
+    application_url: 'https://erp.digi8solutions.com/portal',
+    pricing_model: 'Custom Quotation',
+    currency: 'INR',
+    starting_price: 150000,
+    pricing_notes: 'Pricing tailored to specific modules, number of warehouse facilities, and deployment architecture.',
+    display_price: false,
+    is_featured: false,
+    is_published: true,
+    status: 'published',
+    display_order: 3,
+    seo_title: 'Digi8 Enterprise ERP — Multi-Warehouse Supply Chain & Manufacturing Software',
+    seo_description: 'Streamline procurement, assembly lines, warehouse inventory, and automated GST compliance with Digi8 ERP.',
+    features: [
+      { id: 'e1', title: 'Multi-Warehouse Inventory Control', description: 'Inter-branch transfers, bin location tracking, and real-time inventory valuation.', icon: 'Layers', display_order: 1 },
+      { id: 'e2', title: 'Automated Procurement Workflows', description: 'Purchase order approval matrices, vendor scoring, and automated RFQ matching.', icon: 'Zap', display_order: 2 },
+      { id: 'e3', title: 'Government E-Invoice & E-Way Bill', description: 'Direct NIC portal integration for real-time IRN generation and QR code printing.', icon: 'ShieldCheck', display_order: 3 }
+    ],
+    benefits: ['Reduce raw material inventory holding costs by 28%', 'Achieve 100% audit-ready GST and accounting compliance'],
+    screenshots: [
+      { id: 'es1', url: 'https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?auto=format&fit=crop&w=1200&q=80', caption: 'Real-time supply chain inventory and logistics command view', display_order: 1 }
+    ],
+    plans: [
+      { id: 'ep1', plan_name: 'Custom Enterprise Deployment', price: 0, currency: 'INR', billing_interval: 'project', features: ['Full Source Deployment', 'On-premise or Private Cloud', 'Custom Module Engineering', 'Dedicated SLA & Support Pod'], is_featured: true, cta_label: 'Request Custom Quotation', cta_destination: 'quote' }
+    ],
+    faqs: [
+      { id: 'efaq1', question: 'Can Digi8 ERP be deployed on our private AWS or on-premise servers?', answer: 'Yes! We support on-premise Kubernetes clusters, private AWS/Azure VPCs, or our managed ISO-certified cloud.', display_order: 1 }
+    ],
+    demo_options: { live_demo_available: false, schedule_demo_available: true },
+    quotation_options: { customization_available: true, enterprise_licensing_available: true },
+    created_at: new Date(Date.now() - 10 * 86400000).toISOString(),
+    updated_at: new Date().toISOString()
+  }
+];
 
 export const DEFAULT_BILLING_PRODUCTS = [
   {
@@ -508,6 +828,9 @@ export const loadPersistentStore = (): PersistentDbStore => {
       career_applications: [],
       customers: [],
       products: [],
+      catalog_products: [...DEFAULT_CATALOG_PRODUCTS],
+      product_demo_requests: [],
+      product_quotation_requests: [],
       invoices: [],
       invoice_items: [],
       payments: [],
@@ -522,6 +845,11 @@ export const loadPersistentStore = (): PersistentDbStore => {
   // Ensure arrays exist
   if (!Array.isArray(memoryStore.customers)) memoryStore.customers = [];
   if (!Array.isArray(memoryStore.products) || memoryStore.products.length === 0) memoryStore.products = [...DEFAULT_BILLING_PRODUCTS];
+  if (!Array.isArray(memoryStore.catalog_products) || memoryStore.catalog_products.length === 0) {
+    memoryStore.catalog_products = [...DEFAULT_CATALOG_PRODUCTS];
+  }
+  if (!Array.isArray(memoryStore.product_demo_requests)) memoryStore.product_demo_requests = [];
+  if (!Array.isArray(memoryStore.product_quotation_requests)) memoryStore.product_quotation_requests = [];
   if (!Array.isArray(memoryStore.projects) || memoryStore.projects.length === 0) memoryStore.projects = [...DEFAULT_PROJECTS];
   if (!Array.isArray(memoryStore.project_expenses) || memoryStore.project_expenses.length === 0) memoryStore.project_expenses = [...DEFAULT_PROJECT_EXPENSES];
   if (!Array.isArray(memoryStore.invoices)) memoryStore.invoices = [];
@@ -2103,6 +2431,108 @@ export const initDb = async () => {
           created_by VARCHAR(255),
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           INDEX idx_expense_project (project_id)
+        )
+      `);
+
+      // Catalog Software Products & SaaS Solutions
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS catalog_products (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          slug VARCHAR(255) NOT NULL UNIQUE,
+          short_description TEXT,
+          description LONGTEXT,
+          category VARCHAR(150),
+          product_type VARCHAR(100),
+          logo_url VARCHAR(500),
+          thumbnail_url VARCHAR(500),
+          banner_url VARCHAR(500),
+          official_website_url VARCHAR(500),
+          application_url VARCHAR(500),
+          login_url VARCHAR(500),
+          demo_url VARCHAR(500),
+          video_demo_url VARCHAR(500),
+          documentation_url VARCHAR(500),
+          support_url VARCHAR(500),
+          pricing_model VARCHAR(100),
+          currency VARCHAR(10) DEFAULT 'INR',
+          starting_price DECIMAL(12,2) DEFAULT 0.00,
+          monthly_price DECIMAL(12,2) DEFAULT 0.00,
+          annual_price DECIMAL(12,2) DEFAULT 0.00,
+          trial_available BOOLEAN DEFAULT FALSE,
+          trial_days INT DEFAULT 0,
+          setup_fee DECIMAL(12,2) DEFAULT 0.00,
+          pricing_notes TEXT,
+          display_price BOOLEAN DEFAULT TRUE,
+          is_featured BOOLEAN DEFAULT FALSE,
+          is_published BOOLEAN DEFAULT FALSE,
+          status VARCHAR(50) DEFAULT 'draft',
+          display_order INT DEFAULT 0,
+          seo_title VARCHAR(255),
+          seo_description TEXT,
+          features JSON,
+          benefits JSON,
+          screenshots JSON,
+          plans JSON,
+          specifications JSON,
+          faqs JSON,
+          demo_options JSON,
+          quotation_options JSON,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_prod_slug (slug),
+          INDEX idx_prod_status (status)
+        )
+      `);
+
+      // Demo Requests Table
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS product_demo_requests (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          request_reference VARCHAR(100) NOT NULL UNIQUE,
+          product_id INT,
+          product_name VARCHAR(255) NOT NULL,
+          customer_name VARCHAR(255) NOT NULL,
+          company_name VARCHAR(255),
+          email VARCHAR(255) NOT NULL,
+          phone VARCHAR(50),
+          preferred_date VARCHAR(50),
+          preferred_time VARCHAR(50),
+          number_of_users VARCHAR(50),
+          requirements TEXT,
+          preferred_contact_method VARCHAR(50),
+          assigned_to VARCHAR(255),
+          status VARCHAR(50) DEFAULT 'new',
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_demo_ref (request_reference)
+        )
+      `);
+
+      // Product Quotation Requests Table
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS product_quotation_requests (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          request_reference VARCHAR(100) NOT NULL UNIQUE,
+          product_id INT,
+          product_name VARCHAR(255) NOT NULL,
+          customer_name VARCHAR(255) NOT NULL,
+          company_name VARCHAR(255),
+          email VARCHAR(255) NOT NULL,
+          phone VARCHAR(50),
+          requirement_type VARCHAR(100),
+          requirements TEXT,
+          requested_features JSON,
+          expected_users VARCHAR(50),
+          integration_requirements TEXT,
+          budget_range VARCHAR(100),
+          expected_timeline VARCHAR(100),
+          notes TEXT,
+          status VARCHAR(50) DEFAULT 'new',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_quote_ref (request_reference)
         )
       `);
 

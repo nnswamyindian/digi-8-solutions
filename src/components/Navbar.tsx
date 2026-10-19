@@ -17,6 +17,7 @@ const divisionLinks = divisions.map(div => ({
 const navLinks = [
   { name: 'Home', path: '/' },
   { name: 'About', path: '/about' },
+  { name: 'Products & SaaS', path: '/products' },
   { name: 'Industries', path: '/industries' },
   { name: 'Portfolio', path: '/portfolio' },
   { name: 'Careers', path: '/career' },

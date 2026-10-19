@@ -893,10 +893,14 @@ router.post('/invoices/:id/send-email', async (req, res) => {
     
     const rzpConfig = await getRazorpayConfig();
     const appBase = resolvePublicBaseUrl(req, settings);
+    const publicDomain = (appBase.includes('localhost') || appBase.includes('127.0.0.1'))
+      ? (process.env.PUBLIC_APP_URL || 'https://digi8solutions.com')
+      : appBase;
     const cleanInvoiceNum = encodeURIComponent(invoice.invoice_number);
-    const paymentUrl = invoice.razorpay_payment_link_url || `${appBase}/pay?inv=${cleanInvoiceNum}`;
+    const invoicePortalUrl = `${publicDomain}/pay?inv=${cleanInvoiceNum}`;
+    const paymentUrl = invoice.razorpay_payment_link_url || invoicePortalUrl;
 
-const pdfData: InvoicePdfData = {
+    const pdfData: InvoicePdfData = {
       invoice_number: invoice.invoice_number,
       invoice_date: invoice.invoice_date,
       due_date: invoice.due_date,
@@ -954,8 +958,8 @@ const pdfData: InvoicePdfData = {
       razorpay_enabled: rzpConfig.enabled,
       razorpay_primary_payment: rzpConfig.primaryPayment,
       razorpay_key_id: rzpConfig.keyId,
-      payment_url: paymentUrl,
-      razorpay_payment_link_url: invoice.razorpay_payment_link_url || paymentUrl,
+      payment_url: invoicePortalUrl,
+      razorpay_payment_link_url: invoice.razorpay_payment_link_url || invoicePortalUrl,
       show_bank_details: snapshot?.show_bank_details !== undefined ? snapshot.show_bank_details : (settings?.show_bank_details !== false),
       show_upi_qr: snapshot?.show_upi_qr !== undefined ? snapshot.show_upi_qr : (settings?.show_upi_qr !== false),
       payment_details: {
@@ -974,7 +978,7 @@ const pdfData: InvoicePdfData = {
         razorpay_enabled: rzpConfig.enabled,
         razorpay_primary_payment: rzpConfig.primaryPayment,
         razorpay_key_id: rzpConfig.keyId,
-        payment_url: paymentUrl,
+        payment_url: invoicePortalUrl,
         show_bank_details: snapshot?.show_bank_details !== undefined ? snapshot.show_bank_details : (settings?.show_bank_details !== false),
         show_upi_qr: snapshot?.show_upi_qr !== undefined ? snapshot.show_upi_qr : (settings?.show_upi_qr !== false)
       },
@@ -991,6 +995,8 @@ const pdfData: InvoicePdfData = {
     const emailSubject = req.body.subject?.trim() || `Invoice ${invoice.invoice_number} from Digi8 Solutions (Total: Rs. ${Number(invoice.grand_total).toLocaleString('en-IN')})`;
     const customMessage = req.body.message ? `<div style="background-color: #1e293b; padding: 14px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #00e5ff; color: #f8fafc; font-size: 14px;"><strong>Message:</strong><br/>${req.body.message.replace(/\n/g, '<br/>')}</div>` : '';
 
+    const isPaidInFull = Number(invoice.balance_amount) <= 0.01;
+
     const htmlBody = `
       <div style="font-family: Arial, -apple-system, sans-serif; max-width: 640px; margin: 0 auto; background-color: #0b101d; color: #f8fafc; border-radius: 12px; border: 1px solid #1e293b; overflow: hidden;">
         <div style="background-color: #070c17; border-bottom: 2px solid #00e5ff; padding: 24px; text-align: left;">
@@ -1002,10 +1008,42 @@ const pdfData: InvoicePdfData = {
           <h2 style="color: #ffffff; margin-top: 0; font-size: 18px;">Tax Invoice #${invoice.invoice_number}</h2>
           <p style="color: #cbd5e1; font-size: 14px; line-height: 1.5;">
             Dear <strong>${customer?.name || invoice.customer_name || 'Client'}</strong>,<br/><br/>
-            Thank you for choosing Digi8 Solutions. Please find attached the official copy of your tax invoice <strong>#${invoice.invoice_number}</strong>.
+            Thank you for partnering with Digi8 Solutions. Please find attached the official copy of your tax invoice <strong>#${invoice.invoice_number}</strong>.
           </p>
 
           ${customMessage}
+
+          <!-- Online View & Instant Settlement Card -->
+          <div style="background: linear-gradient(135deg, #071226 0%, #030712 100%); border: 1.5px solid #00e5ff; border-radius: 12px; padding: 22px; margin: 24px 0; text-align: center; box-shadow: 0 4px 20px rgba(0, 229, 255, 0.12);">
+            <div style="display: inline-block; background-color: rgba(0, 229, 255, 0.12); border: 1px solid rgba(0, 229, 255, 0.35); border-radius: 20px; padding: 5px 14px; margin-bottom: 12px;">
+              <span style="color: #00e5ff; font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;">
+                ${!isPaidInFull ? 'Digital Invoice & Online Payment' : 'Official Digital Invoice Record'}
+              </span>
+            </div>
+            
+            <h3 style="color: #ffffff; margin: 0 0 8px 0; font-size: 18px; font-weight: 700;">
+              ${!isPaidInFull ? 'View Invoice & Pay Online' : 'View Official Invoice & Download Receipt'}
+            </h3>
+            
+            <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 0 0 18px 0; max-width: 480px; margin-left: auto; margin-right: auto;">
+              ${!isPaidInFull 
+                ? 'You can view the full line items, download the official GST invoice PDF, or settle instantly online via <strong>Razorpay (UPI / Credit &amp; Debit Cards / NetBanking)</strong> or Direct Bank Transfer.' 
+                : 'This invoice has been settled in full. You can access the digital verified record and re-download the official stamped receipt PDF anytime.'}
+            </p>
+
+            <!-- Primary Action Button -->
+            <div style="margin: 18px 0 14px 0;">
+              <a href="${invoicePortalUrl}" target="_blank" style="display: inline-block; background-color: #00e5ff; color: #040914; font-weight: 800; font-size: 14px; padding: 13px 32px; border-radius: 8px; text-decoration: none; letter-spacing: 0.3px; box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);">
+                ${!isPaidInFull ? `Pay Rs. ${Number(invoice.balance_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })} / View PDF &rarr;` : 'View Digital Invoice & Download PDF &rarr;'}
+              </a>
+            </div>
+
+            <!-- Direct Plain Link for Email Clients with Button Blocking -->
+            <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid #1e293b; font-size: 12px; color: #64748b; word-break: break-all;">
+              <span style="color: #94a3b8; font-weight: 600;">Direct Invoice &amp; Payment Link:</span><br/>
+              <a href="${invoicePortalUrl}" target="_blank" style="color: #00e5ff; text-decoration: underline; font-family: monospace; font-size: 12px;">${invoicePortalUrl}</a>
+            </div>
+          </div>
 
           <!-- Financial Summary Card -->
           <div style="background-color: #111827; border: 1px solid #1f2937; border-radius: 10px; padding: 18px; margin: 20px 0;">
@@ -1038,37 +1076,28 @@ const pdfData: InvoicePdfData = {
             </table>
           </div>
 
-          ${rzpConfig.enabled && Number(invoice.balance_amount) > 0 ? `
-          <!-- Razorpay Online Payment Box -->
-          <div style="background-color: #070c17; border: 1px solid #00e5ff; border-radius: 8px; padding: 18px; margin: 20px 0; text-align: center;">
-            <h4 style="color: #00e5ff; margin: 0 0 8px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Pay Securely Online via Razorpay</h4>
-            <p style="color: #cbd5e1; font-size: 12px; margin: 0 0 14px 0;">Instant receipt and automatic invoice reconciliation. Pay using UPI (GPay/PhonePe/Paytm), Cards, or Net Banking.</p>
-            <a href="${paymentUrl}" style="display: inline-block; background-color: #00e5ff; color: #040914; font-weight: bold; font-size: 13px; padding: 12px 28px; border-radius: 6px; text-decoration: none;">
-              Pay Rs. ${Number(invoice.balance_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })} Online Now &rarr;
-            </a>
-          </div>
-          ` : ''}
-
           <!-- Direct Coordinates -->
           <div style="background-color: #070c17; border: 1px dashed #00e5ff; border-radius: 8px; padding: 16px; margin: 20px 0;">
-            <h4 style="color: #00e5ff; margin: 0 0 8px 0; font-size: 13px; text-transform: uppercase;">Direct Bank & UPI Payment Coordinates:</h4>
-            <p style="color: #cbd5e1; font-size: 12px; margin: 4px 0; line-height: 1.5;">
-              <strong>Bank:</strong> ${snapshot?.bank_name || 'HDFC Bank Ltd'}<br/>
-              <strong>Account Name:</strong> ${snapshot?.bank_account_holder || 'Digi8 Solutions Private Limited'}<br/>
-              <strong>Account Number:</strong> <span style="font-family: monospace; color: #ffffff;">${snapshot?.bank_account_number || '50200098765432'}</span><br/>
-              <strong>IFSC Code:</strong> <span style="font-family: monospace; color: #ffffff;">${snapshot?.bank_ifsc || 'HDFC0000123'}</span><br/>
-              <strong>UPI ID:</strong> <span style="font-family: monospace; color: #00e5ff;">${snapshot?.upi_id || 'digi8solutions@hdfcbank'}</span>
+            <h4 style="color: #00e5ff; margin: 0 0 8px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Direct Bank &amp; UPI Transfer Coordinates:</h4>
+            <p style="color: #cbd5e1; font-size: 12px; margin: 4px 0; line-height: 1.6;">
+              <strong>Bank:</strong> ${snapshot?.bank_name || 'State Bank of India'}<br/>
+              <strong>Account Name / Beneficiary:</strong> ${snapshot?.bank_account_holder || 'N Narayana Swamy'}<br/>
+              <strong>Account Number:</strong> <span style="font-family: monospace; color: #ffffff; font-weight: bold; background: #111827; padding: 2px 6px; border-radius: 4px;">${snapshot?.bank_account_number || '43307998455'}</span><br/>
+              <strong>IFSC Code:</strong> <span style="font-family: monospace; color: #ffffff; font-weight: bold; background: #111827; padding: 2px 6px; border-radius: 4px;">${snapshot?.bank_ifsc || 'SBIN0004189'}</span><br/>
+              <strong>Branch:</strong> ${snapshot?.bank_branch || 'TADIPATRI BAZAR'}<br/>
+              <strong>UPI ID:</strong> <span style="font-family: monospace; color: #00e5ff; font-weight: bold; background: #111827; padding: 2px 6px; border-radius: 4px;">${snapshot?.upi_id || '9666252024@sbi'}</span>
             </p>
           </div>
 
           <p style="color: #94a3b8; font-size: 12px; line-height: 1.5; margin-top: 20px;">
-            📎 <strong>Attachment:</strong> A PDF copy (<strong>${safeFilename}</strong>) has been generated and attached to this email. You can download and keep it for your GST and accounting records.
+            📎 <strong>Attachment:</strong> A PDF copy (<strong>${safeFilename}</strong>) has been generated and attached to this email. You can download and keep it for your GST and accounting records, or access it anytime via the secure link above.
           </p>
         </div>
 
         <div style="background-color: #070c17; border-top: 1px solid #1e293b; padding: 16px; text-align: center; font-size: 11px; color: #64748b;">
-          &copy; ${new Date().getFullYear()} Digi8 Solutions Private Limited. All rights reserved.<br/>
-          Mindspace Tech Park, Malad West, Mumbai, Maharashtra 400064 | GSTIN: 27AABCD1234F1Z5
+          &copy; ${new Date().getFullYear()} ${settings?.company_name || 'Digi8 Solutions Private Limited'}. All rights reserved.<br/>
+          ${settings?.company_address || 'T-Hub, Inorbit Mall Rd, Vittal Rao Nagar, Madhapur, Hyderabad, Telangana 500032'}
+          ${settings?.company_gstin ? ` | GSTIN: ${settings.company_gstin}` : ''}
         </div>
       </div>
     `;

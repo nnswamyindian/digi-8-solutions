@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, FileText, Briefcase, MessageSquare, Settings,
   LogOut, Menu, X, BarChart2, Tag, BookOpen, Bell, DollarSign, Shield, Ticket,
   UserCheck, Calendar, Mail, Search, ArrowLeft, ChevronRight, Code2, TrendingUp,
-  Receipt
+  Receipt, Package
 } from "lucide-react";
 import { buildApiUrl, logoutAdmin } from "../../lib/api";
 import CommandPalette from "../../components/admin/ats/CommandPalette";
@@ -38,6 +38,8 @@ const SUPER_AND_SUB: AdminRole[] = ["Super Admin", "Sub Admin"];
 
 const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard",             href: "/admin/dashboard",               roles: ALL_ROLES },
+  // ── Products & SaaS Solutions ──
+  { icon: Package,         label: "Products & SaaS",       href: "/admin/products",                roles: ["Super Admin", "Sub Admin", "Marketing Executive", "Sales Executive", "Sales Manager", "Developer"] },
   // ── Billing & Invoices ──
   { icon: Receipt,         label: "Billing & Invoices",    href: "/admin/invoices",                roles: ["Super Admin", "Sub Admin", "Sales Executive", "Sales Manager"] },
   // ── ATS / Careers ──
@@ -67,12 +69,12 @@ const navItems: NavItem[] = [
 // Allowed paths per role (for redirect guard)
 const roleAllowedPrefixes: Record<AdminRole, string[]> = {
   "Super Admin":           ["/admin"],
-  "Sub Admin":             ["/admin/dashboard", "/admin/invoices", "/admin/careers", "/admin/tickets", "/admin/leads", "/admin/quotes", "/admin/projects", "/admin/contacts", "/admin/testimonials", "/admin/blog", "/admin/pricing", "/admin/analytics"],
-  "Sales Executive":       ["/admin/dashboard", "/admin/invoices", "/admin/leads"],
-  "Sales Manager":         ["/admin/dashboard", "/admin/invoices", "/admin/leads", "/admin/analytics"],
+  "Sub Admin":             ["/admin/dashboard", "/admin/products", "/admin/invoices", "/admin/careers", "/admin/tickets", "/admin/leads", "/admin/quotes", "/admin/projects", "/admin/contacts", "/admin/testimonials", "/admin/blog", "/admin/pricing", "/admin/analytics"],
+  "Sales Executive":       ["/admin/dashboard", "/admin/products", "/admin/invoices", "/admin/leads"],
+  "Sales Manager":         ["/admin/dashboard", "/admin/products", "/admin/invoices", "/admin/leads", "/admin/analytics"],
   "HR Admin":              ["/admin/dashboard", "/admin/careers"],
-  "Developer":             ["/admin/dashboard", "/admin/tickets", "/admin/projects", "/admin/settings"],
-  "Marketing Executive":   ["/admin/dashboard", "/admin/leads", "/admin/quotes", "/admin/contacts", "/admin/testimonials", "/admin/blog"],
+  "Developer":             ["/admin/dashboard", "/admin/products", "/admin/tickets", "/admin/projects", "/admin/settings"],
+  "Marketing Executive":   ["/admin/dashboard", "/admin/products", "/admin/leads", "/admin/quotes", "/admin/contacts", "/admin/testimonials", "/admin/blog"],
   "Database Admin":        ["/admin/dashboard"],
 };
 
