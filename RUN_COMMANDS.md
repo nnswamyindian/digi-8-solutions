@@ -76,8 +76,9 @@ npm run dev
 
 ### 1. Super Admin Login
 - **URL:** [http://localhost:5173/admin](http://localhost:5173/admin)
-- **Email:** `digi8solutions@gmail.com`
-- **Auth Type:** One-Time Passcode (OTP). In development mode, the OTP is generated and displayed on screen/console or dispatched via SMTP.
+- **ID / Email:** `digi8solutions@gmail.com`
+- **Password:** `Digi8Solutions@0987`
+- **Auth Type:** Password Login (Default) or 6-digit OTP Verification.
 
 ### 2. Staff Accounts (Direct Login)
 - **URL:** [http://localhost:5173/admin/staff](http://localhost:5173/admin/staff)

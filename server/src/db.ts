@@ -1025,10 +1025,10 @@ export const loadPersistentStore = (): PersistentDbStore => {
       id: 2,
       name: 'Digi-8 Official Admin',
       email: officialGmail,
-      password_hash: '',
+      password_hash: '$2b$10$qJSnhrOVY2vUSkMOa9qehuwE7M3oupo1/2yeLgDkTTkcwufpLy.di',
       role: 'Super Admin',
       status: 'active',
-      auth_provider: 'google',
+      auth_provider: 'local',
       allowed_modules: ['*'],
       created_at: new Date().toISOString()
     });

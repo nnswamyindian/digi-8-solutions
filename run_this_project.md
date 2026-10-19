@@ -57,7 +57,7 @@ npm run dev
 ### Access Portals & Links
 
 - **Main Website:** [http://localhost:5173](http://localhost:5173)
-- **Super Admin Portal (OTP):** [http://localhost:5173/admin](http://localhost:5173/admin) *(Email: `digi8solutions@gmail.com`)*
+- **Super Admin Portal:** [http://localhost:5173/admin](http://localhost:5173/admin) *(Email: `digi8solutions@gmail.com` / Password: `Digi8Solutions@0987`)*
 - **Staff Login Portal:** [http://localhost:5173/admin/staff](http://localhost:5173/admin/staff) *(E.g. `subadmin@digi8solutions.com` / `SubAdmin@2026`)*
 - **Invoice Management:** [http://localhost:5173/admin/invoices](http://localhost:5173/admin/invoices)
 - **Project Financials:** [http://localhost:5173/admin/projects](http://localhost:5173/admin/projects)

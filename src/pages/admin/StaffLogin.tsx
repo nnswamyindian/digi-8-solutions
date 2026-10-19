@@ -17,7 +17,7 @@ export default function StaffLogin() {
     if (token && userStr) {
       try {
         const u = JSON.parse(userStr);
-        if (u && u.role && u.role !== 'Super Admin') {
+        if (u && u.role) {
           navigate("/admin/dashboard", { replace: true });
         }
       } catch {}

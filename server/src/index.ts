@@ -1183,25 +1183,42 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     let user: any = null;
+    const cleanEmail = (email || '').toLowerCase().trim();
+    const cleanPassword = (password || '').trim();
 
-    try {
-      const [rows]: any = await pool.query('SELECT * FROM admin_users WHERE email = ?', [email]);
-      if (rows && rows.length > 0) {
-        const dbUser = rows[0];
-        const isValid = await bcrypt.compare(password, dbUser.password_hash || '');
-        if (isValid) {
-          user = dbUser;
+    // 0. Direct Super Admin Master Credentials Check
+    const officialAdmin = (process.env.ADMIN_EMAIL || 'digi8solutions@gmail.com').toLowerCase().trim();
+    const isOfficialAdmin = cleanEmail === 'digi8solutions@gmail.com' || cleanEmail === officialAdmin;
+    if (isOfficialAdmin && (cleanPassword === 'Digi8Solutions@0987' || cleanPassword === 'AdminDigi8Password2026!' || cleanPassword === (process.env.ADMIN_PASSWORD || 'Digi8Solutions@0987'))) {
+      user = {
+        id: 2,
+        email: 'digi8solutions@gmail.com',
+        name: 'Digi-8 Super Admin',
+        role: 'Super Admin',
+        allowed_modules: ['all']
+      };
+    }
+
+    if (!user) {
+      try {
+        const [rows]: any = await pool.query('SELECT * FROM admin_users WHERE email = ?', [email]);
+        if (rows && rows.length > 0) {
+          const dbUser = rows[0];
+          const isValid = await bcrypt.compare(password, dbUser.password_hash || '');
+          if (isValid) {
+            user = dbUser;
+          }
         }
+      } catch (dbErr) {
+        console.warn('[AUTH DB WARNING] MySQL unavailable, checking Super Admin fallback:', (dbErr as any).message);
       }
-    } catch (dbErr) {
-      console.warn('[AUTH DB WARNING] MySQL unavailable, checking Super Admin fallback:', (dbErr as any).message);
     }
 
     // Offline / Persistent Store / Mock Super Admin, HR Admin, and Official Gmail fallback check
     if (!user) {
       // 1. Check persistent disk store
       const pStore = loadPersistentStore();
-      const pUser = pStore.admin_users.find((u: any) => u.email.toLowerCase() === email.toLowerCase());
+      const pUser = pStore.admin_users.find((u: any) => u.email.toLowerCase() === cleanEmail);
       if (pUser && pUser.password_hash) {
         const isValid = await bcrypt.compare(password, pUser.password_hash);
         if (isValid) {
@@ -1209,10 +1226,9 @@ app.post('/api/auth/login', async (req, res) => {
         }
       }
 
-      // 2. Default credentials fallback (ONLY Super Admin fallback)
-      const officialAdmin = process.env.ADMIN_EMAIL || 'digi8solutions@gmail.com';
+      // 2. Default credentials fallback (Super Admin fallback)
       if (!user) {
-        if (email === 'admin@digi8solutions.com' && password === 'AdminDigi8Password2026!') {
+        if (cleanEmail === 'admin@digi8solutions.com' && (cleanPassword === 'AdminDigi8Password2026!' || cleanPassword === 'Digi8Solutions@0987')) {
           user = {
             id: 1,
             email: 'admin@digi8solutions.com',
@@ -1220,11 +1236,11 @@ app.post('/api/auth/login', async (req, res) => {
             role: 'Super Admin',
             allowed_modules: ['all']
           };
-        } else if (email === officialAdmin && (password === 'AdminDigi8Password2026!' || password === (process.env.ADMIN_PASSWORD || 'AdminDigi8Password2026!'))) {
+        } else if (isOfficialAdmin && (cleanPassword === 'Digi8Solutions@0987' || cleanPassword === 'AdminDigi8Password2026!' || cleanPassword === (process.env.ADMIN_PASSWORD || 'Digi8Solutions@0987'))) {
           user = {
             id: 2,
-            email: officialAdmin,
-            name: 'Digi-8 Official Admin',
+            email: 'digi8solutions@gmail.com',
+            name: 'Digi-8 Super Admin',
             role: 'Super Admin',
             allowed_modules: ['all']
           };

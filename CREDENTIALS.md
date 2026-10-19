@@ -1,25 +1,25 @@
 # DIGI8 SOLUTIONS — LIVE ACCESS & CREDENTIALS GUIDE
 
-## 1. Super Admin Authentication (Database-Verified OTP)
+## 1. Super Admin Authentication (Password & OTP)
 
-The `/admin` gateway is exclusively secured by **One-Time Passcode (OTP)** authentication for the Super Administrator. All passwords and alternative logins have been removed for maximum security.
+The `/admin` gateway provides direct **Password Login** and database-backed **OTP Verification** for the Super Administrator.
 
 | Parameter | Value |
 | :--- | :--- |
 | **Login Portal** | [http://localhost:5173/admin](http://localhost:5173/admin) |
-| **Super Admin Email** | `digi8solutions@gmail.com` |
-| **Security Mechanism** | 6-Digit Passcode dispatched directly to `digi8solutions@gmail.com` via Gmail SMTP |
-| **Database Verification** | Verified against `admin_otps` & `admin_users` tables in the database |
-| **Session Role** | Super Administrator (Full Executive Authority) |
-| **Passcode Validity** | 10 Minutes per OTP request |
+| **Super Admin ID / Email** | `digi8solutions@gmail.com` |
+| **Super Admin Password** | `Digi8Solutions@0987` |
+| **Alternative Verification** | 6-Digit Passcode dispatched to `digi8solutions@gmail.com` via Gmail SMTP |
+| **Session Role** | Super Administrator (Full Executive Authority across all modules) |
 
 ### How to Sign In:
 1. Open [http://localhost:5173/admin](http://localhost:5173/admin).
-2. The authorized Super Admin email (`digi8solutions@gmail.com`) is displayed.
-3. Click **"Send OTP to digi8solutions@gmail.com"**.
-4. Check your Gmail inbox for the 6-digit security code (or use the auto-detected code hint in local dev mode).
-5. Enter the 6-digit passcode and click **"Verify OTP & Access Admin Panel"**.
-6. You are immediately verified against the database and granted Super Admin dashboard access.
+2. Enter your credentials:
+   - **Email:** `digi8solutions@gmail.com`
+   - **Password:** `Digi8Solutions@0987`
+3. Click **"Sign In to Admin Panel"**.
+4. You are immediately granted access to the Executive Dashboard.
+*(Alternatively, switch to the "OTP Verification" tab to receive a 6-digit passcode via email).*
 
 ---
 
